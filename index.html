@@ -6,8 +6,7 @@
 <title>なかやま商店街 デジタルガイドマップ</title>
 <style>
   :root{
-    --bg:#f3e7cc; --ink:#5b4a3a; --paper:#fffaf0; --tag-line:#d8c4a0;
-    --road:#ece0c4; --road-line:#d3c096; --water:#bfe3ef; --park:#cbe7a4;
+    --bg:#f3e7cc; --ink:#5b4a3a; --paper:#fffaf0; --line:#d8c4a0;
     --c-medical:#2a9488; --c-life:#4a9d3f; --c-food:#e8902f; --c-edu:#7e7ad0;
   }
   *{box-sizing:border-box}
@@ -18,82 +17,66 @@
     background:var(--bg); color:var(--ink); -webkit-text-size-adjust:100%;
   }
   header{ text-align:center; padding:16px 16px 2px; }
-  header h1{ margin:0; font-size:clamp(18px,4.6vw,27px); letter-spacing:.02em; color:#6b5036 }
+  header h1{ margin:0; font-size:clamp(18px,4.6vw,27px); color:#6b5036 }
   header p{ margin:6px 12px 0; font-size:clamp(11px,3vw,13px); color:#9a8763 }
 
-  .filters{
-    display:flex; flex-wrap:wrap; gap:7px; justify-content:center;
-    padding:11px 12px 6px; max-width:760px; margin:0 auto;
-  }
-  .chip-f{
-    border:2px solid currentColor; background:#fffaf0; color:var(--ink);
+  .filters{ display:flex; flex-wrap:wrap; gap:7px; justify-content:center;
+    padding:11px 12px 4px; max-width:760px; margin:0 auto; }
+  .hint{ text-align:center; font-size:clamp(10px,2.8vw,12px); color:#9a8763; margin:2px 16px 0 }
+  .chip-f{ border:2px solid currentColor; background:#fffaf0; color:var(--ink);
     border-radius:999px; padding:5px 12px; font-size:clamp(11px,3vw,12.5px); font-weight:700;
     cursor:pointer; display:inline-flex; align-items:center; gap:6px; user-select:none;
-    transition:transform .08s, opacity .15s;
-  }
+    transition:transform .08s, background .15s; }
   .chip-f:active{ transform:scale(.95) }
   .chip-f .dot{ width:10px; height:10px; border-radius:50%; background:currentColor }
-  .chip-f[aria-pressed="false"]{ opacity:.4 }
+  .chip-f[aria-pressed="true"]{ background:currentColor }
+  .chip-f[aria-pressed="true"] .lbl{ color:#fff } .chip-f[aria-pressed="true"] .dot{ background:#fff }
   .chip-f.c-medical{ color:var(--c-medical) } .chip-f.c-life{ color:var(--c-life) }
   .chip-f.c-food{ color:var(--c-food) } .chip-f.c-edu{ color:var(--c-edu) }
 
-  /* マップ：幅に連動して全要素がスケール（container query） */
-  .map-wrap{
-    position:relative; width:100%; max-width:760px; margin:8px auto;
-    aspect-ratio:1000/1500; border:3px solid #d8c4a0; border-radius:16px;
-    overflow:hidden; box-shadow:0 8px 24px rgba(120,100,60,.2); background:var(--bg);
-    container-type:inline-size;
-  }
-  .map-bg{ position:absolute; inset:0; width:100%; height:100% }
+  /* マップ：公式画像を土台に（位置関係＝原図と一致） */
+  .map-wrap{ position:relative; width:100%; max-width:720px; margin:8px auto;
+    aspect-ratio:977/1339; border:3px solid var(--line); border-radius:14px;
+    overflow:hidden; box-shadow:0 8px 24px rgba(120,100,60,.2); background:#fff;
+    container-type:inline-size; }
+  .map-wrap img.base{ position:absolute; inset:0; width:100%; height:100%; object-fit:fill; }
 
-  /* 店舗ラベル（暖かい紙タグ＋可愛いアイコン） */
-  .store{
-    position:absolute; transform:translate(-50%,-50%) rotate(var(--r,0deg));
-    display:inline-flex; align-items:center; gap:1.1cqw; white-space:nowrap;
-    background:var(--paper); border:1.4px solid var(--tag-line); border-radius:2.2cqw;
-    padding:1cqw 1.8cqw 1cqw 1cqw; font-size:2cqw; font-weight:700; color:var(--ink);
-    cursor:pointer; box-shadow:0 1.6px 3.4px rgba(110,85,40,.22); z-index:2; line-height:1.05;
-    transition:box-shadow .12s, filter .12s;
-  }
-  .store .ic{ width:3.4cqw; height:3.4cqw; flex:none; display:grid; place-items:center;
-    border-radius:50%; }
-  .store .ic svg{ width:74%; height:74% }
-  .store.c-medical .ic{ background:#d6f1ec } .store.c-life .ic{ background:#dbf0cf }
-  .store.c-food .ic{ background:#fce5cb } .store.c-edu .ic{ background:#e3e1fa }
-  .store:hover,.store:focus-visible{ box-shadow:0 4px 10px rgba(110,85,40,.4);
-    filter:brightness(1.04); outline:none; z-index:8; }
-  .store:hover{ transform:translate(-50%,-50%) rotate(var(--r,0deg)) scale(1.08) }
-  .store.c-medical{ border-color:#9ad6cd } .store.c-life{ border-color:#a7d691 }
-  .store.c-food{ border-color:#f0c489 } .store.c-edu{ border-color:#b9b6ec }
-  .store.hidden{ display:none }
+  /* クリック領域（透明＝文字を隠さない） */
+  .hit{ position:absolute; transform:translate(-50%,-50%);
+    width:15cqw; height:2.2cqw; border-radius:1.2cqw; cursor:pointer;
+    background:transparent; border:0; padding:0; z-index:2; }
+  .hit.compact{ width:13cqw; height:1.7cqw }
+  .hit::before{ content:""; position:absolute; inset:0; border-radius:inherit;
+    background:transparent; transition:background .12s, box-shadow .12s; }
+  .hit:hover::before,.hit:focus-visible::before{ background:rgba(255,214,120,.34);
+    box-shadow:0 0 0 2px rgba(210,150,40,.5); outline:none; }
+  /* カテゴリ強調（チップON時に光る） */
+  .hit.glow::before{ background:var(--gl,rgba(255,214,120,.2));
+    box-shadow:0 0 0 2.5px var(--gc,#e8902f); animation:gp 1.6s infinite; }
+  @keyframes gp{ 0%,100%{ box-shadow:0 0 0 2px var(--gc) } 50%{ box-shadow:0 0 0 4px var(--gc) } }
+  .hit.c-medical{ --gc:#2a9488; --gl:rgba(42,148,136,.18) }
+  .hit.c-life{ --gc:#4a9d3f; --gl:rgba(74,157,63,.18) }
+  .hit.c-food{ --gc:#e8902f; --gl:rgba(232,144,47,.2) }
+  .hit.c-edu{ --gc:#7e7ad0; --gl:rgba(126,122,208,.2) }
+  body.debug .hit::before{ background:rgba(255,90,90,.18); box-shadow:0 0 0 1px rgba(220,0,0,.5) }
+  body.debug .hit .num{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    font-size:9px; color:#a00; font-weight:700 }
+  .hit .num{ display:none } body.debug .hit .num{ display:block }
 
-  /* イベント案内 */
-  .events{
-    position:absolute; left:3%; top:66%; width:31%; transform:translateY(-50%);
-    background:rgba(255,250,240,.94); border:1.4px solid var(--tag-line);
-    border-radius:2.4cqw; padding:1.6cqw 1.8cqw; font-size:1.7cqw; line-height:1.55; z-index:1;
-    box-shadow:0 2px 6px rgba(110,85,40,.16); color:#6b5444;
-  }
-  .events b{ display:block; font-size:1.95cqw; color:#d08a2e; margin-bottom:.5cqw }
-  .events ul{ margin:0; padding-left:2.4cqw } .events li{ margin:.2cqw 0 }
-
-  /* 子供の声ポップアップ */
-  .popup{
-    position:absolute; z-index:20; width:212px; max-width:76vw;
-    background:#fffaf0; border:2px solid var(--tag-line); border-radius:14px;
+  /* ポップアップ */
+  .popup{ position:absolute; z-index:20; width:212px; max-width:76vw;
+    background:#fffaf0; border:2px solid var(--line); border-radius:14px;
     box-shadow:0 12px 28px rgba(80,60,30,.34); padding:11px 12px 12px;
     opacity:0; pointer-events:none; transition:opacity .14s;
-    transform:translate(-50%,calc(-100% - 16px));
-  }
-  .popup.below{ transform:translate(-50%,16px) }
+    transform:translate(-50%,calc(-100% - 14px)); }
+  .popup.below{ transform:translate(-50%,14px) }
   .popup.show{ opacity:1; pointer-events:auto }
   .popup::after{ content:""; position:absolute; left:50%; bottom:-11px; transform:translateX(-50%);
     border:10px solid transparent; border-top-color:#fffaf0; filter:drop-shadow(0 2px 1px rgba(80,60,30,.18)); }
   .popup.below::after{ bottom:auto; top:-11px; border-top-color:transparent; border-bottom-color:#fffaf0;
     filter:drop-shadow(0 -2px 1px rgba(80,60,30,.18)); }
   .popup .cat{ font-size:11px; font-weight:700; color:#fff; padding:2px 9px; border-radius:999px; display:inline-flex; align-items:center; gap:5px; margin-bottom:7px }
-  .popup .cat .ic{ width:15px; height:15px; display:grid; place-items:center }
-  .popup .cat .ic svg{ width:100%; height:100% }
+  .popup .cat .ic{ width:15px; height:15px } .popup .cat .ic svg{ width:100%; height:100% }
   .popup h3{ margin:0 0 7px; font-size:15.5px; color:#5b4a3a }
   .popup .voices{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px }
   .popup .voices:empty{ display:none }
@@ -110,80 +93,24 @@
 
 <header>
   <h1>🏘 なかやま商店街 デジタルガイドマップ</h1>
-  <p>こどもやファミリーが元気いっぱい過ごす街 — お店をタップしてのぞいてみよう！</p>
+  <p>こどもやファミリーが元気いっぱい過ごす街</p>
 </header>
 
 <div class="filters" id="filters">
-  <button class="chip-f c-medical" data-cat="medical" aria-pressed="true"><i class="dot"></i>健康・美容・医療</button>
-  <button class="chip-f c-life"    data-cat="life"    aria-pressed="true"><i class="dot"></i>生活・日用・企業</button>
-  <button class="chip-f c-food"    data-cat="food"    aria-pressed="true"><i class="dot"></i>食べる・飲む・食料</button>
-  <button class="chip-f c-edu"     data-cat="edu"     aria-pressed="true"><i class="dot"></i>保育・教育</button>
+  <button class="chip-f c-medical" data-cat="medical" aria-pressed="false"><i class="dot"></i><span class="lbl">健康・美容・医療</span></button>
+  <button class="chip-f c-life"    data-cat="life"    aria-pressed="false"><i class="dot"></i><span class="lbl">生活・日用・企業</span></button>
+  <button class="chip-f c-food"    data-cat="food"    aria-pressed="false"><i class="dot"></i><span class="lbl">食べる・飲む・食料</span></button>
+  <button class="chip-f c-edu"     data-cat="edu"     aria-pressed="false"><i class="dot"></i><span class="lbl">保育・教育</span></button>
 </div>
+<p class="hint">お店をタップすると詳細＆サイトへ。カテゴリを押すとその種類のお店が光ります。スマホは指で拡大できます。</p>
 
 <div class="map-wrap" id="mapWrap">
-  <svg class="map-bg" viewBox="0 0 1000 1500" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <rect x="0" y="0" width="1000" height="1500" fill="#f3e7cc"/>
-    <!-- 泉ヶ岳 -->
-    <g fill="#cfe3b4" stroke="#bcd69a" stroke-width="2" stroke-linejoin="round">
-      <path d="M-20,96 L70,18 L160,96 Z"/><path d="M120,96 L235,22 L350,96 Z"/>
-      <path d="M310,96 L420,28 L530,96 Z"/><path d="M620,96 L725,22 L830,96 Z"/>
-      <path d="M790,96 L905,26 L1020,96 Z"/>
-    </g>
-    <text x="500" y="62" text-anchor="middle" font-size="30" fill="#9bb87a" font-weight="bold" letter-spacing="6">泉ヶ岳</text>
-    <!-- 道路 -->
-    <rect x="452" y="96" width="96" height="1306" fill="#ece0c4"/>
-    <rect x="0" y="520" width="1000" height="82" fill="#ece0c4"/>
-    <rect x="0" y="1006" width="1000" height="82" fill="#ece0c4"/>
-    <line x1="500" y1="96" x2="500" y2="1402" stroke="#d3c096" stroke-width="3" stroke-dasharray="16 16"/>
-    <line x1="0" y1="561" x2="1000" y2="561" stroke="#d3c096" stroke-width="3" stroke-dasharray="16 16"/>
-    <line x1="0" y1="1047" x2="1000" y2="1047" stroke="#d3c096" stroke-width="3" stroke-dasharray="16 16"/>
-    <!-- 木立 -->
-    <g id="trees"></g>
-    <!-- 公園 -->
-    <g>
-      <rect x="40" y="1168" width="306" height="172" rx="24" fill="#cbe7a4"/>
-      <circle cx="100" cy="1218" r="23" fill="#9ccc6a"/><circle cx="172" cy="1250" r="27" fill="#9ccc6a"/><circle cx="252" cy="1214" r="21" fill="#9ccc6a"/>
-      <text x="193" y="1322" text-anchor="middle" font-size="20" fill="#6f9a4d" font-weight="bold">なかやま子ども公園</text>
-    </g>
-    <g>
-      <rect x="720" y="978" width="244" height="150" rx="22" fill="#cbe7a4"/>
-      <circle cx="782" cy="1024" r="21" fill="#9ccc6a"/><circle cx="864" cy="1050" r="25" fill="#9ccc6a"/>
-      <text x="842" y="1108" text-anchor="middle" font-size="17" fill="#6f9a4d" font-weight="bold">たきみら公園</text>
-    </g>
-    <!-- 川（梅田川） -->
-    <path d="M0,1402 C250,1372 350,1452 1000,1412 L1000,1500 L0,1500 Z" fill="#bfe3ef"/>
-    <path d="M0,1402 C250,1372 350,1452 1000,1412" stroke="#a6d6e6" stroke-width="6" fill="none"/>
-    <text x="300" y="1472" text-anchor="middle" font-size="18" fill="#6fa6bd" font-weight="bold">梅田川</text>
-    <text x="930" y="1456" text-anchor="middle" font-size="13" fill="#9ab0bd">至 北仙台 ▶</text>
-    <!-- 神社・パワースポット -->
-    <g>
-      <rect x="800" y="602" width="152" height="112" rx="14" fill="#f7ead0" stroke="#e0cba6" stroke-width="2"/>
-      <text x="876" y="586" text-anchor="middle" font-size="32">⛩️</text>
-      <text x="876" y="652" text-anchor="middle" font-size="15" fill="#9a6b3b" font-weight="bold">目の神様</text>
-      <text x="876" y="676" text-anchor="middle" font-size="11" fill="#b58a5b">中山鳥瀧不動尊</text>
-      <text x="876" y="697" text-anchor="middle" font-size="10.5" fill="#cf9a52">⭐パワースポット</text>
-    </g>
-    <!-- 区域ラベル -->
-    <text x="232" y="300" text-anchor="middle" font-size="16" fill="#cebd96">中山一丁目</text>
-    <text x="762" y="300" text-anchor="middle" font-size="16" fill="#cebd96">中山二丁目</text>
-    <text x="500" y="1380" text-anchor="middle" font-size="12" fill="#cebd96">▲ 中山駅・バス通り方面</text>
-  </svg>
-
-  <div class="events">
-    <b>🎏 なかやまのイベント</b>
-    <ul>
-      <li>花の植栽（春・秋）</li>
-      <li>街道市（第3土曜）</li>
-      <li>七夕まつり（8/6-8）</li>
-      <li>街道市まつり（10月）</li>
-      <li>スノーマンまつり（冬）</li>
-    </ul>
-  </div>
-  <!-- 店舗はJSで生成 -->
+  <img class="base" src="map.png" alt="なかやま商店街マップ（なかやま商店街振興組合）">
+  <!-- クリック領域はJSで生成 -->
 </div>
 
 <p class="note">
-  ※ デジタル描画版。店名・カテゴリ・位置は手描きマップからの読み取り（暫定）です。スマホは指で拡大できます。<br>
+  ※ 公式マップ画像を土台にした版（位置関係は原図と一致）。店名・カテゴリ・コメントは暫定です。<br>
   店舗・URL・子供コメント・位置はファイル先頭の <code>STORES</code> を編集してください。URL未設定の店は「サイト準備中」と表示されます。
 </p>
 
@@ -196,18 +123,16 @@
 </div>
 
 <script>
-/* かわいいアイコン（カテゴリ別・茶色線＋カテゴリ色） */
 const ICONS = {
-  medical:`<svg viewBox="0 0 24 24" fill="none" stroke="#2a9488" stroke-width="3" stroke-linecap="round"><path d="M12 6.5v11M6.5 12h11"/></svg>`,
-  life:`<svg viewBox="0 0 24 24" fill="none" stroke="#7a6248" stroke-width="2" stroke-linejoin="round"><path d="M3.5 11L12 4.5 20.5 11" stroke="#4a9d3f"/><path d="M6 10v8.5h12V10"/><rect x="10" y="13" width="4" height="5.5"/></svg>`,
-  food:`<svg viewBox="0 0 24 24" fill="none" stroke="#7a6248" stroke-width="2" stroke-linejoin="round"><path d="M12 4.5C9.3 4.5 5.5 16 5.5 18a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1c0-2-3.8-13.5-6.5-13.5z" fill="#fff"/><rect x="9" y="14.5" width="6" height="4.5" rx="1.2" fill="#6b5444" stroke="none"/></svg>`,
-  edu:`<svg viewBox="0 0 24 24" fill="none" stroke="#7a6248" stroke-width="2" stroke-linejoin="round"><path d="M2.5 9.5L12 5.5l9.5 4-9.5 4z" fill="#fff"/><path d="M6.5 11.6v4.2c0 1 2.6 2.4 5.5 2.4s5.5-1.4 5.5-2.4v-4.2" stroke="#7e7ad0"/></svg>`,
+  medical:`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M12 6.5v11M6.5 12h11"/></svg>`,
+  life:`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M3.5 11L12 4.5 20.5 11"/><path d="M6 10v8.5h12V10"/></svg>`,
+  food:`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M12 4.5C9.3 4.5 5.5 16 5.5 18a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1c0-2-3.8-13.5-6.5-13.5z"/><rect x="9" y="14.5" width="6" height="4.5" rx="1.2" fill="#fff" stroke="none"/></svg>`,
+  edu:`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M2.5 9.5L12 5.5l9.5 4-9.5 4z"/><path d="M6.5 11.6v4.2c0 1 2.6 2.4 5.5 2.4s5.5-1.4 5.5-2.4v-4.2"/></svg>`,
 };
 
 /* =========================================================================
-   ▼▼▼ ここだけ編集すれば中身が変わります ▼▼▼
-   cat: medical/life/food/edu   url: 店舗サイトURL（未定は "#"）
-   x,y: マップ上の位置（0〜100％）   voices: 子供の声（現状サンプル）
+   ▼▼▼ 編集箇所 ▼▼▼  x,y は公式マップ画像上の位置（0〜100％）＝原図に一致
+   cat: medical/life/food/edu   url: 未定は "#"
    ========================================================================= */
 const CATEGORIES = {
   medical:{ label:"健康・美容・医療", color:"#2a9488" },
@@ -215,69 +140,56 @@ const CATEGORIES = {
   food:   { label:"食べる・飲む・食料", color:"#e8902f" },
   edu:    { label:"保育・教育",        color:"#7e7ad0" },
 };
-
 const STORES = [
-  { name:"工房しらかば", cat:"life", url:"#", x:16, y:7, voices:[] },
-  { name:"ヨークベニマル 仙台中山店", cat:"life", url:"#", x:19, y:12,
-    voices:[ {text:"おかしコーナーがすごい！", who:"小1・りく"} ] },
-  { name:"東北電力研究開発センター", cat:"life", url:"#", x:36, y:9, voices:[] },
-  { name:"みなみ歯科クリニック", cat:"medical", url:"#", x:83, y:8,
-    voices:[ {text:"こわくなかった！せんせいやさしい", who:"小1・はると"} ] },
-  { name:"カーブス アクロスガーデン中山", cat:"medical", url:"#", x:80, y:13, voices:[] },
-  { name:"ダイシン長命ヶ丘店", cat:"life", url:"#", x:84, y:17.5, voices:[] },
-  { name:"Friend.vividhair", cat:"medical", url:"#", x:86, y:22, voices:[] },
-  { name:"七十七銀行 中山支店", cat:"life", url:"#", x:30, y:17, voices:[] },
-  { name:"ウジエスーパー中山店", cat:"life", url:"#", x:31, y:22,
-    voices:[ {text:"おさかなコーナーがにぎやか", who:"小3・あおい"} ] },
-  { name:"リハビリステーション中山", cat:"medical", url:"#", x:60, y:14, voices:[] },
-  { name:"志藤整骨院", cat:"medical", url:"#", x:60, y:18.5, voices:[] },
-  { name:"BURB usedclothing", cat:"life", url:"#", x:60, y:23, voices:[] },
-  { name:"レストランKAYA", cat:"food", url:"#", x:60, y:27.5,
-    voices:[ {text:"オムライスがふわふわ！", who:"小2・ゆうと"},
-             {text:"プリンがおおきい", who:"小1・さくら"} ] },
-  { name:"中山郵便局", cat:"life", url:"#", x:60, y:32, voices:[] },
-  { name:"中山歯科", cat:"medical", url:"#", x:60, y:36.5, voices:[] },
-  { name:"中山中学校", cat:"edu", url:"#", x:84, y:30,
-    voices:[ {text:"おにいちゃんがぶかつしてる", who:"小4・りお"} ] },
-  { name:"中山市民センター", cat:"edu", url:"#", x:18, y:40,
-    voices:[ {text:"おはなしかいがたのしい", who:"小1・ゆうな"} ] },
-  { name:"藤設備工業", cat:"life", url:"#", x:33, y:46, voices:[] },
-  { name:"和泉生花", cat:"life", url:"#", x:17, y:49, voices:[] },
-  { name:"柏屋", cat:"food", url:"#", x:34, y:52, voices:[] },
-  { name:"たけむらや", cat:"food", url:"#", x:17, y:55, voices:[] },
-  { name:"佐藤次大税理士事務所", cat:"life", url:"#", x:60, y:41, voices:[] },
-  { name:"中華レストランとらの子", cat:"food", url:"#", x:60, y:45.5,
-    voices:[ {text:"ぎょうざ100こたべたい！", who:"小2・こうき"} ] },
-  { name:"中山不動産", cat:"life", url:"#", x:60, y:50, voices:[] },
-  { name:"ダイニングバー祭", cat:"food", url:"#", x:60, y:54.5,
-    voices:[ {text:"おまつりみたいなのれんがすき", who:"小3・たいが"} ] },
-  { name:"Double Egg 5丁目", cat:"food", url:"#", x:60, y:59, voices:[] },
-  { name:"中山接骨院", cat:"medical", url:"#", x:60, y:64, voices:[] },
-  { name:"フラワー中山", cat:"life", url:"#", x:60, y:68.5, voices:[] },
-  { name:"河村内科外科クリニック", cat:"medical", url:"#", x:60, y:73, voices:[] },
-  { name:"ウエルシア中山店", cat:"medical", url:"#", x:60, y:77.5, voices:[] },
-  { name:"中山小学校", cat:"edu", url:"#", x:85, y:71,
-    voices:[ {text:"こうていがひろい！", who:"小4・はな"} ] },
-  { name:"サト商会", cat:"life", url:"#", x:86, y:77, voices:[] },
-  { name:"みなとや", cat:"food", url:"#", x:86, y:82, voices:[] },
-  { name:"カットショップ NOBU", cat:"medical", url:"#", x:60, y:82, voices:[] },
-  { name:"cake NAO", cat:"food", url:"#", x:60, y:86.5,
-    voices:[ {text:"いちごのケーキがかわいい", who:"小2・めい"} ] },
-  { name:"中山ドライブスクール", cat:"life", url:"#", x:60, y:91, voices:[] },
-  { name:"西原歯科医院", cat:"medical", url:"#", x:34, y:80, voices:[] },
-  { name:"認定こども園 TOBINOKO", cat:"edu", url:"#", x:17, y:84,
-    voices:[ {text:"すべりだいが2かいあるよ", who:"年長・ひまり"} ] },
+  { name:"工房しらかば", cat:"life", url:"#", x:15.4, y:8.1, voices:[] },
+  { name:"ヨークベニマル 仙台中山店", cat:"life", url:"#", x:39.9, y:10.5, voices:[ {text:"おかしコーナーがすごい！", who:"小1・りく"} ] },
+  { name:"東北電力研究開発センター", cat:"life", url:"#", x:54.0, y:7.8, voices:[] },
+  { name:"みなみ歯科クリニック", cat:"medical", url:"#", x:72.5, y:7.8, voices:[ {text:"こわくなかった！せんせいやさしい", who:"小1・はると"} ] },
+  { name:"カーブス アクロスガーデン中山", cat:"medical", url:"#", x:65.3, y:12.3, voices:[] },
+  { name:"ダイシン長命ヶ丘店", cat:"life", url:"#", x:78.6, y:11.2, voices:[] },
+  { name:"Friend.vividhair", cat:"medical", url:"#", x:90.9, y:12.3, voices:[] },
+  { name:"七十七銀行 中山支店", cat:"life", url:"#", x:38.4, y:21.7, voices:[] },
+  { name:"ウジエスーパー中山店", cat:"life", url:"#", x:37.9, y:26.9, voices:[ {text:"おさかなコーナーがにぎやか", who:"小3・あおい"} ] },
+  { name:"リハビリステーション中山", cat:"medical", url:"#", x:56.1, y:16.1, voices:[] },
+  { name:"志藤整骨院", cat:"medical", url:"#", x:55.6, y:18.3, voices:[] },
+  { name:"BURB usedclothing", cat:"life", url:"#", x:55.6, y:20.2, voices:[] },
+  { name:"レストランKAYA", cat:"food", url:"#", x:55.6, y:22.0, voices:[ {text:"オムライスがふわふわ！", who:"小2・ゆうと"}, {text:"プリンがおおきい", who:"小1・さくら"} ] },
+  { name:"中山郵便局", cat:"life", url:"#", x:55.1, y:23.9, voices:[] },
+  { name:"中山歯科", cat:"medical", url:"#", x:55.1, y:25.8, voices:[] },
+  { name:"中山中学校", cat:"edu", url:"#", x:82.7, y:22.0, voices:[ {text:"おにいちゃんがぶかつしてる", who:"小4・りお"} ] },
+  { name:"佐藤次大税理士事務所", cat:"life", url:"#", x:56.1, y:35.5, voices:[] },
+  { name:"Dogsalon Blanche", cat:"life", url:"#", x:57.1, y:37.4, voices:[] },
+  { name:"中華レストランとらの子", cat:"food", url:"#", x:57.1, y:40.0, voices:[ {text:"ぎょうざ100こたべたい！", who:"小2・こうき"} ] },
+  { name:"中山不動産", cat:"life", url:"#", x:54.6, y:43.4, voices:[] },
+  { name:"ダイニングバー祭", cat:"food", url:"#", x:55.6, y:44.9, voices:[ {text:"おまつりみたいなのれんがすき", who:"小3・たいが"} ] },
+  { name:"おかきや", cat:"food", url:"#", x:54.6, y:48.2, voices:[] },
+  { name:"Double Egg 5丁目", cat:"food", url:"#", x:55.1, y:49.7, voices:[] },
+  { name:"お肉とお酒のうちだ", cat:"food", url:"#", x:55.1, y:51.6, voices:[] },
+  { name:"中山接骨院", cat:"medical", url:"#", x:55.1, y:58.3, voices:[] },
+  { name:"フラワー中山", cat:"life", url:"#", x:54.6, y:60.2, voices:[] },
+  { name:"河村内科外科クリニック", cat:"medical", url:"#", x:56.1, y:62.1, voices:[] },
+  { name:"ウエルシア中山店", cat:"medical", url:"#", x:56.1, y:63.6, voices:[] },
+  { name:"左官職人水嶋組", cat:"life", url:"#", x:56.1, y:68.6, voices:[] },
+  { name:"河北仙販 中山支店", cat:"life", url:"#", x:57.1, y:70.5, voices:[] },
+  { name:"カットショップ NOBU", cat:"medical", url:"#", x:57.1, y:73.1, voices:[] },
+  { name:"梅原表具店", cat:"life", url:"#", x:57.1, y:75.0, voices:[] },
+  { name:"cake NAO", cat:"food", url:"#", x:56.1, y:76.8, voices:[ {text:"いちごのケーキがかわいい", who:"小2・めい"} ] },
+  { name:"中山ドライブスクール", cat:"life", url:"#", x:56.1, y:81.0, voices:[] },
+  { name:"ビバホーム荒巻店", cat:"life", url:"#", x:57.1, y:83.6, voices:[] },
+  { name:"中山市民センター", cat:"edu", url:"#", x:20.5, y:41.5, voices:[ {text:"おはなしかいがたのしい", who:"小1・ゆうな"} ] },
+  { name:"藤設備工業", cat:"life", url:"#", x:43.0, y:48.2, voices:[] },
+  { name:"Double Egg 4丁目", cat:"food", url:"#", x:44.0, y:52.0, voices:[] },
+  { name:"柏屋", cat:"food", url:"#", x:45.0, y:55.7, voices:[] },
+  { name:"たけむらや", cat:"food", url:"#", x:44.0, y:57.9, voices:[] },
+  { name:"和泉生花", cat:"life", url:"#", x:28.7, y:59.4, voices:[] },
+  { name:"西原歯科医院", cat:"medical", url:"#", x:45.0, y:74.6, voices:[] },
+  { name:"認定こども園 TOBINOKO", cat:"edu", url:"#", x:25.6, y:78.7, voices:[ {text:"すべりだいが2かいあるよ", who:"年長・ひまり"} ] },
+  { name:"多賀多夢舎中山工房", cat:"life", url:"#", x:23.5, y:83.6, voices:[] },
+  { name:"中山小学校", cat:"edu", url:"#", x:79.6, y:72.0, voices:[ {text:"こうていがひろい！", who:"小4・はな"} ] },
+  { name:"サト商会", cat:"life", url:"#", x:79.6, y:79.5, voices:[] },
+  { name:"みなとや", cat:"food", url:"#", x:81.7, y:81.3, voices:[] },
 ];
 /* ▲▲▲ 編集ここまで ▲▲▲ */
-
-// 木立を散らす
-const treeSpots = [[250,150],[640,150],[170,640],[400,690],[680,460],[300,940],[640,840],[180,1090],[760,1320]];
-const treesG = document.getElementById('trees');
-treesG.innerHTML = treeSpots.map(([x,y])=>
-  `<g><ellipse cx="${x}" cy="${y+22}" rx="20" ry="5" fill="rgba(90,70,30,.08)"/>`+
-  `<rect x="${x-4}" y="${y+6}" width="8" height="18" rx="3" fill="#b08a5a"/>`+
-  `<circle cx="${x}" cy="${y}" r="22" fill="#9ccc6a"/><circle cx="${x-12}" cy="${y+6}" r="14" fill="#abd97a"/><circle cx="${x+12}" cy="${y+6}" r="14" fill="#abd97a"/></g>`
-).join('');
 
 const mapWrap = document.getElementById('mapWrap');
 const popup = document.getElementById('popup');
@@ -286,16 +198,17 @@ const popupName = document.getElementById('popupName');
 const popupVoices = document.getElementById('popupVoices');
 const popupGo = document.getElementById('popupGo');
 let pinned = null;
+if (location.search.indexOf('debug') >= 0) document.body.classList.add('debug');
 
 STORES.forEach((s, i) => {
   const btn = document.createElement('button');
-  btn.className = `store c-${s.cat}`;
+  const compact = (s.x >= 50 && s.x <= 63);
+  btn.className = `hit c-${s.cat}${compact?' compact':''}`;
   btn.style.left = s.x + '%';
   btn.style.top  = s.y + '%';
-  btn.style.setProperty('--r', ((i % 5) - 2) + 'deg');
   btn.dataset.cat = s.cat;
   btn.setAttribute('aria-label', s.name);
-  btn.innerHTML = `<span class="ic">${ICONS[s.cat]}</span><span class="nm">${s.name}</span>`;
+  btn.innerHTML = `<span class="num">${i}</span>`;
   btn.addEventListener('mouseenter', () => { if(!pinned) showPopup(btn, s); });
   btn.addEventListener('mouseleave', () => { if(!pinned) hidePopup(); });
   btn.addEventListener('click', (e) => {
@@ -318,9 +231,8 @@ function showPopup(btn, s){
     popupGo.style.background = c.color; popupGo.textContent = 'お店を見る →';
   } else { popupGo.removeAttribute('href'); popupGo.classList.add('disabled'); popupGo.textContent = 'サイト準備中'; }
   const wr = mapWrap.getBoundingClientRect(), pr = btn.getBoundingClientRect();
-  popup.classList.toggle('below', s.y < 20);
+  popup.classList.toggle('below', s.y < 16);
   let cx = pr.left - wr.left + pr.width/2;
-  // 画面端で吹き出しがはみ出さないようクランプ
   const half = Math.min(212, wr.width*0.76)/2 + 6;
   cx = Math.max(half, Math.min(wr.width - half, cx));
   popup.style.left = cx + 'px';
@@ -337,8 +249,7 @@ document.getElementById('filters').addEventListener('click', e=>{
   const chip = e.target.closest('.chip-f'); if(!chip) return;
   const on = chip.getAttribute('aria-pressed') === 'true';
   chip.setAttribute('aria-pressed', String(!on));
-  document.querySelectorAll(`.store[data-cat="${chip.dataset.cat}"]`).forEach(p=> p.classList.toggle('hidden', on));
-  if(pinned && pinned.classList.contains('hidden')){ hidePopup(); pinned=null; }
+  document.querySelectorAll(`.hit[data-cat="${chip.dataset.cat}"]`).forEach(p=> p.classList.toggle('glow', !on));
 });
 </script>
 </body>
