@@ -6,11 +6,10 @@
 <title>なかやま商店街 デジタルガイドマップ</title>
 <style>
   :root{
-    --bg:#fdf6e9; --ink:#3a3531; --line:#e0d4ba;
-    --c-medical:#2bb3a3;  /* 健康・美容・医療 */
-    --c-life:#4a9d3f;     /* 生活・日用・企業 */
-    --c-food:#f0a83c;     /* 食べる・飲む・食料 */
-    --c-edu:#7e8ad6;      /* 保育・教育 */
+    --bg:#fbf4e6; --ink:#3a3531; --line:#e0d4ba;
+    --grass:#dff0c8; --water:#bfe3ef; --road:#f3ecdc; --road-line:#d8c9a6;
+    --park:#c7e7a6;
+    --c-medical:#2bb3a3; --c-life:#4a9d3f; --c-food:#ef9a3c; --c-edu:#7e8ad6;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
@@ -25,55 +24,55 @@
 
   .filters{
     display:flex; flex-wrap:wrap; gap:8px; justify-content:center;
-    padding:12px 14px 4px; max-width:640px; margin:0 auto;
+    padding:12px 14px 6px; max-width:720px; margin:0 auto;
   }
-  .chip{
+  .chip-f{
     border:2px solid currentColor; background:#fff; color:var(--ink);
     border-radius:999px; padding:5px 13px; font-size:12.5px; font-weight:700;
-    cursor:pointer; display:inline-flex; align-items:center; gap:6px;
-    user-select:none; transition:transform .08s, opacity .15s;
+    cursor:pointer; display:inline-flex; align-items:center; gap:6px; user-select:none;
+    transition:transform .08s, opacity .15s;
   }
-  .chip:active{ transform:scale(.95) }
-  .chip .dot{ width:10px; height:10px; border-radius:50%; background:currentColor }
-  .chip[aria-pressed="false"]{ opacity:.35 }
-  .chip.c-medical{ color:var(--c-medical) }
-  .chip.c-life{ color:var(--c-life) }
-  .chip.c-food{ color:var(--c-food) }
-  .chip.c-edu{ color:var(--c-edu) }
+  .chip-f:active{ transform:scale(.95) }
+  .chip-f .dot{ width:10px; height:10px; border-radius:50%; background:currentColor }
+  .chip-f[aria-pressed="false"]{ opacity:.35 }
+  .chip-f.c-medical{ color:var(--c-medical) } .chip-f.c-life{ color:var(--c-life) }
+  .chip-f.c-food{ color:var(--c-food) } .chip-f.c-edu{ color:var(--c-edu) }
 
-  /* マップ領域：実画像を背景に */
+  /* マップ領域：すべてデジタル描画（背景画像なし） */
   .map-wrap{
-    position:relative; width:100%; max-width:620px; margin:10px auto 8px;
-    border:3px solid var(--line); border-radius:14px; overflow:hidden;
-    box-shadow:0 8px 24px rgba(120,100,60,.18); background:#fff;
+    position:relative; width:100%; max-width:720px; margin:10px auto 8px;
+    aspect-ratio:1000/1500; border:3px solid var(--line); border-radius:16px;
+    overflow:hidden; box-shadow:0 8px 24px rgba(120,100,60,.18); background:var(--grass);
   }
-  .map-wrap img{ display:block; width:100%; height:auto; }
+  .map-bg{ position:absolute; inset:0; width:100%; height:100% }
 
-  /* 店舗マーカー（地図上の点） */
-  .pin{
+  /* 店舗チップ（読みやすいラベル＝重ならない） */
+  .store{
     position:absolute; transform:translate(-50%,-50%);
-    width:20px; height:20px; border-radius:50%;
-    border:3px solid #fff; cursor:pointer; padding:0; z-index:2;
-    box-shadow:0 2px 5px rgba(0,0,0,.35);
-    transition:transform .12s; background:#888;
+    display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+    background:#fff; border:1.5px solid var(--line); border-left:5px solid #999;
+    border-radius:9px; padding:4px 9px 4px 7px; font-size:11.5px; font-weight:700;
+    color:var(--ink); cursor:pointer; box-shadow:0 2px 5px rgba(90,70,30,.16);
+    z-index:2; transition:transform .1s, box-shadow .1s; line-height:1.1;
   }
-  .pin::after{ /* パルス */
-    content:""; position:absolute; inset:-3px; border-radius:50%;
-    border:2px solid currentColor; opacity:.6; animation:pulse 2s infinite;
+  .store .ic{ font-size:12px }
+  .store:hover,.store:focus-visible{ transform:translate(-50%,-50%) scale(1.08);
+    box-shadow:0 5px 12px rgba(90,70,30,.3); outline:none; z-index:7 }
+  .store.c-medical{ border-left-color:var(--c-medical) }
+  .store.c-life{ border-left-color:var(--c-life) }
+  .store.c-food{ border-left-color:var(--c-food) }
+  .store.c-edu{ border-left-color:var(--c-edu) }
+  .store.hidden{ display:none }
+
+  /* イベント案内カード（静的） */
+  .events{
+    position:absolute; left:3%; top:67%; width:30%; transform:translateY(-50%);
+    background:rgba(255,255,255,.92); border:1.5px solid var(--line);
+    border-radius:11px; padding:8px 10px; font-size:10.5px; line-height:1.5; z-index:1;
+    box-shadow:0 2px 6px rgba(90,70,30,.14);
   }
-  @keyframes pulse{ 0%{transform:scale(1);opacity:.6} 70%{transform:scale(2.1);opacity:0} 100%{opacity:0} }
-  .pin:hover,.pin:focus-visible{ transform:translate(-50%,-50%) scale(1.35); outline:none; z-index:6 }
-  .pin.c-medical{ background:var(--c-medical); color:var(--c-medical) }
-  .pin.c-life{ background:var(--c-life); color:var(--c-life) }
-  .pin.c-food{ background:var(--c-food); color:var(--c-food) }
-  .pin.c-edu{ background:var(--c-edu); color:var(--c-edu) }
-  .pin.hidden{ display:none }
-  .pin .num{ /* debugモード用の番号 */
-    position:absolute; left:50%; top:-18px; transform:translateX(-50%);
-    font-size:10px; color:#000; background:#fff; padding:0 3px; border-radius:3px;
-    display:none; white-space:nowrap;
-  }
-  body.debug .pin .num{ display:block }
+  .events b{ display:block; font-size:11.5px; color:#c98a2e; margin-bottom:3px }
+  .events ul{ margin:0; padding-left:14px } .events li{ margin:1px 0 }
 
   /* 子供の声ポップアップ */
   .popup{
@@ -81,39 +80,24 @@
     background:#fff; border:2px solid var(--line); border-radius:13px;
     box-shadow:0 10px 26px rgba(80,60,30,.3); padding:11px 12px 12px;
     opacity:0; pointer-events:none; transition:opacity .14s;
-    transform:translate(-50%,calc(-100% - 18px));
+    transform:translate(-50%,calc(-100% - 16px));
   }
-  .popup.below{ transform:translate(-50%,18px) }
+  .popup.below{ transform:translate(-50%,16px) }
   .popup.show{ opacity:1; pointer-events:auto }
-  .popup::after{
-    content:""; position:absolute; left:50%; bottom:-11px; transform:translateX(-50%);
-    border:10px solid transparent; border-top-color:#fff;
-    filter:drop-shadow(0 2px 1px rgba(80,60,30,.18));
-  }
+  .popup::after{ content:""; position:absolute; left:50%; bottom:-11px; transform:translateX(-50%);
+    border:10px solid transparent; border-top-color:#fff; filter:drop-shadow(0 2px 1px rgba(80,60,30,.18)); }
   .popup.below::after{ bottom:auto; top:-11px; border-top-color:transparent; border-bottom-color:#fff;
     filter:drop-shadow(0 -2px 1px rgba(80,60,30,.18)); }
-  .popup .cat{
-    font-size:11px; font-weight:700; color:#fff; padding:2px 9px;
-    border-radius:999px; display:inline-block; margin-bottom:6px;
-  }
+  .popup .cat{ font-size:11px; font-weight:700; color:#fff; padding:2px 9px; border-radius:999px; display:inline-block; margin-bottom:6px }
   .popup h3{ margin:0 0 7px; font-size:15px }
   .popup .voices{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px }
   .popup .voices:empty{ display:none }
-  .voice{
-    background:var(--bg); border-radius:10px 10px 10px 2px; padding:6px 9px;
-    font-size:12.5px; line-height:1.45;
-  }
+  .voice{ background:var(--bg); border-radius:10px 10px 10px 2px; padding:6px 9px; font-size:12.5px; line-height:1.45 }
   .voice .who{ display:block; margin-top:3px; font-size:10.5px; color:#9a8e7a }
-  .popup .go{
-    display:flex; align-items:center; justify-content:center; gap:5px;
-    width:100%; text-decoration:none; color:#fff; font-weight:700;
-    padding:9px; border-radius:10px; font-size:13px;
-  }
+  .popup .go{ display:flex; align-items:center; justify-content:center; gap:5px; width:100%;
+    text-decoration:none; color:#fff; font-weight:700; padding:9px; border-radius:10px; font-size:13px }
   .popup .go.disabled{ background:#bbb; pointer-events:none }
-  .popup .close{
-    position:absolute; top:5px; right:9px; border:0; background:none;
-    font-size:18px; color:#b3a690; cursor:pointer; line-height:1;
-  }
+  .popup .close{ position:absolute; top:5px; right:9px; border:0; background:none; font-size:18px; color:#b3a690; cursor:pointer; line-height:1 }
   .note{ text-align:center; font-size:11px; color:#a59a86; margin:6px 16px 28px; line-height:1.6 }
 </style>
 </head>
@@ -121,23 +105,79 @@
 
 <header>
   <h1>🏘 なかやま商店街 デジタルガイドマップ</h1>
-  <p>こどもやファミリーが元気いっぱい過ごす街 — 地図の丸印をタップしてお店をのぞいてみよう！</p>
+  <p>こどもやファミリーが元気いっぱい過ごす街 — お店のラベルをタップしてのぞいてみよう！</p>
 </header>
 
 <div class="filters" id="filters">
-  <button class="chip c-medical" data-cat="medical" aria-pressed="true"><i class="dot"></i>健康・美容・医療</button>
-  <button class="chip c-life"    data-cat="life"    aria-pressed="true"><i class="dot"></i>生活・日用・企業</button>
-  <button class="chip c-food"    data-cat="food"    aria-pressed="true"><i class="dot"></i>食べる・飲む・食料</button>
-  <button class="chip c-edu"     data-cat="edu"     aria-pressed="true"><i class="dot"></i>保育・教育</button>
+  <button class="chip-f c-medical" data-cat="medical" aria-pressed="true"><i class="dot"></i>健康・美容・医療</button>
+  <button class="chip-f c-life"    data-cat="life"    aria-pressed="true"><i class="dot"></i>生活・日用・企業</button>
+  <button class="chip-f c-food"    data-cat="food"    aria-pressed="true"><i class="dot"></i>食べる・飲む・食料</button>
+  <button class="chip-f c-edu"     data-cat="edu"     aria-pressed="true"><i class="dot"></i>保育・教育</button>
 </div>
 
 <div class="map-wrap" id="mapWrap">
-  <img src="map.png" alt="なかやま商店街マップ" id="mapImg">
-  <!-- マーカーはJSで生成 -->
+  <svg class="map-bg" viewBox="0 0 1000 1500" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <rect x="0" y="0" width="1000" height="1500" fill="#dff0c8"/>
+    <!-- 山（泉ヶ岳） -->
+    <g fill="#cfe3b4" stroke="#bcd69a" stroke-width="2">
+      <path d="M-20,95 L70,15 L160,95 Z"/><path d="M120,95 L230,20 L340,95 Z"/>
+      <path d="M300,95 L410,25 L520,95 Z"/><path d="M620,95 L720,20 L820,95 Z"/>
+      <path d="M780,95 L900,25 L1020,95 Z"/>
+    </g>
+    <text x="500" y="60" text-anchor="middle" font-size="30" fill="#9bb87a" font-weight="bold" letter-spacing="6">泉ヶ岳</text>
+    <!-- 道路 -->
+    <rect x="455" y="95" width="95" height="1300" fill="#f3ecdc"/>
+    <rect x="0" y="520" width="1000" height="80" fill="#f3ecdc"/>
+    <rect x="0" y="1010" width="1000" height="80" fill="#f3ecdc"/>
+    <line x1="502" y1="95" x2="502" y2="1395" stroke="#d8c9a6" stroke-width="3" stroke-dasharray="16 16"/>
+    <line x1="0" y1="560" x2="1000" y2="560" stroke="#d8c9a6" stroke-width="3" stroke-dasharray="16 16"/>
+    <line x1="0" y1="1050" x2="1000" y2="1050" stroke="#d8c9a6" stroke-width="3" stroke-dasharray="16 16"/>
+    <!-- 公園 -->
+    <g>
+      <rect x="40" y="1170" width="300" height="170" rx="22" fill="#c7e7a6"/>
+      <circle cx="100" cy="1220" r="22" fill="#9ccc6a"/><circle cx="170" cy="1250" r="26" fill="#9ccc6a"/><circle cx="250" cy="1215" r="20" fill="#9ccc6a"/>
+      <text x="190" y="1320" text-anchor="middle" font-size="19" fill="#6f9a4d" font-weight="bold">なかやま子ども公園</text>
+    </g>
+    <g>
+      <rect x="720" y="980" width="240" height="150" rx="20" fill="#c7e7a6"/>
+      <circle cx="780" cy="1025" r="20" fill="#9ccc6a"/><circle cx="860" cy="1050" r="24" fill="#9ccc6a"/>
+      <text x="840" y="1110" text-anchor="middle" font-size="17" fill="#6f9a4d" font-weight="bold">たきみら公園</text>
+    </g>
+    <!-- 川（梅田川） -->
+    <path d="M0,1400 C250,1370 350,1450 1000,1410 L1000,1500 L0,1500 Z" fill="#bfe3ef"/>
+    <path d="M0,1400 C250,1370 350,1450 1000,1410" stroke="#a6d6e6" stroke-width="6" fill="none"/>
+    <text x="300" y="1470" text-anchor="middle" font-size="18" fill="#6fa6bd" font-weight="bold">梅田川</text>
+    <text x="930" y="1455" text-anchor="middle" font-size="13" fill="#9ab0bd">至 北仙台 ▶</text>
+    <!-- 神社・パワースポット -->
+    <g>
+      <rect x="800" y="600" width="150" height="110" rx="12" fill="#f6ead2" stroke="#e0cba6" stroke-width="2"/>
+      <text x="875" y="585" text-anchor="middle" font-size="30">⛩️</text>
+      <text x="875" y="650" text-anchor="middle" font-size="15" fill="#9a6b3b" font-weight="bold">目の神様</text>
+      <text x="875" y="675" text-anchor="middle" font-size="11" fill="#b58a5b">中山鳥瀧不動尊</text>
+      <text x="875" y="695" text-anchor="middle" font-size="10" fill="#c69a6b">⭐パワースポット</text>
+    </g>
+    <!-- 区域ラベル（薄） -->
+    <text x="230" y="300" text-anchor="middle" font-size="16" fill="#c3b48f">中山一丁目</text>
+    <text x="760" y="300" text-anchor="middle" font-size="16" fill="#c3b48f">中山二丁目</text>
+    <text x="500" y="1378" text-anchor="middle" font-size="12" fill="#c3b48f">▲ 中山駅・バス通り方面</text>
+  </svg>
+
+  <!-- イベント案内 -->
+  <div class="events">
+    <b>🎏 なかやまのイベント</b>
+    <ul>
+      <li>花の植栽（春・秋）</li>
+      <li>街道市（第3土曜）</li>
+      <li>七夕まつり（8/6-8）</li>
+      <li>街道市まつり（10月）</li>
+      <li>スノーマンまつり（冬）</li>
+    </ul>
+  </div>
+  <!-- 店舗チップはJSで生成 -->
 </div>
 
 <p class="note">
-  ※ マーカー位置・店名・カテゴリは手描きマップからの読み取り（暫定）です。<br>
+  ※ デジタル描画版（写真の上に重ねず、地図を描き直し）。店名・カテゴリ・位置は手描きマップからの読み取り（暫定）です。<br>
   店舗・URL・子供コメント・位置はファイル先頭の <code>STORES</code> を編集してください。URL未設定の店は「サイト準備中」と表示されます。
 </p>
 
@@ -152,56 +192,76 @@
 <script>
 /* =========================================================================
    ▼▼▼ ここだけ編集すれば中身が変わります ▼▼▼
-   - cat : "medical"(健康美容医療) | "life"(生活日用企業) | "food"(食) | "edu"(保育教育)
-   - url : 店舗サイトURL（未定なら "#"）
-   - x,y : マップ画像上の位置（0〜100 の％。左上0,0／右下100,100）
-            位置がズレている場合はこの数値を微調整してください。
-   - voices : 子供の声 [{text:"声", who:"小2・ゆうと 等（任意）"}]  ※現状サンプル
+   cat: medical(健康美容医療)/life(生活日用企業)/food(食)/edu(保育教育)
+   url: 店舗サイトURL（未定は "#"）   x,y: マップ上の位置（0〜100％）
+   voices: 子供の声 [{text:"声", who:"小2・ゆうと 等（任意）"}] ※現状サンプル
    ========================================================================= */
 const CATEGORIES = {
-  medical:{ label:"健康・美容・医療", color:"#2bb3a3" },
-  life:   { label:"生活・日用・企業", color:"#4a9d3f" },
-  food:   { label:"食べる・飲む・食料", color:"#f0a83c" },
-  edu:    { label:"保育・教育",        color:"#7e8ad6" },
+  medical:{ label:"健康・美容・医療", color:"#2bb3a3", ic:"🩺" },
+  life:   { label:"生活・日用・企業", color:"#4a9d3f", ic:"🏪" },
+  food:   { label:"食べる・飲む・食料", color:"#ef9a3c", ic:"🍴" },
+  edu:    { label:"保育・教育",        color:"#7e8ad6", ic:"🏫" },
 };
 
 const STORES = [
-  { name:"ヨークベニマル 仙台中山店", cat:"life", url:"#", x:39.9, y:10.5,
+  // 上部
+  { name:"工房しらかば", cat:"life", url:"#", x:16, y:7, voices:[] },
+  { name:"ヨークベニマル 仙台中山店", cat:"life", url:"#", x:19, y:12,
     voices:[ {text:"おかしコーナーがすごい！", who:"小1・りく"} ] },
-  { name:"七十七銀行 中山支店", cat:"life", url:"#", x:38.4, y:21.7, voices:[] },
-  { name:"ウジエスーパー中山店", cat:"life", url:"#", x:37.9, y:26.9,
-    voices:[ {text:"おさかなコーナーがにぎやか", who:"小3・あおい"} ] },
-  { name:"みなみ歯科クリニック", cat:"medical", url:"#", x:72.5, y:7.8,
+  { name:"東北電力研究開発センター", cat:"life", url:"#", x:36, y:9, voices:[] },
+  { name:"みなみ歯科クリニック", cat:"medical", url:"#", x:83, y:8,
     voices:[ {text:"こわくなかった！せんせいやさしい", who:"小1・はると"} ] },
-  { name:"ダイシン長命ヶ丘店", cat:"life", url:"#", x:78.6, y:11.2, voices:[] },
-  { name:"リハビリステーション中山", cat:"medical", url:"#", x:56.1, y:16.1, voices:[] },
-  { name:"志藤整骨院", cat:"medical", url:"#", x:55.6, y:18.3, voices:[] },
-  { name:"BURB usedclothing", cat:"life", url:"#", x:55.6, y:20.2, voices:[] },
-  { name:"レストランKAYA", cat:"food", url:"#", x:55.6, y:22.0,
+  { name:"カーブス アクロスガーデン中山", cat:"medical", url:"#", x:80, y:13, voices:[] },
+  { name:"ダイシン長命ヶ丘店", cat:"life", url:"#", x:84, y:17.5, voices:[] },
+  { name:"Friend.vividhair", cat:"medical", url:"#", x:86, y:22, voices:[] },
+  { name:"七十七銀行 中山支店", cat:"life", url:"#", x:30, y:17, voices:[] },
+  { name:"ウジエスーパー中山店", cat:"life", url:"#", x:31, y:22,
+    voices:[ {text:"おさかなコーナーがにぎやか", who:"小3・あおい"} ] },
+  // 中央ディレクトリ（上）
+  { name:"リハビリステーション中山", cat:"medical", url:"#", x:60, y:14, voices:[] },
+  { name:"志藤整骨院", cat:"medical", url:"#", x:60, y:18.5, voices:[] },
+  { name:"BURB usedclothing", cat:"life", url:"#", x:60, y:23, voices:[] },
+  { name:"レストランKAYA", cat:"food", url:"#", x:60, y:27.5,
     voices:[ {text:"オムライスがふわふわ！", who:"小2・ゆうと"},
              {text:"プリンがおおきい", who:"小1・さくら"} ] },
-  { name:"中山郵便局", cat:"life", url:"#", x:55.1, y:23.9, voices:[] },
-  { name:"中山歯科", cat:"medical", url:"#", x:55.1, y:25.8, voices:[] },
-  { name:"中山中学校", cat:"edu", url:"#", x:82.7, y:22.0, voices:[] },
-  { name:"中山市民センター", cat:"edu", url:"#", x:20.5, y:41.5,
+  { name:"中山郵便局", cat:"life", url:"#", x:60, y:32, voices:[] },
+  { name:"中山歯科", cat:"medical", url:"#", x:60, y:36.5, voices:[] },
+  // 右上
+  { name:"中山中学校", cat:"edu", url:"#", x:84, y:30,
+    voices:[ {text:"おにいちゃんがぶかつしてる", who:"小4・りお"} ] },
+  // 中段左
+  { name:"中山市民センター", cat:"edu", url:"#", x:18, y:40,
     voices:[ {text:"おはなしかいがたのしい", who:"小1・ゆうな"} ] },
-  { name:"中華レストランとらの子", cat:"food", url:"#", x:57.1, y:40.0,
+  { name:"藤設備工業", cat:"life", url:"#", x:33, y:46, voices:[] },
+  { name:"和泉生花", cat:"life", url:"#", x:17, y:49, voices:[] },
+  { name:"柏屋", cat:"food", url:"#", x:34, y:52, voices:[] },
+  { name:"たけむらや", cat:"food", url:"#", x:17, y:55, voices:[] },
+  // 中央ディレクトリ（中）
+  { name:"佐藤次大税理士事務所", cat:"life", url:"#", x:60, y:41, voices:[] },
+  { name:"中華レストランとらの子", cat:"food", url:"#", x:60, y:45.5,
     voices:[ {text:"ぎょうざ100こたべたい！", who:"小2・こうき"} ] },
-  { name:"中山不動産", cat:"life", url:"#", x:54.6, y:43.4, voices:[] },
-  { name:"ダイニングバー祭", cat:"food", url:"#", x:55.6, y:44.9,
+  { name:"中山不動産", cat:"life", url:"#", x:60, y:50, voices:[] },
+  { name:"ダイニングバー祭", cat:"food", url:"#", x:60, y:54.5,
     voices:[ {text:"おまつりみたいなのれんがすき", who:"小3・たいが"} ] },
-  { name:"中山接骨院", cat:"medical", url:"#", x:55.1, y:58.3, voices:[] },
-  { name:"フラワー中山", cat:"life", url:"#", x:54.6, y:60.2, voices:[] },
-  { name:"河村内科外科クリニック", cat:"medical", url:"#", x:56.1, y:62.1, voices:[] },
-  { name:"カットショップ NOBU", cat:"medical", url:"#", x:57.1, y:73.1, voices:[] },
-  { name:"西原歯科医院", cat:"medical", url:"#", x:45.0, y:74.6, voices:[] },
-  { name:"cake NAO", cat:"food", url:"#", x:56.1, y:76.8,
+  { name:"Double Egg 5丁目", cat:"food", url:"#", x:60, y:59, voices:[] },
+  // 中央ディレクトリ（下）
+  { name:"中山接骨院", cat:"medical", url:"#", x:60, y:64, voices:[] },
+  { name:"フラワー中山", cat:"life", url:"#", x:60, y:68.5, voices:[] },
+  { name:"河村内科外科クリニック", cat:"medical", url:"#", x:60, y:73, voices:[] },
+  { name:"ウエルシア中山店", cat:"medical", url:"#", x:60, y:77.5, voices:[] },
+  // 右下
+  { name:"中山小学校", cat:"edu", url:"#", x:85, y:71,
+    voices:[ {text:"こうていがひろい！", who:"小4・はな"} ] },
+  { name:"サト商会", cat:"life", url:"#", x:86, y:77, voices:[] },
+  { name:"みなとや", cat:"food", url:"#", x:86, y:82, voices:[] },
+  // 下部
+  { name:"カットショップ NOBU", cat:"medical", url:"#", x:60, y:82, voices:[] },
+  { name:"cake NAO", cat:"food", url:"#", x:60, y:86.5,
     voices:[ {text:"いちごのケーキがかわいい", who:"小2・めい"} ] },
-  { name:"中山小学校", cat:"edu", url:"#", x:79.6, y:72.0,
-    voices:[ {text:"こうていがひろい！", who:"小4・りお"} ] },
-  { name:"認定こども園 TOBINOKO", cat:"edu", url:"#", x:25.6, y:78.7,
+  { name:"中山ドライブスクール", cat:"life", url:"#", x:60, y:91, voices:[] },
+  { name:"西原歯科医院", cat:"medical", url:"#", x:34, y:80, voices:[] },
+  { name:"認定こども園 TOBINOKO", cat:"edu", url:"#", x:17, y:84,
     voices:[ {text:"すべりだいが2かいあるよ", who:"年長・ひまり"} ] },
-  { name:"中山ドライブスクール", cat:"life", url:"#", x:56.1, y:81.0, voices:[] },
 ];
 /* ▲▲▲ 編集ここまで ▲▲▲ */
 
@@ -211,70 +271,54 @@ const popupCat = document.getElementById('popupCat');
 const popupName = document.getElementById('popupName');
 const popupVoices = document.getElementById('popupVoices');
 const popupGo = document.getElementById('popupGo');
-let pinnedPin = null;
-
-if (location.search.indexOf('debug') >= 0) document.body.classList.add('debug');
+let pinned = null;
 
 STORES.forEach((s, i) => {
   const btn = document.createElement('button');
-  btn.className = `pin c-${s.cat}`;
+  btn.className = `store c-${s.cat}`;
   btn.style.left = s.x + '%';
   btn.style.top  = s.y + '%';
-  btn.dataset.idx = i;
   btn.dataset.cat = s.cat;
   btn.setAttribute('aria-label', s.name);
-  btn.innerHTML = `<span class="num">${i}:${s.name}</span>`;
-  btn.addEventListener('mouseenter', () => { if(!pinnedPin) showPopup(btn, s); });
-  btn.addEventListener('mouseleave', () => { if(!pinnedPin) hidePopup(); });
+  btn.innerHTML = `<span class="ic">${CATEGORIES[s.cat].ic}</span>${s.name}`;
+  btn.addEventListener('mouseenter', () => { if(!pinned) showPopup(btn, s); });
+  btn.addEventListener('mouseleave', () => { if(!pinned) hidePopup(); });
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (pinnedPin === btn){ hidePopup(); pinnedPin=null; }
-    else { pinnedPin = btn; showPopup(btn, s); }
+    if (pinned === btn){ hidePopup(); pinned=null; }
+    else { pinned = btn; showPopup(btn, s); }
   });
   mapWrap.appendChild(btn);
 });
 
 function showPopup(btn, s){
   const c = CATEGORIES[s.cat];
-  popupCat.textContent = c.label;
-  popupCat.style.background = c.color;
+  popupCat.textContent = c.label; popupCat.style.background = c.color;
   popupName.textContent = s.name;
   popupVoices.innerHTML = s.voices.map(v =>
-    `<div class="voice">💬 ${v.text}${v.who?`<span class="who">— ${v.who}</span>`:''}</div>`
-  ).join('');
+    `<div class="voice">💬 ${v.text}${v.who?`<span class="who">— ${v.who}</span>`:''}</div>`).join('');
   if (s.url && s.url !== '#'){
     popupGo.href = s.url; popupGo.classList.remove('disabled');
     popupGo.style.background = c.color; popupGo.textContent = 'お店を見る →';
-  } else {
-    popupGo.removeAttribute('href'); popupGo.classList.add('disabled');
-    popupGo.textContent = 'サイト準備中';
-  }
-  const wrapRect = mapWrap.getBoundingClientRect();
-  const pinRect = btn.getBoundingClientRect();
-  const cx = pinRect.left - wrapRect.left + pinRect.width/2;
-  const cy = pinRect.top  - wrapRect.top  + pinRect.height/2;
-  // 上端付近は吹き出しを下向きに
-  const below = (s.y < 22);
-  popup.classList.toggle('below', below);
-  popup.style.left = cx + 'px';
-  popup.style.top  = cy + 'px';
+  } else { popupGo.removeAttribute('href'); popupGo.classList.add('disabled'); popupGo.textContent = 'サイト準備中'; }
+  const wr = mapWrap.getBoundingClientRect(), pr = btn.getBoundingClientRect();
+  popup.classList.toggle('below', s.y < 20);
+  popup.style.left = (pr.left - wr.left + pr.width/2) + 'px';
+  popup.style.top  = (pr.top  - wr.top  + pr.height/2) + 'px';
   popup.classList.add('show');
 }
 function hidePopup(){ popup.classList.remove('show'); }
 
-document.getElementById('popupClose').addEventListener('click', (e)=>{
-  e.stopPropagation(); hidePopup(); pinnedPin=null;
-});
+document.getElementById('popupClose').addEventListener('click', e=>{ e.stopPropagation(); hidePopup(); pinned=null; });
 popup.addEventListener('click', e=>e.stopPropagation());
-document.addEventListener('click', ()=>{ if(pinnedPin){ hidePopup(); pinnedPin=null; } });
+document.addEventListener('click', ()=>{ if(pinned){ hidePopup(); pinned=null; } });
 
 document.getElementById('filters').addEventListener('click', e=>{
-  const chip = e.target.closest('.chip'); if(!chip) return;
+  const chip = e.target.closest('.chip-f'); if(!chip) return;
   const on = chip.getAttribute('aria-pressed') === 'true';
   chip.setAttribute('aria-pressed', String(!on));
-  const cat = chip.dataset.cat;
-  document.querySelectorAll(`.pin[data-cat="${cat}"]`).forEach(p=> p.classList.toggle('hidden', on));
-  if(pinnedPin && pinnedPin.classList.contains('hidden')){ hidePopup(); pinnedPin=null; }
+  document.querySelectorAll(`.store[data-cat="${chip.dataset.cat}"]`).forEach(p=> p.classList.toggle('hidden', on));
+  if(pinned && pinned.classList.contains('hidden')){ hidePopup(); pinned=null; }
 });
 </script>
 </body>
