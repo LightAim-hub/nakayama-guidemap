@@ -1,0 +1,31 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+  body{margin:0;background:#cfeecf;display:flex;justify-content:center;padding:16px}
+  canvas{image-rendering:pixelated;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+</style></head><body>
+<canvas id="c"></canvas>
+<script>
+const TS=40, COLS=16, ROWS=13, SHEETCOLS=12;
+const cv=document.getElementById('c'); cv.width=COLS*TS; cv.height=ROWS*TS;
+const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+const sheet=new Image();
+function draw(idx,gx,gy){ const sx=(idx%SHEETCOLS)*16, sy=Math.floor(idx/SHEETCOLS)*16; ctx.drawImage(sheet,sx,sy,16,16,gx*TS,gy*TS,TS,TS); }
+function bldg(gx,gy,roof,wall){ draw(roof,gx,gy); draw(wall,gx,gy+1); }
+sheet.onload=()=>{
+  for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){ draw(((x*7+y*3)%5===0)?1:0, x, y); }
+  for(let x=0;x<COLS;x++){ draw(40 + (x%2), x, 7); draw(40 + ((x+1)%2), x, 8); }
+  for(let y=2;y<7;y++) draw(43, 8, y);
+  bldg(2,4,48,84);
+  bldg(4,4,52,88);
+  bldg(6,4,48,86);
+  bldg(11,3,52,90);
+  bldg(13,4,48,85);
+  bldg(10,9,52,86);
+  bldg(3,10,48,90);
+  draw(4,0,2); draw(3,15,2); draw(4,1,5); draw(4,14,6);
+  draw(4,6,10); draw(3,13,9); draw(5,9,11);
+  draw(57,8,10);
+  draw(29,5,11);
+  draw(2,12,11);
+};
+sheet.src='tiles_tinytown.png';
+</script></body></html>
