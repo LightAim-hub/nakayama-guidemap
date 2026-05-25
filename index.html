@@ -65,19 +65,14 @@
   .stampbook-open{ border:2px solid var(--line); background:var(--paper); color:var(--ink);
     border-radius:12px; padding:10px 12px; font-weight:700; cursor:pointer; white-space:nowrap }
 
-  /* マップ：公式画像を土台に（位置関係＝原図と一致） */
+  /* マップ：Kenney Tiny Town タイルを canvas に描画 */
   .map-wrap{ position:relative; width:100%; max-width:760px; margin:5px auto 8px;
     aspect-ratio:977/1339; border:3px solid var(--line); border-radius:14px;
     overflow:hidden; box-shadow:0 8px 24px rgba(120,100,60,.2); background:#fff;
     container-type:inline-size; }
   .map-wrap img.base{ position:absolute; inset:0; z-index:1; width:100%; height:100%; object-fit:fill; }
-  .map-wrap svg.base{ position:absolute; inset:0; z-index:1; width:100%; height:100%; display:block }
-  .shop-bldg{ transition:opacity .2s, filter .2s }
-  .shop-bldg:not(.found){ opacity:.62; filter:saturate(.45) grayscale(.32) }
-  .shop-bldg .bstar{ display:none }
-  .shop-bldg.found .bstar{ display:block }
-  .shop-bldg.pop .bldg-core{ animation:bldg-pop .6s cubic-bezier(.34,1.56,.64,1); transform-box:fill-box; transform-origin:center bottom }
-  @keyframes bldg-pop{ 0%{ transform:translateY(2px) scale(.8) } 55%{ transform:translateY(-3px) scale(1.18) } 100%{ transform:translateY(0) scale(1) } }
+  .map-wrap canvas.base{ position:absolute; inset:0; z-index:1; width:100%; height:100%; display:block;
+    image-rendering:pixelated; image-rendering:crisp-edges; }
   .season-layer{ position:absolute; inset:0; z-index:3; pointer-events:none; overflow:hidden }
   .season-piece{ position:absolute; opacity:.48; font-size:clamp(12px,3.2cqw,23px);
     animation:season-float 9s linear infinite; filter:drop-shadow(0 1px 1px rgba(120,90,50,.12)) }
@@ -306,73 +301,7 @@
     <button class="map-overlay-close" id="closeMapBtn" type="button" aria-label="地図を閉じる">×</button>
   </div>
   <div class="map-wrap" id="mapWrap">
-    <svg class="base" id="mapSvg" viewBox="0 0 977 1339" preserveAspectRatio="none" role="img" aria-label="なかやま商店街 デジタルマップ">
-      <defs>
-        <filter id="popShadow" x="-35%" y="-35%" width="170%" height="185%">
-          <feDropShadow dx="0" dy="3" stdDeviation="2" flood-color="rgba(60,50,30,.28)"/>
-        </filter>
-        <linearGradient id="grassShine" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stop-color="#9bdd6e"/>
-          <stop offset=".62" stop-color="#82cf5a"/>
-          <stop offset="1" stop-color="#70bf4e"/>
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="977" height="1339" fill="url(#grassShine)"/>
-      <g opacity=".28" fill="#b8ec84">
-        <circle cx="74" cy="210" r="8"/><circle cx="112" cy="382" r="5"/><circle cx="890" cy="235" r="7"/>
-        <circle cx="378" cy="718" r="6"/><circle cx="704" cy="676" r="5"/><circle cx="146" cy="892" r="7"/>
-        <circle cx="874" cy="1156" r="8"/><circle cx="430" cy="1136" r="6"/>
-      </g>
-      <path d="M0,128 Q92,50 207,84 Q306,111 396,73 Q494,32 602,80 Q713,128 829,85 Q908,55 977,76 L977,0 L0,0 Z" fill="#bfe79a"/>
-      <path d="M0,154 Q120,82 250,112 T500,100 T750,112 T977,94" fill="none" stroke="#8dca63" stroke-width="20" stroke-linecap="round" opacity=".42"/>
-      <path d="M0,111 Q92,40 207,74 Q306,101 396,63 Q494,24 602,70 Q713,116 829,75 Q908,46 977,66" fill="none" stroke="#e2f8c6" stroke-width="9" stroke-linecap="round" opacity=".78"/>
-      <g stroke-linecap="round" stroke-linejoin="round" fill="none">
-        <g stroke="#e7ce92">
-          <path d="M145,150 H908" stroke-width="62"/>
-          <path d="M545,146 V1162" stroke-width="76"/>
-          <path d="M545,558 H214 Q188,558 188,596 V1132" stroke-width="56"/>
-          <path d="M558,300 H795 Q826,300 826,338 V1114" stroke-width="56"/>
-        </g>
-        <g stroke="#f6e4b8">
-          <path d="M145,150 H908" stroke-width="49"/>
-          <path d="M545,146 V1162" stroke-width="61"/>
-          <path d="M545,558 H214 Q200,558 200,596 V1132" stroke-width="43"/>
-          <path d="M558,300 H795 Q813,300 813,338 V1114" stroke-width="43"/>
-        </g>
-        <g stroke="#fff3cf" opacity=".72">
-          <path d="M158,138 H894" stroke-width="7"/>
-          <path d="M532,164 V1142" stroke-width="7"/>
-          <path d="M532,546 H224 Q212,546 212,591 V1116" stroke-width="6"/>
-          <path d="M571,288 H785 Q800,288 800,342 V1096" stroke-width="6"/>
-        </g>
-      </g>
-      <g fill="none" stroke="#6bb84a" stroke-width="5" stroke-linecap="round" opacity=".38">
-        <path d="M58,504 q34,-22 70,0"/><path d="M724,508 q42,-24 86,0"/>
-        <path d="M70,1012 q42,-25 86,0"/><path d="M720,1210 q48,-28 98,0"/>
-      </g>
-      <g id="treeLayer" filter="url(#popShadow)">
-        <g transform="translate(112 494)"><ellipse cx="0" cy="41" rx="20" ry="7" fill="#4f8e37" opacity=".25"/><rect x="-6" y="20" width="12" height="28" rx="5" fill="#9a6d3e"/><circle cx="0" cy="9" r="25" fill="#5fb84a"/><circle cx="-10" cy="2" r="16" fill="#7ed957"/><circle cx="9" cy="-5" r="14" fill="#8be060"/></g>
-        <g transform="translate(278 696) scale(.9)"><ellipse cx="0" cy="41" rx="20" ry="7" fill="#4f8e37" opacity=".25"/><rect x="-6" y="20" width="12" height="28" rx="5" fill="#9a6d3e"/><circle cx="0" cy="9" r="25" fill="#5fb84a"/><circle cx="-10" cy="2" r="16" fill="#7ed957"/><circle cx="9" cy="-5" r="14" fill="#8be060"/></g>
-        <g transform="translate(308 1063)"><ellipse cx="0" cy="41" rx="20" ry="7" fill="#4f8e37" opacity=".25"/><rect x="-6" y="20" width="12" height="28" rx="5" fill="#9a6d3e"/><circle cx="0" cy="9" r="25" fill="#5fb84a"/><circle cx="-10" cy="2" r="16" fill="#7ed957"/><circle cx="9" cy="-5" r="14" fill="#8be060"/></g>
-        <g transform="translate(735 933) scale(1.05)"><ellipse cx="0" cy="41" rx="20" ry="7" fill="#4f8e37" opacity=".25"/><rect x="-6" y="20" width="12" height="28" rx="5" fill="#9a6d3e"/><circle cx="0" cy="9" r="25" fill="#5fb84a"/><circle cx="-10" cy="2" r="16" fill="#7ed957"/><circle cx="9" cy="-5" r="14" fill="#8be060"/></g>
-        <g transform="translate(876 520) scale(.82)"><ellipse cx="0" cy="41" rx="20" ry="7" fill="#4f8e37" opacity=".25"/><rect x="-6" y="20" width="12" height="28" rx="5" fill="#9a6d3e"/><circle cx="0" cy="9" r="25" fill="#5fb84a"/><circle cx="-10" cy="2" r="16" fill="#7ed957"/><circle cx="9" cy="-5" r="14" fill="#8be060"/></g>
-      </g>
-      <g aria-hidden="true">
-        <g transform="translate(835 304)" filter="url(#popShadow)"><rect x="-24" y="-7" width="48" height="8" rx="3" fill="#ef4f3e"/><rect x="-18" y="0" width="8" height="42" rx="2" fill="#d83a30"/><rect x="10" y="0" width="8" height="42" rx="2" fill="#d83a30"/><rect x="-20" y="14" width="40" height="6" rx="3" fill="#ff806b"/></g>
-        <text x="116" y="1154" font-size="34">🏯</text>
-        <text x="450" y="644" font-size="22">🏧</text>
-        <text x="92" y="284" font-size="18">🌷</text><text x="844" y="398" font-size="17">🌼</text>
-        <text x="350" y="910" font-size="16">🌷</text><text x="862" y="1044" font-size="17">🌼</text>
-        <text x="240" y="1210" font-size="15">✨</text><text x="688" y="208" font-size="14">✨</text>
-      </g>
-      <path d="M22,1264 q109,-37 218,0 t218,0 t218,0 t218,0 t84,0" fill="none" stroke="#3eb6df" stroke-width="42" stroke-linecap="round"/>
-      <path d="M22,1264 q109,-37 218,0 t218,0 t218,0 t218,0 t84,0" fill="none" stroke="#5fc6ea" stroke-width="32" stroke-linecap="round"/>
-      <path d="M56,1253 q92,-24 184,0 t184,0 t184,0 t184,0" fill="none" stroke="#aee6f7" stroke-width="8" stroke-linecap="round" opacity=".95"/>
-      <g fill="none" stroke="#eefcff" stroke-width="4" stroke-linecap="round" opacity=".9">
-        <path d="M130,1281 q22,-12 44,0"/><path d="M412,1282 q22,-12 44,0"/><path d="M694,1281 q22,-12 44,0"/>
-      </g>
-      <g id="shopLayer"></g>
-    </svg>
+    <canvas class="base" id="mapCanvas" width="384" height="528" role="img" aria-label="なかやま商店街 ドット絵タイルマップ"></canvas>
     <div class="season-layer" id="seasonLayer" aria-hidden="true"></div>
     <div class="map-controls">
       <button class="deco-toggle" id="decoToggle" type="button" aria-label="季節演出の表示切替">🎨</button>
@@ -634,9 +563,104 @@ noResult.className = 'no-result';
 noResult.textContent = '🔍 お店が見つかりません';
 shopList.appendChild(noResult);
 
+const TILE = 16;
+const TILE_COLS = 12;
+const MAP_COLS = 24;
+const MAP_ROWS = 33;
+const mapCanvas = document.getElementById('mapCanvas');
+const mapCtx = mapCanvas.getContext('2d');
+const tileImage = new Image();
+const roadCells = new Set();
+const shopCells = new Map();
+mapCanvas.width = MAP_COLS * TILE;
+mapCanvas.height = MAP_ROWS * TILE;
+
+function cellKey(col, row){ return `${col},${row}`; }
+function clampCell(value, max){ return Math.max(0, Math.min(max - 1, value)); }
+function storeCell(s){
+  return {
+    col: clampCell(Math.round(s.x / 100 * MAP_COLS), MAP_COLS),
+    row: clampCell(Math.round(s.y / 100 * MAP_ROWS), MAP_ROWS),
+  };
+}
+function drawTile(index, col, row){
+  if (col < 0 || col >= MAP_COLS || row < 0 || row >= MAP_ROWS) return;
+  const sx = (index % TILE_COLS) * TILE;
+  const sy = Math.floor(index / TILE_COLS) * TILE;
+  mapCtx.drawImage(tileImage, sx, sy, TILE, TILE, col * TILE, row * TILE, TILE, TILE);
+}
+function markRoad(col, row, tileIndex){
+  if (col < 0 || col >= MAP_COLS || row < 0 || row >= MAP_ROWS) return;
+  roadCells.add(cellKey(col, row));
+  drawTile(tileIndex, col, row);
+}
+function drawHorizontalRoad(row, fromCol, toCol){
+  for (let col = fromCol; col <= toCol; col += 1) markRoad(col, row, col % 2 ? 41 : 40);
+}
+function drawVerticalRoad(col, fromRow, toRow){
+  for (let row = fromRow; row <= toRow; row += 1) markRoad(col, row, row % 2 ? 41 : 40);
+}
+function drawTree(col, row, variant){
+  const top = variant === 'orange' ? 3 : 4;
+  const bottom = variant === 'orange' ? 15 : 16;
+  drawTile(top, col, row);
+  drawTile(bottom, col, row + 1);
+}
+function drawBuilding(s, index){
+  const cell = storeCell(s);
+  shopCells.set(s.name, cell);
+  const roofByCat = { medical:52, edu:52, life:48, food:48 };
+  const wallChoices = [84, 85, 88, 90];
+  drawTile(roofByCat[s.cat] || 48, cell.col, Math.max(0, cell.row - 1));
+  drawTile(wallChoices[index % wallChoices.length], cell.col, cell.row);
+}
+function drawDecorations(){
+  const decor = [
+    ['tree', 2, 13, 'green'], ['tree', 6, 18, 'orange'], ['tree', 18, 4, 'green'],
+    ['tree', 21, 13, 'orange'], ['tree', 4, 26, 'green'], ['tree', 19, 28, 'green'],
+    ['tile', 5, 2, 6], ['tile', 5, 9, 30], ['tile', 5, 20, 21], ['tile', 29, 3, 22],
+    ['tile', 29, 17, 18], ['tile', 2, 7, 4], ['tile', 2, 15, 8], ['tile', 2, 22, 25],
+  ];
+  const blocked = new Set([...roadCells]);
+  STORES.forEach(s => {
+    const cell = storeCell(s);
+    blocked.add(cellKey(cell.col, cell.row));
+    blocked.add(cellKey(cell.col, Math.max(0, cell.row - 1)));
+  });
+  decor.forEach(item => {
+    const col = item[0] === 'tree' ? item[1] : item[2];
+    const row = item[0] === 'tree' ? item[2] : item[3];
+    if (blocked.has(cellKey(col, row)) || blocked.has(cellKey(col, row + 1))) return;
+    if (item[0] === 'tree') drawTree(col, row, item[3]);
+    else drawTile(item[1], item[2], item[3]);
+  });
+}
+function drawPixelMap(){
+  if (!tileImage.complete || !tileImage.naturalWidth) return;
+  mapCtx.imageSmoothingEnabled = false;
+  roadCells.clear();
+  shopCells.clear();
+  for (let row = 0; row < MAP_ROWS; row += 1){
+    for (let col = 0; col < MAP_COLS; col += 1){
+      const grass = (col * 11 + row * 7) % 13 === 0 ? 2 : ((col + row * 3) % 5 === 0 ? 1 : 0);
+      drawTile(grass, col, row);
+    }
+  }
+  drawHorizontalRoad(3, 3, 22);
+  drawVerticalRoad(13, 3, 30);
+  drawHorizontalRoad(14, 4, 13);
+  drawVerticalRoad(5, 14, 28);
+  drawHorizontalRoad(7, 13, 20);
+  drawVerticalRoad(20, 7, 28);
+  drawHorizontalRoad(20, 8, 13);
+  drawHorizontalRoad(25, 13, 20);
+  drawDecorations();
+  STORES.forEach(drawBuilding);
+}
+tileImage.onload = drawPixelMap;
+tileImage.src = 'tiles_tinytown.png';
+
 const SVGNS = 'http://www.w3.org/2000/svg';
-const shopLayer = document.getElementById('shopLayer');
-const bldgByName = new Map();
 function svgEl(tag, attrs){
   const el = document.createElementNS(SVGNS, tag);
   for (const k in attrs) el.setAttribute(k, attrs[k]);
@@ -663,24 +687,6 @@ function appendCategoryIcon(parent, cat){
   }
   parent.appendChild(icon);
 }
-STORES.forEach(s => {
-  const px = (s.x/100*977).toFixed(1), py = (s.y/100*1339).toFixed(1);
-  const col = CATEGORIES[s.cat].color;
-  const g = svgEl('g', { class:`shop-bldg c-${s.cat}`, transform:`translate(${px} ${py})`, filter:'url(#popShadow)' });
-  const core = svgEl('g', { class:'bldg-core' });
-  appendSvg(core, 'ellipse', { cx:'0', cy:'16', rx:'19', ry:'6', fill:'#4e7f35', opacity:'.24' });
-  appendSvg(core, 'rect', { x:'-14', y:'-2', width:'28', height:'22', rx:'5', fill:'#fffdf8', stroke:'#e3cda6', 'stroke-width':'1.6' });
-  appendSvg(core, 'path', { d:'M-18,-2 Q-15,-15 0,-20 Q15,-15 18,-2 Z', fill:col, stroke:'#fff7de', 'stroke-width':'1.8' });
-  appendSvg(core, 'path', { d:'M-11,-8 Q-3,-15 10,-10', fill:'none', stroke:'#fff', 'stroke-width':'3', 'stroke-linecap':'round', opacity:'.5' });
-  appendSvg(core, 'rect', { x:'-10', y:'4', width:'7', height:'6', rx:'1.5', fill:'#bfe3f0', stroke:'#8dc8d8', 'stroke-width':'.8' });
-  appendSvg(core, 'rect', { x:'4', y:'4', width:'7', height:'6', rx:'1.5', fill:'#bfe3f0', stroke:'#8dc8d8', 'stroke-width':'.8' });
-  appendSvg(core, 'rect', { x:'-4', y:'8', width:'8', height:'12', rx:'2', fill:'#8a6a45' });
-  appendSvg(core, 'circle', { cx:'2.3', cy:'14', r:'1', fill:'#f7d36b' });
-  appendSvg(core, 'text', { class:'bstar', x:'12', y:'-14', 'font-size':'15', 'font-family':'system-ui, sans-serif' }, '✨');
-  g.appendChild(core);
-  shopLayer.appendChild(g);
-  bldgByName.set(s.name, g);
-});
 
 function clearPopupHideTimer(){
   if (popupHideTimer !== null){
@@ -793,13 +799,6 @@ function discover(name, btn){
     btn.classList.add('found-burst');
     setTimeout(() => btn.classList.remove('found-burst'), 700);
   }
-  const bldg = bldgByName.get(name);
-  if (bldg){
-    bldg.classList.remove('pop');
-    void bldg.getBoundingClientRect();
-    bldg.classList.add('pop');
-    setTimeout(() => bldg.classList.remove('pop'), 650);
-  }
 }
 function updatePopupStamp(){
   if (!currentPopupStore) return;
@@ -817,8 +816,6 @@ function renderStamps(){
     const hit = hitByName.get(s.name);
     const row = rowByName.get(s.name);
     if (hit) hit.classList.toggle('stamped', got);
-    const bldg = bldgByName.get(s.name);
-    if (bldg) bldg.classList.toggle('found', got);
     if (row){
       row.classList.toggle('stamped', got);
       row.setAttribute('aria-label', got ? `${s.name} はっけんずみ` : s.name);
