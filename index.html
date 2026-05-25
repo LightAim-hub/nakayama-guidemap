@@ -43,9 +43,9 @@
 
   /* クリック領域（透明＝文字を隠さない） */
   .hit{ position:absolute; transform:translate(-50%,-50%);
-    width:15cqw; height:2.2cqw; border-radius:1.2cqw; cursor:pointer;
+    width:15cqw; height:3cqw; border-radius:1.2cqw; cursor:pointer;
     background:transparent; border:0; padding:0; z-index:2; }
-  .hit.compact{ width:13cqw; height:1.7cqw }
+  .hit.compact{ width:13cqw; height:2.4cqw }
   .hit::before{ content:""; position:absolute; inset:0; border-radius:inherit;
     background:transparent; transition:background .12s, box-shadow .12s; }
   .hit:hover::before,.hit:focus-visible::before{ background:rgba(255,214,120,.34);
@@ -86,6 +86,23 @@
     text-decoration:none; color:#fff; font-weight:700; padding:9px; border-radius:10px; font-size:13px }
   .popup .go.disabled{ background:#c2b49a; pointer-events:none }
   .popup .close{ position:absolute; top:5px; right:9px; border:0; background:none; font-size:18px; color:#b3a690; cursor:pointer; line-height:1 }
+  .shoplist{ max-width:720px; margin:4px auto 8px; padding:0 14px }
+  .sl-title{ font-size:clamp(15px,4vw,18px); color:#6b5036; margin:10px 0 2px; text-align:center }
+  .sl-hint{ font-size:clamp(10px,2.8vw,12px); color:#9a8763; text-align:center; margin:0 0 8px }
+  .srow{ display:flex; align-items:center; gap:10px; min-height:48px; padding:8px 12px;
+    border:1.5px solid var(--line); border-radius:12px; background:var(--paper); margin-bottom:7px;
+    text-decoration:none; color:var(--ink); font-size:clamp(13px,3.6vw,15px); font-weight:600;
+    transition:transform .08s, background .15s }
+  .srow:active{ transform:scale(.99); background:#f3e7cc }
+  .srow .cdot{ width:13px; height:13px; border-radius:50%; flex:0 0 auto }
+  .srow.c-medical .cdot{ background:var(--c-medical) }
+  .srow.c-life .cdot{ background:var(--c-life) }
+  .srow.c-food .cdot{ background:var(--c-food) }
+  .srow.c-edu .cdot{ background:var(--c-edu) }
+  .srow .sname{ flex:1 1 auto; line-height:1.35 }
+  .srow .sgo{ flex:0 0 auto; font-weight:700; color:var(--c-food) }
+  .srow.disabled{ pointer-events:none; opacity:.6 }
+  .srow.disabled .sgo{ color:#a59576; font-size:12px; font-weight:600 }
   .note{ text-align:center; font-size:clamp(10px,2.8vw,11px); color:#a59576; margin:6px 16px 26px; line-height:1.6 }
 </style>
 </head>
@@ -108,6 +125,12 @@
   <img class="base" src="map.png" alt="なかやま商店街マップ（なかやま商店街振興組合）">
   <!-- クリック領域はJSで生成 -->
 </div>
+
+<section class="shoplist" aria-label="店舗リスト">
+  <h2 class="sl-title">🔍 お店をさがす</h2>
+  <p class="sl-hint">上のカテゴリボタンで絞り込めます。タップで公式ページへ。</p>
+  <div id="shopList"></div>
+</section>
 
 <p class="note">
   ※ 公式マップ画像を土台にした版（位置関係は原図と一致）。店名・カテゴリ・コメントは暫定です。<br>
@@ -197,6 +220,7 @@ const popupCat = document.getElementById('popupCat');
 const popupName = document.getElementById('popupName');
 const popupVoices = document.getElementById('popupVoices');
 const popupGo = document.getElementById('popupGo');
+const shopList = document.getElementById('shopList');
 let pinned = null;
 if (location.search.indexOf('debug') >= 0) document.body.classList.add('debug');
 
@@ -219,6 +243,31 @@ STORES.forEach((s, i) => {
   mapWrap.appendChild(btn);
 });
 
+STORES.forEach((s) => {
+  const hasUrl = s.url && s.url !== '#';
+  const row = document.createElement(hasUrl ? 'a' : 'div');
+  row.className = `srow c-${s.cat}${hasUrl ? '' : ' disabled'}`;
+  row.dataset.cat = s.cat;
+  if (hasUrl){
+    row.href = s.url;
+    row.target = '_blank';
+    row.rel = 'noopener';
+  } else {
+    row.setAttribute('role', 'listitem');
+  }
+
+  const dot = document.createElement('span');
+  dot.className = 'cdot';
+  const name = document.createElement('span');
+  name.className = 'sname';
+  name.textContent = s.name;
+  const go = document.createElement('span');
+  go.className = 'sgo';
+  go.textContent = hasUrl ? '→' : '準備中';
+  row.append(dot, name, go);
+  shopList.appendChild(row);
+});
+
 function showPopup(btn, s){
   const c = CATEGORIES[s.cat];
   popupCat.innerHTML = `<span class="ic">${ICONS[s.cat]}</span>${c.label}`;
@@ -231,12 +280,14 @@ function showPopup(btn, s){
     popupGo.style.background = c.color; popupGo.textContent = 'お店を見る →';
   } else { popupGo.removeAttribute('href'); popupGo.classList.add('disabled'); popupGo.textContent = 'サイト準備中'; }
   const wr = mapWrap.getBoundingClientRect(), pr = btn.getBoundingClientRect();
-  popup.classList.toggle('below', s.y < 16);
+  const cy = pr.top - wr.top + pr.height/2;
+  const shouldPlaceBelow = s.y < 16 || cy - popup.offsetHeight - 14 < 8;
+  popup.classList.toggle('below', shouldPlaceBelow);
   let cx = pr.left - wr.left + pr.width/2;
   const half = Math.min(212, wr.width*0.76)/2 + 6;
   cx = Math.max(half, Math.min(wr.width - half, cx));
   popup.style.left = cx + 'px';
-  popup.style.top  = (pr.top - wr.top + pr.height/2) + 'px';
+  popup.style.top  = cy + 'px';
   popup.classList.add('show');
 }
 function hidePopup(){ popup.classList.remove('show'); }
@@ -249,7 +300,13 @@ document.getElementById('filters').addEventListener('click', e=>{
   const chip = e.target.closest('.chip-f'); if(!chip) return;
   const on = chip.getAttribute('aria-pressed') === 'true';
   chip.setAttribute('aria-pressed', String(!on));
-  document.querySelectorAll(`.hit[data-cat="${chip.dataset.cat}"]`).forEach(p=> p.classList.toggle('glow', !on));
+  const activeCats = new Set(
+    [...document.querySelectorAll('.chip-f[aria-pressed="true"]')].map(c => c.dataset.cat)
+  );
+  document.querySelectorAll('.hit').forEach(p=> p.classList.toggle('glow', activeCats.has(p.dataset.cat)));
+  document.querySelectorAll('.srow').forEach(row=>{
+    row.style.display = activeCats.size === 0 || activeCats.has(row.dataset.cat) ? '' : 'none';
+  });
 });
 </script>
 </body>
