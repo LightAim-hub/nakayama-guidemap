@@ -33,13 +33,52 @@
   .chip-f[aria-pressed="true"] .lbl{ color:#fff } .chip-f[aria-pressed="true"] .dot{ background:#fff }
   .chip-f.c-medical{ color:var(--c-medical) } .chip-f.c-life{ color:var(--c-life) }
   .chip-f.c-food{ color:var(--c-food) } .chip-f.c-edu{ color:var(--c-edu) }
+  .stamp-bar{ max-width:720px; margin:8px auto 4px; padding:0 14px;
+    display:grid; grid-template-columns:1fr auto; gap:8px 10px; align-items:center }
+  .stamp-status{ min-width:0; background:var(--paper); border:2px solid var(--line);
+    border-radius:12px; padding:8px 10px; box-shadow:0 3px 10px rgba(120,100,60,.12) }
+  .stamp-line{ display:flex; align-items:center; justify-content:space-between; gap:8px;
+    font-size:clamp(12px,3.4vw,14px); font-weight:700; color:#6b5036 }
+  .stamp-count{ white-space:nowrap }
+  .stamp-badge{ color:#9a6b27; text-align:right }
+  .stamp-meter{ height:8px; border-radius:999px; background:#ead8b7; overflow:hidden; margin-top:7px }
+  .stamp-meter i{ display:block; height:100%; width:0%; border-radius:inherit;
+    background:linear-gradient(90deg,var(--c-food),#e2b64a); transition:width .25s ease }
+  .stampbook-open{ border:2px solid var(--line); background:var(--paper); color:var(--ink);
+    border-radius:12px; padding:10px 12px; font-weight:700; cursor:pointer; white-space:nowrap }
 
   /* マップ：公式画像を土台に（位置関係＝原図と一致） */
   .map-wrap{ position:relative; width:100%; max-width:720px; margin:8px auto;
     aspect-ratio:977/1339; border:3px solid var(--line); border-radius:14px;
     overflow:hidden; box-shadow:0 8px 24px rgba(120,100,60,.2); background:#fff;
     container-type:inline-size; }
-  .map-wrap img.base{ position:absolute; inset:0; width:100%; height:100%; object-fit:fill; }
+  .map-wrap img.base{ position:absolute; inset:0; z-index:1; width:100%; height:100%; object-fit:fill; }
+  .season-layer{ position:absolute; inset:0; z-index:3; pointer-events:none; overflow:hidden }
+  .season-piece{ position:absolute; opacity:.48; font-size:clamp(12px,3.2cqw,23px);
+    animation:season-float 9s linear infinite; filter:drop-shadow(0 1px 1px rgba(120,90,50,.12)) }
+  .season-summer{ opacity:.42 }.season-winter{ opacity:.46 }
+  @keyframes season-float{
+    0%{ transform:translateY(-8px) rotate(-8deg) }
+    50%{ transform:translateY(16px) rotate(8deg) }
+    100%{ transform:translateY(36px) rotate(-4deg) }
+  }
+  .event-ribbon{ position:absolute; left:10px; right:10px; top:10px; z-index:4;
+    display:flex; align-items:center; justify-content:center; gap:8px; pointer-events:none }
+  .event-text{ min-width:0; max-width:calc(100% - 44px); background:rgba(255,250,240,.9);
+    border:1.5px solid var(--line); border-radius:999px; padding:5px 11px;
+    font-size:clamp(10px,2.6cqw,13px); font-weight:700; color:#6b5036;
+    box-shadow:0 3px 10px rgba(120,100,60,.14); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .deco-toggle{ pointer-events:auto; border:1.5px solid var(--line); background:rgba(255,250,240,.92);
+    border-radius:999px; width:32px; height:32px; cursor:pointer; box-shadow:0 3px 10px rgba(120,100,60,.14) }
+  .mapbubble{ position:absolute; z-index:4; width:min(31cqw,176px); min-height:32px;
+    transform:translate(-50%,-100%); border:1.5px solid var(--line); border-radius:15px 15px 15px 4px;
+    background:rgba(255,250,240,.95); color:#6b5036; padding:7px 9px; font-size:clamp(10px,2.8cqw,12px);
+    line-height:1.35; font-weight:700; cursor:pointer; pointer-events:auto;
+    box-shadow:0 4px 12px rgba(80,60,30,.18); opacity:0; transition:opacity .35s ease }
+  .mapbubble.show{ opacity:1 }
+  .mapbubble::after{ content:""; position:absolute; left:18px; bottom:-7px; width:12px; height:12px;
+    background:inherit; border-right:1.5px solid var(--line); border-bottom:1.5px solid var(--line);
+    transform:rotate(45deg); border-radius:0 0 3px 0 }
 
   /* クリック領域（透明＝文字を隠さない） */
   .hit{ position:absolute; transform:translate(-50%,-50%);
@@ -62,6 +101,8 @@
   body.debug .hit .num{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
     font-size:9px; color:#a00; font-weight:700 }
   .hit .num{ display:none } body.debug .hit .num{ display:block }
+  .hit.stamped::after{ content:"⭐"; position:absolute; right:-8px; top:-12px; font-size:clamp(12px,3.2cqw,19px);
+    z-index:1; filter:drop-shadow(0 1px 1px rgba(80,60,30,.25)); pointer-events:none }
 
   /* ポップアップ */
   .popup{ position:absolute; z-index:20; width:212px; max-width:76vw;
@@ -85,6 +126,10 @@
   .popup .go{ display:flex; align-items:center; justify-content:center; gap:5px; width:100%;
     text-decoration:none; color:#fff; font-weight:700; padding:9px; border-radius:10px; font-size:13px }
   .popup .go.disabled{ background:#c2b49a; pointer-events:none }
+  .stamp-btn{ display:flex; align-items:center; justify-content:center; width:100%; margin-top:8px;
+    border:2px solid var(--line); background:#fff4cf; color:#6b5036; font-weight:700;
+    padding:8px 9px; border-radius:10px; font-size:13px; cursor:pointer }
+  .stamp-btn.got{ background:#f3e7cc; color:#9a6b27; border-color:#d8b86e }
   .popup .close{ position:absolute; top:5px; right:9px; border:0; background:none; font-size:18px; color:#b3a690; cursor:pointer; line-height:1 }
   .shoplist{ max-width:720px; margin:4px auto 8px; padding:0 14px }
   .sl-title{ font-size:clamp(15px,4vw,18px); color:#6b5036; margin:10px 0 2px; text-align:center }
@@ -100,10 +145,40 @@
   .srow.c-food .cdot{ background:var(--c-food) }
   .srow.c-edu .cdot{ background:var(--c-edu) }
   .srow .sname{ flex:1 1 auto; line-height:1.35 }
+  .srow .smark{ flex:0 0 auto; min-width:1.2em; text-align:center; opacity:0; transform:scale(.9) }
+  .srow.stamped .smark{ opacity:1; transform:scale(1) }
   .srow .sgo{ flex:0 0 auto; font-weight:700; color:var(--c-food) }
   .srow.disabled{ pointer-events:none; opacity:.6 }
   .srow.disabled .sgo{ color:#a59576; font-size:12px; font-weight:600 }
+  .stampbook{ position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center;
+    padding:18px; background:rgba(70,54,36,.36) }
+  .stampbook.show{ display:flex }
+  .stampbook-panel{ width:min(680px,100%); max-height:min(82vh,760px); overflow:auto;
+    background:var(--paper); border:3px solid var(--line); border-radius:14px;
+    box-shadow:0 18px 40px rgba(60,42,25,.36); padding:14px }
+  .stampbook-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px }
+  .stampbook-title{ margin:0; color:#6b5036; font-size:clamp(17px,4.5vw,22px) }
+  .stampbook-close{ border:0; background:none; color:#9a8763; font-size:24px; line-height:1; cursor:pointer }
+  .stampbook-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:7px }
+  .stampbook-item{ display:flex; align-items:center; gap:8px; border:1.5px solid var(--line);
+    border-radius:10px; background:#fffdf7; padding:7px 8px; font-size:13px; font-weight:700 }
+  .stampbook-item .book-dot{ width:10px; height:10px; border-radius:50%; flex:0 0 auto }
+  .stampbook-item .book-name{ flex:1 1 auto; min-width:0 }
+  .stampbook-item .book-mark{ flex:0 0 auto }
+  .stampbook-actions{ display:flex; justify-content:flex-end; margin-top:12px }
+  .stamp-reset{ border:2px solid var(--line); background:#f3e7cc; color:#6b5036; border-radius:10px;
+    padding:8px 12px; font-weight:700; cursor:pointer }
   .note{ text-align:center; font-size:clamp(10px,2.8vw,11px); color:#a59576; margin:6px 16px 26px; line-height:1.6 }
+  @media (max-width:430px){
+    .stamp-bar{ grid-template-columns:1fr; gap:7px }
+    .stampbook-open{ width:100%; padding:9px }
+    .mapbubble{ width:min(38cqw,132px); padding:6px 8px }
+    .event-ribbon{ top:7px; left:7px; right:7px }
+  }
+  @media (prefers-reduced-motion:reduce){
+    .season-piece,.hit.glow::before{ animation:none }
+    .stamp-meter i,.mapbubble{ transition:none }
+  }
 </style>
 </head>
 <body>
@@ -112,6 +187,17 @@
   <h1>🏘 なかやま商店街 デジタルガイドマップ</h1>
   <p>こどもやファミリーが元気いっぱい過ごす街</p>
 </header>
+
+<div class="stamp-bar" aria-live="polite">
+  <div class="stamp-status">
+    <div class="stamp-line">
+      <span class="stamp-count" id="stampCount">🗺 スタンプ 0/47</span>
+      <span class="stamp-badge" id="stampBadge">探検スタート</span>
+    </div>
+    <div class="stamp-meter" aria-hidden="true"><i id="stampMeter"></i></div>
+  </div>
+  <button class="stampbook-open" id="stampbookOpen" type="button">📖 スタンプ帳</button>
+</div>
 
 <div class="filters" id="filters">
   <button class="chip-f c-medical" data-cat="medical" aria-pressed="false"><i class="dot"></i><span class="lbl">健康・美容・医療</span></button>
@@ -123,6 +209,19 @@
 
 <div class="map-wrap" id="mapWrap">
   <img class="base" src="map.png" alt="なかやま商店街マップ（なかやま商店街振興組合）">
+  <div class="season-layer" id="seasonLayer" aria-hidden="true"></div>
+  <div class="event-ribbon" id="eventRibbon">
+    <span class="event-text" id="eventText"></span>
+    <button class="deco-toggle" id="decoToggle" type="button" aria-label="季節演出の表示切替">🎨</button>
+  </div>
+  <div class="popup" id="popup" role="dialog">
+    <button class="close" id="popupClose" aria-label="閉じる">×</button>
+    <span class="cat" id="popupCat"></span>
+    <h3 id="popupName"></h3>
+    <div class="voices" id="popupVoices"></div>
+    <a class="go" id="popupGo" target="_blank" rel="noopener">お店を見る →</a>
+    <button class="stamp-btn" id="popupStamp" type="button">✓ 来たよ！スタンプGET</button>
+  </div>
   <!-- クリック領域はJSで生成 -->
 </div>
 
@@ -137,12 +236,17 @@
   店舗・URL・子供コメント・位置はファイル先頭の <code>STORES</code> を編集してください。URL未設定の店は「サイト準備中」と表示されます。
 </p>
 
-<div class="popup" id="popup" role="dialog">
-  <button class="close" id="popupClose" aria-label="閉じる">×</button>
-  <span class="cat" id="popupCat"></span>
-  <h3 id="popupName"></h3>
-  <div class="voices" id="popupVoices"></div>
-  <a class="go" id="popupGo" target="_blank" rel="noopener">お店を見る →</a>
+<div class="stampbook" id="stampbook" role="dialog" aria-modal="true" aria-labelledby="stampbookTitle">
+  <div class="stampbook-panel">
+    <div class="stampbook-head">
+      <h2 class="stampbook-title" id="stampbookTitle">📖 スタンプ帳</h2>
+      <button class="stampbook-close" id="stampbookClose" type="button" aria-label="スタンプ帳を閉じる">×</button>
+    </div>
+    <div class="stampbook-grid" id="stampbookGrid"></div>
+    <div class="stampbook-actions">
+      <button class="stamp-reset" id="stampReset" type="button">ぜんぶ消す</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -220,7 +324,22 @@ const popupCat = document.getElementById('popupCat');
 const popupName = document.getElementById('popupName');
 const popupVoices = document.getElementById('popupVoices');
 const popupGo = document.getElementById('popupGo');
+const popupStamp = document.getElementById('popupStamp');
 const shopList = document.getElementById('shopList');
+const stampCount = document.getElementById('stampCount');
+const stampBadge = document.getElementById('stampBadge');
+const stampMeter = document.getElementById('stampMeter');
+const stampbook = document.getElementById('stampbook');
+const stampbookGrid = document.getElementById('stampbookGrid');
+const seasonLayer = document.getElementById('seasonLayer');
+const eventText = document.getElementById('eventText');
+const decoToggle = document.getElementById('decoToggle');
+const STAMP_KEY = 'naka_stamps_v1';
+const DECO_KEY = 'naka_deco';
+const hitByName = new Map();
+const rowByName = new Map();
+let stamps = loadStamps();
+let currentPopupStore = null;
 let pinned = null;
 if (location.search.indexOf('debug') >= 0) document.body.classList.add('debug');
 
@@ -241,6 +360,7 @@ STORES.forEach((s, i) => {
     else { pinned = btn; showPopup(btn, s); }
   });
   mapWrap.appendChild(btn);
+  hitByName.set(s.name, btn);
 });
 
 STORES.forEach((s) => {
@@ -261,14 +381,20 @@ STORES.forEach((s) => {
   const name = document.createElement('span');
   name.className = 'sname';
   name.textContent = s.name;
+  const mark = document.createElement('span');
+  mark.className = 'smark';
+  mark.setAttribute('aria-hidden', 'true');
+  mark.textContent = '⭐';
   const go = document.createElement('span');
   go.className = 'sgo';
   go.textContent = hasUrl ? '→' : '準備中';
-  row.append(dot, name, go);
+  row.append(dot, name, mark, go);
   shopList.appendChild(row);
+  rowByName.set(s.name, row);
 });
 
 function showPopup(btn, s){
+  currentPopupStore = s;
   const c = CATEGORIES[s.cat];
   popupCat.innerHTML = `<span class="ic">${ICONS[s.cat]}</span>${c.label}`;
   popupCat.style.background = c.color;
@@ -279,6 +405,7 @@ function showPopup(btn, s){
     popupGo.href = s.url; popupGo.classList.remove('disabled');
     popupGo.style.background = c.color; popupGo.textContent = 'お店を見る →';
   } else { popupGo.removeAttribute('href'); popupGo.classList.add('disabled'); popupGo.textContent = 'サイト準備中'; }
+  updatePopupStamp();
   const wr = mapWrap.getBoundingClientRect(), pr = btn.getBoundingClientRect();
   const cy = pr.top - wr.top + pr.height/2;
   const shouldPlaceBelow = s.y < 16 || cy - popup.offsetHeight - 14 < 8;
@@ -290,11 +417,178 @@ function showPopup(btn, s){
   popup.style.top  = cy + 'px';
   popup.classList.add('show');
 }
-function hidePopup(){ popup.classList.remove('show'); }
+function hidePopup(){ popup.classList.remove('show'); currentPopupStore = null; }
+
+function loadStamps(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(STAMP_KEY) || '[]');
+    return Array.isArray(saved) ? saved.filter(name => STORES.some(s => s.name === name)) : [];
+  }catch(e){
+    return [];
+  }
+}
+function saveStamps(){ localStorage.setItem(STAMP_KEY, JSON.stringify(stamps)); }
+function stampBadgeName(n){
+  if (n === 0) return '探検スタート';
+  if (n < 5) return 'みならい探検隊';
+  if (n < 15) return 'たんけん隊';
+  if (n < 30) return 'なかやま博士';
+  if (n < STORES.length) return '街マスター';
+  return '🏆全店制覇！';
+}
+function hasStamp(name){ return stamps.includes(name); }
+function toggleStamp(name){
+  stamps = hasStamp(name) ? stamps.filter(n => n !== name) : [...stamps, name];
+  saveStamps();
+  renderStamps();
+}
+function updatePopupStamp(){
+  if (!currentPopupStore) return;
+  const got = hasStamp(currentPopupStore.name);
+  popupStamp.textContent = got ? '⭐ スタンプGET済み' : '✓ 来たよ！スタンプGET';
+  popupStamp.classList.toggle('got', got);
+}
+function renderStamps(){
+  const count = stamps.length;
+  stampCount.textContent = `🗺 スタンプ ${count}/${STORES.length}`;
+  stampBadge.textContent = stampBadgeName(count);
+  stampMeter.style.width = `${Math.round((count / STORES.length) * 100)}%`;
+  STORES.forEach(s => {
+    const got = hasStamp(s.name);
+    const hit = hitByName.get(s.name);
+    const row = rowByName.get(s.name);
+    if (hit) hit.classList.toggle('stamped', got);
+    if (row){
+      row.classList.toggle('stamped', got);
+      row.setAttribute('aria-label', got ? `${s.name} スタンプ取得済み` : s.name);
+    }
+  });
+  stampbookGrid.innerHTML = STORES.map(s => {
+    const c = CATEGORIES[s.cat];
+    const mark = hasStamp(s.name) ? '⭐' : '○';
+    return `<div class="stampbook-item"><span class="book-dot" style="background:${c.color}"></span><span class="book-name">${s.name}</span><span class="book-mark">${mark}</span></div>`;
+  }).join('');
+  updatePopupStamp();
+}
+
+function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+function shortVoice(text){ return text.length > 14 ? text.slice(0, 14) + '…' : text; }
+function renderVoiceBubbles(startIndex){
+  document.querySelectorAll('.mapbubble').forEach(el => el.remove());
+  const voiced = STORES.filter(s => s.voices.length > 0);
+  const max = window.matchMedia('(max-width:430px)').matches ? 2 : 3;
+  for (let i = 0; i < Math.min(max, voiced.length); i++){
+    const s = voiced[(startIndex + i) % voiced.length];
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'mapbubble';
+    b.style.left = clamp(s.x, 20, 80) + '%';
+    b.style.top = clamp(s.y - 3, 5, 95) + '%';
+    b.textContent = `💬 ${shortVoice(s.voices[0].text)}`;
+    b.setAttribute('aria-label', `${s.name}の声を開く`);
+    b.addEventListener('click', e => {
+      e.stopPropagation();
+      pinned = hitByName.get(s.name);
+      showPopup(pinned, s);
+    });
+    mapWrap.appendChild(b);
+    requestAnimationFrame(() => b.classList.add('show'));
+  }
+}
+function initVoiceBubbles(){
+  const voiced = STORES.filter(s => s.voices.length > 0);
+  if (voiced.length === 0) return;
+  let index = 0;
+  renderVoiceBubbles(index);
+  if (window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  setInterval(() => {
+    index = (index + (window.matchMedia('(max-width:430px)').matches ? 2 : 3)) % voiced.length;
+    renderVoiceBubbles(index);
+  }, 4000);
+}
+
+function getSeason(date = new Date()){
+  const m = date.getMonth() + 1;
+  if (m >= 3 && m <= 5) return 'spring';
+  if (m >= 6 && m <= 8) return 'summer';
+  if (m >= 9 && m <= 11) return 'autumn';
+  return 'winter';
+}
+function thirdSaturday(year, monthIndex){
+  const d = new Date(year, monthIndex, 1);
+  const firstSaturday = 1 + ((6 - d.getDay() + 7) % 7);
+  return new Date(year, monthIndex, firstSaturday + 14);
+}
+function dayStart(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+function daysUntil(target, today = new Date()){
+  return Math.round((dayStart(target) - dayStart(today)) / 86400000);
+}
+function nextFixedEvent(today = new Date()){
+  const y = today.getFullYear();
+  const candidates = [
+    { name:'七夕まつり', date:new Date(y, 7, 6), end:new Date(y, 7, 8) },
+    { name:'七夕まつり', date:new Date(y + 1, 7, 6), end:new Date(y + 1, 7, 8) },
+    { name:'街道市', date:thirdSaturday(y, today.getMonth()) },
+    { name:'街道市', date:thirdSaturday(y, today.getMonth() + 1) }
+  ];
+  return candidates
+    .filter(e => dayStart(e.end || e.date) >= dayStart(today))
+    .sort((a, b) => dayStart(a.date) - dayStart(b.date))[0];
+}
+function renderEventRibbon(){
+  const event = nextFixedEvent();
+  if (!event){ eventText.textContent = ''; return; }
+  const until = daysUntil(event.date);
+  const active = event.end && dayStart(event.date) <= dayStart(new Date()) && dayStart(new Date()) <= dayStart(event.end);
+  eventText.textContent = active || until === 0 ? `🎏 ${event.name} 本日開催！` : `🎏 ${event.name} まで あと${until}日`;
+}
+function renderSeason(){
+  const on = localStorage.getItem(DECO_KEY) !== 'off';
+  seasonLayer.hidden = !on;
+  decoToggle.setAttribute('aria-pressed', String(on));
+  decoToggle.style.opacity = on ? '1' : '.55';
+  if (!on){ seasonLayer.innerHTML = ''; return; }
+  const season = getSeason();
+  const sets = {
+    spring:['🌸','🌸','🌸','🌸','🌸','🌸','🌸','🌸'],
+    summer:['🎋','⭐','🎋','⭐','🎋','⭐','🎋'],
+    autumn:['🍁','🍁','🍂','🍁','🍂','🍁','🍁','🍂'],
+    winter:['❄','❄','⛄','❄','❄','❄','⛄']
+  };
+  seasonLayer.innerHTML = sets[season].map((icon, i) => {
+    const left = [9,22,36,49,63,76,88,15][i] || 50;
+    const top = [8,18,11,26,9,20,14,34][i] || 12;
+    const delay = (i * -1.3).toFixed(1);
+    return `<span class="season-piece season-${season}" style="left:${left}%;top:${top}%;animation-delay:${delay}s">${icon}</span>`;
+  }).join('');
+}
 
 document.getElementById('popupClose').addEventListener('click', e=>{ e.stopPropagation(); hidePopup(); pinned=null; });
 popup.addEventListener('click', e=>e.stopPropagation());
 document.addEventListener('click', ()=>{ if(pinned){ hidePopup(); pinned=null; } });
+popupStamp.addEventListener('click', e=>{
+  e.stopPropagation();
+  if (currentPopupStore) toggleStamp(currentPopupStore.name);
+});
+document.getElementById('stampbookOpen').addEventListener('click', () => {
+  renderStamps();
+  stampbook.classList.add('show');
+});
+document.getElementById('stampbookClose').addEventListener('click', () => stampbook.classList.remove('show'));
+stampbook.addEventListener('click', e => { if (e.target === stampbook) stampbook.classList.remove('show'); });
+document.getElementById('stampReset').addEventListener('click', () => {
+  if (confirm('スタンプをぜんぶ消しますか？')){
+    stamps = [];
+    saveStamps();
+    renderStamps();
+  }
+});
+decoToggle.addEventListener('click', e => {
+  e.stopPropagation();
+  const next = localStorage.getItem(DECO_KEY) === 'off' ? 'on' : 'off';
+  localStorage.setItem(DECO_KEY, next);
+  renderSeason();
+});
 
 document.getElementById('filters').addEventListener('click', e=>{
   const chip = e.target.closest('.chip-f'); if(!chip) return;
@@ -308,6 +602,10 @@ document.getElementById('filters').addEventListener('click', e=>{
     row.style.display = activeCats.size === 0 || activeCats.has(row.dataset.cat) ? '' : 'none';
   });
 });
+renderStamps();
+renderSeason();
+renderEventRibbon();
+initVoiceBubbles();
 </script>
 </body>
 </html>
