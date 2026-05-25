@@ -7,7 +7,7 @@
 <style>
   :root{
     --bg:#f3e7cc; --ink:#5b4a3a; --paper:#fffaf0; --line:#d8c4a0;
-    --c-medical:#1fb5a6; --c-life:#5fc24a; --c-food:#ff9d3b; --c-edu:#9b86e8;
+    --c-medical:#2a9488; --c-life:#4a9d3f; --c-food:#e8902f; --c-edu:#7e7ad0;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
@@ -16,30 +16,12 @@
                 "Yu Gothic UI","Meiryo",system-ui,sans-serif;
     background:var(--bg); color:var(--ink); -webkit-text-size-adjust:100%;
   }
-  header{ text-align:center; padding:12px 16px 0; }
+  header{ text-align:center; padding:16px 16px 2px; }
   header h1{ margin:0; font-size:clamp(18px,4.6vw,27px); color:#6b5036 }
   header p{ margin:6px 12px 0; font-size:clamp(11px,3vw,13px); color:#9a8763 }
 
-  .event-banner{ max-width:720px; margin:6px auto 0; padding:0 14px }
-  .event-text{ display:block; background:rgba(255,250,240,.9);
-    border:1.5px solid var(--line); border-radius:999px; padding:6px 12px;
-    font-size:clamp(12px,3.4vw,14px); font-weight:700; color:#6b5036;
-    box-shadow:0 3px 10px rgba(120,100,60,.14); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    text-align:center }
-  .feature-cards{ max-width:720px; margin:6px auto 0; padding:0 14px;
-    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px }
-  .feature-card{ min-height:44px; border:2px solid var(--line); border-radius:12px;
-    background:var(--paper); color:#6b5036; font:800 clamp(13px,3.5vw,15px)/1.25 inherit;
-    cursor:pointer; box-shadow:0 3px 10px rgba(120,100,60,.12); padding:8px 10px;
-    display:flex; align-items:center; justify-content:center; text-align:center }
-  .feature-card:active{ transform:scale(.98); background:#f3e7cc }
-  .search-panel{ max-width:760px; margin:0 auto; padding:6px 12px 3px }
-  .shop-search{ display:block; width:100%; min-height:44px; border:2px solid var(--line);
-    border-radius:12px; background:var(--paper); color:var(--ink); padding:9px 12px;
-    font:700 clamp(13px,3.6vw,15px)/1.3 inherit; outline:none }
-  .shop-search:focus{ border-color:#c39b51; box-shadow:0 0 0 3px rgba(232,144,47,.18) }
   .filters{ display:flex; flex-wrap:wrap; gap:7px; justify-content:center;
-    padding:7px 0 0; max-width:760px; margin:0 auto; }
+    padding:11px 12px 4px; max-width:760px; margin:0 auto; }
   .hint{ text-align:center; font-size:clamp(10px,2.8vw,12px); color:#9a8763; margin:2px 16px 0 }
   .chip-f{ border:2px solid currentColor; background:#fffaf0; color:var(--ink);
     border-radius:999px; padding:5px 12px; font-size:clamp(11px,3vw,12.5px); font-weight:700;
@@ -51,53 +33,13 @@
   .chip-f[aria-pressed="true"] .lbl{ color:#fff } .chip-f[aria-pressed="true"] .dot{ background:#fff }
   .chip-f.c-medical{ color:var(--c-medical) } .chip-f.c-life{ color:var(--c-life) }
   .chip-f.c-food{ color:var(--c-food) } .chip-f.c-edu{ color:var(--c-edu) }
-  .stamp-bar{ max-width:720px; margin:6px auto 3px; padding:0 14px;
-    display:grid; grid-template-columns:1fr auto; gap:8px 10px; align-items:center }
-  .stamp-status{ min-width:0; background:var(--paper); border:2px solid var(--line);
-    border-radius:12px; padding:7px 10px; box-shadow:0 3px 10px rgba(120,100,60,.12) }
-  .stamp-line{ display:flex; align-items:center; justify-content:space-between; gap:8px;
-    font-size:clamp(12px,3.4vw,14px); font-weight:700; color:#6b5036 }
-  .stamp-count{ white-space:nowrap }
-  .stamp-badge{ color:#9a6b27; text-align:right }
-  .stamp-meter{ display:none; height:8px; border-radius:999px; background:#ead8b7; overflow:hidden; margin-top:7px }
-  .stamp-meter i{ display:block; height:100%; width:0%; border-radius:inherit;
-    background:linear-gradient(90deg,var(--c-food),#e2b64a); transition:width .25s ease }
-  .stampbook-open{ border:2px solid var(--line); background:var(--paper); color:var(--ink);
-    border-radius:12px; padding:10px 12px; font-weight:700; cursor:pointer; white-space:nowrap }
 
-  /* マップ：Kenney Tiny Town タイルを canvas に描画 */
-  .map-wrap{ position:relative; width:100%; max-width:760px; margin:5px auto 8px;
+  /* マップ：公式画像を土台に（位置関係＝原図と一致） */
+  .map-wrap{ position:relative; width:100%; max-width:720px; margin:8px auto;
     aspect-ratio:977/1339; border:3px solid var(--line); border-radius:14px;
     overflow:hidden; box-shadow:0 8px 24px rgba(120,100,60,.2); background:#fff;
     container-type:inline-size; }
-  .map-wrap img.base{ position:absolute; inset:0; z-index:1; width:100%; height:100%; object-fit:fill; }
-  .map-wrap canvas.base{ position:absolute; inset:0; z-index:1; width:100%; height:100%; display:block;
-    image-rendering:pixelated; image-rendering:crisp-edges; }
-  .season-layer{ position:absolute; inset:0; z-index:3; pointer-events:none; overflow:hidden }
-  .season-piece{ position:absolute; opacity:.48; font-size:clamp(12px,3.2cqw,23px);
-    animation:season-float 9s linear infinite; filter:drop-shadow(0 1px 1px rgba(120,90,50,.12)) }
-  .season-summer{ opacity:.42 }.season-winter{ opacity:.46 }
-  @keyframes season-float{
-    0%{ transform:translateY(-8px) rotate(-8deg) }
-    50%{ transform:translateY(16px) rotate(8deg) }
-    100%{ transform:translateY(36px) rotate(-4deg) }
-  }
-  .map-overlay{ display:contents }
-  .map-overlay-head{ display:none }
-  .open-map-btn{ display:none }
-  .map-controls{ position:absolute; right:10px; top:10px; z-index:4;
-    display:flex; align-items:center; justify-content:flex-end; pointer-events:none }
-  .deco-toggle{ pointer-events:auto; border:1.5px solid var(--line); background:rgba(255,250,240,.92);
-    border-radius:999px; width:32px; height:32px; cursor:pointer; box-shadow:0 3px 10px rgba(120,100,60,.14) }
-  .mapbubble{ position:absolute; z-index:4; width:min(31cqw,176px); min-height:32px;
-    transform:translate(-50%,-100%); border:1.5px solid var(--line); border-radius:15px 15px 15px 4px;
-    background:rgba(255,250,240,.95); color:#6b5036; padding:7px 9px; font-size:clamp(10px,2.8cqw,12px);
-    line-height:1.35; font-weight:700; cursor:pointer; pointer-events:auto;
-    box-shadow:0 4px 12px rgba(80,60,30,.18); opacity:0; transition:opacity .35s ease }
-  .mapbubble.show{ opacity:1 }
-  .mapbubble::after{ content:""; position:absolute; left:18px; bottom:-7px; width:12px; height:12px;
-    background:inherit; border-right:1.5px solid var(--line); border-bottom:1.5px solid var(--line);
-    transform:rotate(45deg); border-radius:0 0 3px 0 }
+  .map-wrap img.base{ position:absolute; inset:0; width:100%; height:100%; object-fit:fill; }
 
   /* クリック領域（透明＝文字を隠さない） */
   .hit{ position:absolute; transform:translate(-50%,-50%);
@@ -120,10 +62,6 @@
   body.debug .hit .num{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
     font-size:9px; color:#a00; font-weight:700 }
   .hit .num{ display:none } body.debug .hit .num{ display:block }
-  .hit.stamped::after{ content:"⭐"; position:absolute; right:-8px; top:-12px; font-size:clamp(12px,3.2cqw,19px);
-    z-index:1; filter:drop-shadow(0 1px 1px rgba(80,60,30,.25)); pointer-events:none }
-  .hit.found-burst::after{ animation:found-pop .65s cubic-bezier(.34,1.56,.64,1) }
-  @keyframes found-pop{ 0%{ transform:scale(.2) rotate(-25deg); opacity:0 } 55%{ transform:scale(1.6) rotate(12deg); opacity:1 } 100%{ transform:scale(1) rotate(0) } }
 
   /* ポップアップ */
   .popup{ position:absolute; z-index:20; width:212px; max-width:76vw;
@@ -147,10 +85,6 @@
   .popup .go{ display:flex; align-items:center; justify-content:center; gap:5px; width:100%;
     text-decoration:none; color:#fff; font-weight:700; padding:9px; border-radius:10px; font-size:13px }
   .popup .go.disabled{ background:#c2b49a; pointer-events:none }
-  .stamp-btn{ display:flex; align-items:center; justify-content:center; width:100%; margin-top:8px;
-    border:2px solid var(--line); background:#fff4cf; color:#6b5036; font-weight:700;
-    padding:8px 9px; border-radius:10px; font-size:13px; cursor:pointer }
-  .stamp-btn.got{ background:#f3e7cc; color:#9a6b27; border-color:#d8b86e }
   .popup .close{ position:absolute; top:5px; right:9px; border:0; background:none; font-size:18px; color:#b3a690; cursor:pointer; line-height:1 }
   .shoplist{ max-width:720px; margin:4px auto 8px; padding:0 14px }
   .sl-title{ font-size:clamp(15px,4vw,18px); color:#6b5036; margin:10px 0 2px; text-align:center }
@@ -166,93 +100,10 @@
   .srow.c-food .cdot{ background:var(--c-food) }
   .srow.c-edu .cdot{ background:var(--c-edu) }
   .srow .sname{ flex:1 1 auto; line-height:1.35 }
-  .srow .smark{ flex:0 0 auto; min-width:1.2em; text-align:center; opacity:0; transform:scale(.9) }
-  .srow.stamped .smark{ opacity:1; transform:scale(1) }
   .srow .sgo{ flex:0 0 auto; font-weight:700; color:var(--c-food) }
   .srow.disabled{ pointer-events:none; opacity:.6 }
   .srow.disabled .sgo{ color:#a59576; font-size:12px; font-weight:600 }
-  .no-result{ display:none; align-items:center; min-height:48px; padding:8px 12px;
-    border:1.5px solid var(--line); border-radius:12px; background:var(--paper); margin-bottom:7px;
-    color:#9a8763; font-size:clamp(13px,3.6vw,15px); font-weight:700 }
-  .stampbook{ position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center;
-    padding:18px; background:rgba(70,54,36,.36) }
-  .stampbook.show{ display:flex }
-  .stampbook-panel{ width:min(680px,100%); max-height:min(82vh,760px); overflow:auto;
-    background:var(--paper); border:3px solid var(--line); border-radius:14px;
-    box-shadow:0 18px 40px rgba(60,42,25,.36); padding:14px }
-  .stampbook-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px }
-  .stampbook-title{ margin:0; color:#6b5036; font-size:clamp(17px,4.5vw,22px) }
-  .stampbook-close{ border:0; background:none; color:#9a8763; font-size:24px; line-height:1; cursor:pointer }
-  .stampbook-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:7px }
-  .stampbook-item{ display:flex; align-items:center; gap:8px; border:1.5px solid var(--line);
-    border-radius:10px; background:#fffdf7; padding:7px 8px; font-size:13px; font-weight:700 }
-  .stampbook-item .book-dot{ width:10px; height:10px; border-radius:50%; flex:0 0 auto }
-  .stampbook-item .book-name{ flex:1 1 auto; min-width:0 }
-  .stampbook-item .book-mark{ flex:0 0 auto }
-  .stampbook-actions{ display:flex; justify-content:flex-end; margin-top:12px }
-  .stamp-reset{ border:2px solid var(--line); background:#f3e7cc; color:#6b5036; border-radius:10px;
-    padding:8px 12px; font-weight:700; cursor:pointer }
-  .feature-modal{ position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center;
-    padding:18px; background:rgba(70,54,36,.38) }
-  .feature-modal.show{ display:flex }
-  .feature-panel{ width:min(680px,100%); max-height:min(84vh,760px); overflow:auto;
-    background:var(--paper); border:3px solid var(--line); border-radius:14px;
-    box-shadow:0 18px 40px rgba(60,42,25,.36); padding:14px }
-  .feature-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px }
-  .feature-title{ margin:0; color:#6b5036; font-size:clamp(17px,4.5vw,22px) }
-  .feature-close{ border:0; background:none; color:#9a8763; font-size:24px; line-height:1; cursor:pointer }
-  .legend-text{ margin:0 0 12px; padding:10px 12px; border:1.5px solid var(--line);
-    border-radius:10px; background:#fffdf7; font-size:clamp(13px,3.6vw,15px); line-height:1.7 }
-  .ema-form,.quiz-box{ display:grid; gap:10px }
-  .ema-options{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:7px }
-  .ema-options label,.quiz-choice{ min-height:44px; border:1.5px solid var(--line); border-radius:10px;
-    background:#fffdf7; padding:9px 10px; font-weight:700; cursor:pointer }
-  .ema-input{ width:100%; min-height:44px; border:2px solid var(--line); border-radius:10px;
-    background:#fffdf7; color:var(--ink); padding:9px 10px; font:700 14px/1.4 inherit }
-  .feature-submit,.quiz-next,.quiz-retry{ min-height:44px; border:2px solid #d8b86e; border-radius:10px;
-    background:#fff4cf; color:#6b5036; font-weight:800; cursor:pointer; padding:9px 12px }
-  .ema-heading{ margin:6px 0 0; color:#6b5036; font-size:clamp(15px,4vw,18px) }
-  .ema-summary,.quiz-status{ margin:2px 0 0; color:#9a6b27; font-weight:800 }
-  .ema-list{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:8px; margin-top:8px }
-  .ema{ min-height:72px; border:2px solid #d8b86e; border-radius:8px 8px 12px 12px;
-    background:#fff4cf; color:#6b5036; padding:10px; text-align:center; font-weight:800;
-    box-shadow:0 3px 8px rgba(120,100,60,.12) }
-  .ema small{ display:block; margin-top:6px; color:#9a8763; font-weight:700 }
-  .quiz-progress{ color:#9a8763; font-size:12px; font-weight:800 }
-  .quiz-question{ margin:0; color:#6b5036; font-size:clamp(16px,4.2vw,20px) }
-  .quiz-choices{ display:grid; gap:8px }
-  .quiz-choice.correct{ border-color:#6aad52; background:#eef8e9 }
-  .quiz-choice.wrong{ border-color:#d7826a; background:#fff0ea }
-  .quiz-spark{ display:inline-block; animation:quiz-spark .55s ease }
-  @keyframes quiz-spark{ 0%{ transform:scale(.8) rotate(-8deg) } 60%{ transform:scale(1.2) rotate(8deg) } 100%{ transform:scale(1) } }
   .note{ text-align:center; font-size:clamp(10px,2.8vw,11px); color:#a59576; margin:6px 16px 26px; line-height:1.6 }
-  @media (max-width:859px){
-    body.map-open{ overflow:hidden }
-    .open-map-btn{ display:flex; align-items:center; justify-content:center; width:calc(100% - 28px);
-      max-width:720px; min-height:48px; margin:8px auto; border:2px solid var(--line);
-      border-radius:12px; background:#6b5036; color:#fffaf0; font-weight:800;
-      font-size:clamp(14px,4vw,16px); cursor:pointer; box-shadow:0 5px 16px rgba(80,60,30,.2) }
-    .map-overlay{ display:none }
-    .map-overlay.open{ position:fixed; inset:0; z-index:1000; display:flex; flex-direction:column;
-      background:var(--bg); overflow:auto; padding:0 12px 18px }
-    .map-overlay-head{ position:sticky; top:0; z-index:30; display:flex; align-items:center; justify-content:space-between;
-      gap:12px; min-height:56px; margin:0 -12px 10px; padding:8px 14px; background:rgba(243,231,204,.96);
-      border-bottom:1.5px solid var(--line); color:#6b5036; font-weight:800 }
-    .map-overlay-close{ border:2px solid var(--line); background:var(--paper); color:var(--ink);
-      border-radius:10px; min-width:44px; min-height:40px; font-size:20px; line-height:1; cursor:pointer }
-    .map-overlay.open .map-wrap{ width:100%; margin:0 auto; flex:0 0 auto }
-  }
-  @media (max-width:430px){
-    .feature-cards{ grid-template-columns:1fr; padding:0 10px }
-    .stamp-bar{ gap:6px; padding:0 10px }
-    .stampbook-open{ padding:8px 9px }
-    .mapbubble{ width:min(38cqw,132px); padding:6px 8px }
-    .map-controls{ top:7px; right:7px }
-  }
-  @media (prefers-reduced-motion:reduce){
-    .season-piece,.hit.glow::before{ animation:none }
-    .stamp-meter i,.mapbubble{ transition:none }
-  }
 </style>
 </head>
 <body>
@@ -262,65 +113,22 @@
   <p>こどもやファミリーが元気いっぱい過ごす街</p>
 </header>
 
-<div class="stamp-bar" aria-live="polite">
-  <div class="stamp-status">
-    <div class="stamp-line">
-      <span class="stamp-count" id="stampCount">✨ はっけん 0/47</span>
-      <span class="stamp-badge" id="stampBadge">探検スタート</span>
-    </div>
-    <div class="stamp-meter" aria-hidden="true"><i id="stampMeter"></i></div>
-  </div>
-  <button class="stampbook-open" id="stampbookOpen" type="button">📖 おみせずかん</button>
-</div>
-
-<div class="event-banner">
-  <span class="event-text" id="eventText"></span>
-</div>
-
-<div class="feature-cards" aria-label="なかやま体験">
-  <button class="feature-card" id="openOmairi" type="button">🙏 目の神様におまいり</button>
-  <button class="feature-card" id="openQuiz" type="button">🔍 なかやま探検クイズ</button>
-</div>
-
-<div class="search-panel">
-  <input type="search" id="shopSearch" class="shop-search" placeholder="お店をさがす（名前で検索）" autocomplete="off">
-  <div class="filters" id="filters">
-    <button class="chip-f c-medical" data-cat="medical" aria-pressed="false"><i class="dot"></i><span class="lbl">健康・美容・医療</span></button>
-    <button class="chip-f c-life"    data-cat="life"    aria-pressed="false"><i class="dot"></i><span class="lbl">生活・日用・企業</span></button>
-    <button class="chip-f c-food"    data-cat="food"    aria-pressed="false"><i class="dot"></i><span class="lbl">食べる・飲む・食料</span></button>
-    <button class="chip-f c-edu"     data-cat="edu"     aria-pressed="false"><i class="dot"></i><span class="lbl">保育・教育</span></button>
-  </div>
+<div class="filters" id="filters">
+  <button class="chip-f c-medical" data-cat="medical" aria-pressed="false"><i class="dot"></i><span class="lbl">健康・美容・医療</span></button>
+  <button class="chip-f c-life"    data-cat="life"    aria-pressed="false"><i class="dot"></i><span class="lbl">生活・日用・企業</span></button>
+  <button class="chip-f c-food"    data-cat="food"    aria-pressed="false"><i class="dot"></i><span class="lbl">食べる・飲む・食料</span></button>
+  <button class="chip-f c-edu"     data-cat="edu"     aria-pressed="false"><i class="dot"></i><span class="lbl">保育・教育</span></button>
 </div>
 <p class="hint">お店をタップすると詳細＆サイトへ。カテゴリを押すとその種類のお店が光ります。スマホは指で拡大できます。</p>
 
-<button class="open-map-btn" id="openMapBtn" type="button">🗺 地図で見る</button>
-
-<div class="map-overlay" id="mapOverlay" aria-hidden="false">
-  <div class="map-overlay-head">
-    <span>なかやま地図</span>
-    <button class="map-overlay-close" id="closeMapBtn" type="button" aria-label="地図を閉じる">×</button>
-  </div>
-  <div class="map-wrap" id="mapWrap">
-    <canvas class="base" id="mapCanvas" width="384" height="528" role="img" aria-label="なかやま商店街 ドット絵タイルマップ"></canvas>
-    <div class="season-layer" id="seasonLayer" aria-hidden="true"></div>
-    <div class="map-controls">
-      <button class="deco-toggle" id="decoToggle" type="button" aria-label="季節演出の表示切替">🎨</button>
-    </div>
-    <div class="popup" id="popup" role="dialog">
-      <button class="close" id="popupClose" aria-label="閉じる">×</button>
-      <span class="cat" id="popupCat"></span>
-      <h3 id="popupName"></h3>
-      <div class="voices" id="popupVoices"></div>
-      <a class="go" id="popupGo" target="_blank" rel="noopener">お店を見る →</a>
-      <button class="stamp-btn" id="popupStamp" type="button">✓ はっけんする</button>
-    </div>
-    <!-- クリック領域はJSで生成 -->
-  </div>
+<div class="map-wrap" id="mapWrap">
+  <img class="base" src="map.png" alt="なかやま商店街マップ（なかやま商店街振興組合）">
+  <!-- クリック領域はJSで生成 -->
 </div>
 
 <section class="shoplist" aria-label="店舗リスト">
-  <h2 class="sl-title">店舗リスト</h2>
-  <p class="sl-hint">検索とカテゴリで絞り込めます。タップで公式ページへ。</p>
+  <h2 class="sl-title">🔍 お店をさがす</h2>
+  <p class="sl-hint">上のカテゴリボタンで絞り込めます。タップで公式ページへ。</p>
   <div id="shopList"></div>
 </section>
 
@@ -329,50 +137,12 @@
   店舗・URL・子供コメント・位置はファイル先頭の <code>STORES</code> を編集してください。URL未設定の店は「サイト準備中」と表示されます。
 </p>
 
-<div class="stampbook" id="stampbook" role="dialog" aria-modal="true" aria-labelledby="stampbookTitle">
-  <div class="stampbook-panel">
-    <div class="stampbook-head">
-      <h2 class="stampbook-title" id="stampbookTitle">📖 おみせずかん</h2>
-      <button class="stampbook-close" id="stampbookClose" type="button" aria-label="おみせずかんを閉じる">×</button>
-    </div>
-    <div class="stampbook-grid" id="stampbookGrid"></div>
-    <div class="stampbook-actions">
-      <button class="stamp-reset" id="stampReset" type="button">ぜんぶ消す</button>
-    </div>
-  </div>
-</div>
-
-<div class="feature-modal omairi-modal" id="omairiModal" role="dialog" aria-modal="true" aria-labelledby="omairiTitle">
-  <div class="feature-panel">
-    <div class="feature-head">
-      <h2 class="feature-title" id="omairiTitle">目の神様（中山鳥瀧不動尊）</h2>
-      <button class="feature-close" type="button" data-close-feature aria-label="おまいりを閉じる">×</button>
-    </div>
-    <p class="legend-text">むかし、中山に住む人が目の病気になったとき、不動尊（ふどうそん）の滝（たき）の水で目をあらったら、病気が治ったといわれています。それから『目の神様』として、今もたくさんの人がおまいりに来る、中山のパワースポットです。</p>
-    <form class="ema-form" id="emaForm">
-      <div class="ema-options" id="emaOptions">
-        <label><input type="radio" name="emaWish" value="目を大切に" checked> 目を大切に</label>
-        <label><input type="radio" name="emaWish" value="勉強がんばる"> 勉強がんばる</label>
-        <label><input type="radio" name="emaWish" value="けがをしない"> けがをしない</label>
-        <label><input type="radio" name="emaWish" value="じゆうに書く"> じゆうに書く</label>
-      </div>
-      <input class="ema-input" id="emaFreeText" type="text" maxlength="20" placeholder="20字まで" aria-label="じゆうに書く願い事">
-      <button class="feature-submit" type="submit">🙏 奉納する</button>
-    </form>
-    <h3 class="ema-heading">あなたの絵馬</h3>
-    <p class="ema-summary" id="emaSummary">これまでの絵馬 0枚</p>
-    <div class="ema-list" id="emaList" aria-label="あなたの絵馬"></div>
-  </div>
-</div>
-
-<div class="feature-modal quiz-modal" id="quizModal" role="dialog" aria-modal="true" aria-labelledby="quizTitle">
-  <div class="feature-panel">
-    <div class="feature-head">
-      <h2 class="feature-title" id="quizTitle">🔍 なかやま探検クイズ</h2>
-      <button class="feature-close" type="button" data-close-feature aria-label="クイズを閉じる">×</button>
-    </div>
-    <div class="quiz-box" id="quizBox"></div>
-  </div>
+<div class="popup" id="popup" role="dialog">
+  <button class="close" id="popupClose" aria-label="閉じる">×</button>
+  <span class="cat" id="popupCat"></span>
+  <h3 id="popupName"></h3>
+  <div class="voices" id="popupVoices"></div>
+  <a class="go" id="popupGo" target="_blank" rel="noopener">お店を見る →</a>
 </div>
 
 <script>
@@ -388,10 +158,10 @@ const ICONS = {
    cat: medical/life/food/edu   url: 未定は "#"
    ========================================================================= */
 const CATEGORIES = {
-  medical:{ label:"健康・美容・医療", color:"#1fb5a6" },
-  life:   { label:"生活・日用・企業", color:"#5fc24a" },
-  food:   { label:"食べる・飲む・食料", color:"#ff9d3b" },
-  edu:    { label:"保育・教育",        color:"#9b86e8" },
+  medical:{ label:"健康・美容・医療", color:"#2a9488" },
+  life:   { label:"生活・日用・企業", color:"#4a9d3f" },
+  food:   { label:"食べる・飲む・食料", color:"#e8902f" },
+  edu:    { label:"保育・教育",        color:"#7e7ad0" },
 };
 const STORES = [
   { name:"工房しらかば", cat:"life", url:"https://www.nakayaman.com/post/kobo-shirakaba", x:15.4, y:8.1, voices:[] },
@@ -445,56 +215,13 @@ const STORES = [
 /* ▲▲▲ 編集ここまで ▲▲▲ */
 
 const mapWrap = document.getElementById('mapWrap');
-const mapOverlay = document.getElementById('mapOverlay');
-const openMapBtn = document.getElementById('openMapBtn');
-const closeMapBtn = document.getElementById('closeMapBtn');
 const popup = document.getElementById('popup');
 const popupCat = document.getElementById('popupCat');
 const popupName = document.getElementById('popupName');
 const popupVoices = document.getElementById('popupVoices');
 const popupGo = document.getElementById('popupGo');
-const popupStamp = document.getElementById('popupStamp');
 const shopList = document.getElementById('shopList');
-const stampCount = document.getElementById('stampCount');
-const stampBadge = document.getElementById('stampBadge');
-const stampMeter = document.getElementById('stampMeter');
-const stampbook = document.getElementById('stampbook');
-const stampbookGrid = document.getElementById('stampbookGrid');
-const seasonLayer = document.getElementById('seasonLayer');
-const eventText = document.getElementById('eventText');
-const decoToggle = document.getElementById('decoToggle');
-const shopSearch = document.getElementById('shopSearch');
-const STAMP_KEY = 'naka_stamps_v1';
-const DECO_KEY = 'naka_deco';
-const EMA_KEY = 'naka_ema';
-const QUIZ_KEY = 'naka_quiz';
-const QUIZ = [
-  { q:"目の神様のお名前は？", choices:["中山鳥瀧不動尊","中山八幡神社","中山天神"], answer:"中山鳥瀧不動尊" },
-  { q:"七夕（たなばた）まつりは何月？", choices:["7月","8月","9月"], answer:"8月" },
-  { q:"中山の北にそびえる山は？", choices:["泉ヶ岳","蔵王山","船形山"], answer:"泉ヶ岳" },
-  { q:"商店街のそばを流れる川は？", choices:["梅田川","広瀬川","名取川"], answer:"梅田川" },
-  { q:"冬のおまつりは？", choices:["スノーマンまつり","雪まつり","どんと祭"], answer:"スノーマンまつり" },
-];
-const omairiModal = document.getElementById('omairiModal');
-const quizModal = document.getElementById('quizModal');
-const emaForm = document.getElementById('emaForm');
-const emaFreeText = document.getElementById('emaFreeText');
-const emaSummary = document.getElementById('emaSummary');
-const emaList = document.getElementById('emaList');
-const quizBox = document.getElementById('quizBox');
-const hitByName = new Map();
-const rowByName = new Map();
-const mobileMapQuery = window.matchMedia('(max-width:859px)');
-let stamps = loadStamps();
-let currentPopupStore = null;
 let pinned = null;
-let voiceBubbleTimer = null;
-let voiceBubbleIndex = 0;
-let emaItems = loadEma();
-let quizState = { index:0, score:0, answered:false };
-let hoveredHit = null;
-let popupHovered = false;
-let popupHideTimer = null;
 if (location.search.indexOf('debug') >= 0) document.body.classList.add('debug');
 
 STORES.forEach((s, i) => {
@@ -505,26 +232,15 @@ STORES.forEach((s, i) => {
   btn.style.top  = s.y + '%';
   btn.dataset.cat = s.cat;
   btn.setAttribute('aria-label', s.name);
-  btn.setAttribute('tabindex', '-1');
-  const num = document.createElement('span');
-  num.className = 'num';
-  num.textContent = String(i);
-  btn.appendChild(num);
-  btn.addEventListener('mouseenter', () => {
-    hoveredHit = btn;
-    clearPopupHideTimer();
-    if(!pinned) showPopup(btn, s);
-  });
-  btn.addEventListener('mouseleave', () => {
-    schedulePopupHide(btn);
-  });
+  btn.innerHTML = `<span class="num">${i}</span>`;
+  btn.addEventListener('mouseenter', () => { if(!pinned) showPopup(btn, s); });
+  btn.addEventListener('mouseleave', () => { if(!pinned) hidePopup(); });
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
     if (pinned === btn){ hidePopup(); pinned=null; }
-    else { pinned = btn; showPopup(btn, s); discover(s.name, btn); }
+    else { pinned = btn; showPopup(btn, s); }
   });
   mapWrap.appendChild(btn);
-  hitByName.set(s.name, btn);
 });
 
 STORES.forEach((s) => {
@@ -532,7 +248,6 @@ STORES.forEach((s) => {
   const row = document.createElement(hasUrl ? 'a' : 'div');
   row.className = `srow c-${s.cat}${hasUrl ? '' : ' disabled'}`;
   row.dataset.cat = s.cat;
-  row.dataset.name = s.name;
   if (hasUrl){
     row.href = s.url;
     row.target = '_blank';
@@ -546,190 +261,24 @@ STORES.forEach((s) => {
   const name = document.createElement('span');
   name.className = 'sname';
   name.textContent = s.name;
-  const mark = document.createElement('span');
-  mark.className = 'smark';
-  mark.setAttribute('aria-hidden', 'true');
-  mark.textContent = '⭐';
   const go = document.createElement('span');
   go.className = 'sgo';
   go.textContent = hasUrl ? '→' : '準備中';
-  row.append(dot, name, mark, go);
+  row.append(dot, name, go);
   shopList.appendChild(row);
-  rowByName.set(s.name, row);
 });
 
-const noResult = document.createElement('div');
-noResult.className = 'no-result';
-noResult.textContent = '🔍 お店が見つかりません';
-shopList.appendChild(noResult);
-
-const TILE = 16;
-const TILE_COLS = 12;
-const MAP_COLS = 24;
-const MAP_ROWS = 33;
-const mapCanvas = document.getElementById('mapCanvas');
-const mapCtx = mapCanvas.getContext('2d');
-const tileImage = new Image();
-const roadCells = new Set();
-const shopCells = new Map();
-mapCanvas.width = MAP_COLS * TILE;
-mapCanvas.height = MAP_ROWS * TILE;
-
-function cellKey(col, row){ return `${col},${row}`; }
-function clampCell(value, max){ return Math.max(0, Math.min(max - 1, value)); }
-function storeCell(s){
-  return {
-    col: clampCell(Math.round(s.x / 100 * MAP_COLS), MAP_COLS),
-    row: clampCell(Math.round(s.y / 100 * MAP_ROWS), MAP_ROWS),
-  };
-}
-function drawTile(index, col, row){
-  if (col < 0 || col >= MAP_COLS || row < 0 || row >= MAP_ROWS) return;
-  const sx = (index % TILE_COLS) * TILE;
-  const sy = Math.floor(index / TILE_COLS) * TILE;
-  mapCtx.drawImage(tileImage, sx, sy, TILE, TILE, col * TILE, row * TILE, TILE, TILE);
-}
-function markRoad(col, row, tileIndex){
-  if (col < 0 || col >= MAP_COLS || row < 0 || row >= MAP_ROWS) return;
-  roadCells.add(cellKey(col, row));
-  drawTile(tileIndex, col, row);
-}
-function drawHorizontalRoad(row, fromCol, toCol){
-  for (let col = fromCol; col <= toCol; col += 1) markRoad(col, row, col % 2 ? 41 : 40);
-}
-function drawVerticalRoad(col, fromRow, toRow){
-  for (let row = fromRow; row <= toRow; row += 1) markRoad(col, row, row % 2 ? 41 : 40);
-}
-function drawTree(col, row, variant){
-  const top = variant === 'orange' ? 3 : 4;
-  const bottom = variant === 'orange' ? 15 : 16;
-  drawTile(top, col, row);
-  drawTile(bottom, col, row + 1);
-}
-function drawBuilding(s, index){
-  const cell = storeCell(s);
-  shopCells.set(s.name, cell);
-  const roofByCat = { medical:52, edu:52, life:48, food:48 };
-  const wallChoices = [84, 85, 88, 90];
-  drawTile(roofByCat[s.cat] || 48, cell.col, Math.max(0, cell.row - 1));
-  drawTile(wallChoices[index % wallChoices.length], cell.col, cell.row);
-}
-function drawDecorations(){
-  const decor = [
-    ['tree', 2, 13, 'green'], ['tree', 6, 18, 'orange'], ['tree', 18, 4, 'green'],
-    ['tree', 21, 13, 'orange'], ['tree', 4, 26, 'green'], ['tree', 19, 28, 'green'],
-    ['tile', 5, 2, 6], ['tile', 5, 9, 30], ['tile', 5, 20, 21], ['tile', 29, 3, 22],
-    ['tile', 29, 17, 18], ['tile', 2, 7, 4], ['tile', 2, 15, 8], ['tile', 2, 22, 25],
-  ];
-  const blocked = new Set([...roadCells]);
-  STORES.forEach(s => {
-    const cell = storeCell(s);
-    blocked.add(cellKey(cell.col, cell.row));
-    blocked.add(cellKey(cell.col, Math.max(0, cell.row - 1)));
-  });
-  decor.forEach(item => {
-    const col = item[0] === 'tree' ? item[1] : item[2];
-    const row = item[0] === 'tree' ? item[2] : item[3];
-    if (blocked.has(cellKey(col, row)) || blocked.has(cellKey(col, row + 1))) return;
-    if (item[0] === 'tree') drawTree(col, row, item[3]);
-    else drawTile(item[1], item[2], item[3]);
-  });
-}
-function drawPixelMap(){
-  if (!tileImage.complete || !tileImage.naturalWidth) return;
-  mapCtx.imageSmoothingEnabled = false;
-  roadCells.clear();
-  shopCells.clear();
-  for (let row = 0; row < MAP_ROWS; row += 1){
-    for (let col = 0; col < MAP_COLS; col += 1){
-      const grass = (col * 11 + row * 7) % 13 === 0 ? 2 : ((col + row * 3) % 5 === 0 ? 1 : 0);
-      drawTile(grass, col, row);
-    }
-  }
-  drawHorizontalRoad(3, 3, 22);
-  drawVerticalRoad(13, 3, 30);
-  drawHorizontalRoad(14, 4, 13);
-  drawVerticalRoad(5, 14, 28);
-  drawHorizontalRoad(7, 13, 20);
-  drawVerticalRoad(20, 7, 28);
-  drawHorizontalRoad(20, 8, 13);
-  drawHorizontalRoad(25, 13, 20);
-  drawDecorations();
-  STORES.forEach(drawBuilding);
-}
-tileImage.onload = drawPixelMap;
-tileImage.src = 'tiles_tinytown.png';
-
-const SVGNS = 'http://www.w3.org/2000/svg';
-function svgEl(tag, attrs){
-  const el = document.createElementNS(SVGNS, tag);
-  for (const k in attrs) el.setAttribute(k, attrs[k]);
-  return el;
-}
-function appendSvg(parent, tag, attrs, text){
-  const el = svgEl(tag, attrs);
-  if (text !== undefined) el.textContent = text;
-  parent.appendChild(el);
-  return el;
-}
-function appendCategoryIcon(parent, cat){
-  const icon = svgEl('svg', { viewBox:'0 0 24 24', 'aria-hidden':'true' });
-  const base = { fill:'none', stroke:'#fff', 'stroke-linecap':'round', 'stroke-linejoin':'round' };
-  if (cat === 'medical'){
-    appendSvg(icon, 'path', { ...base, d:'M12 6.5v11M6.5 12h11', 'stroke-width':'3' });
-  } else if (cat === 'life'){
-    appendSvg(icon, 'path', { ...base, d:'M3.5 11L12 4.5 20.5 11M6 10v8.5h12V10', 'stroke-width':'2' });
-  } else if (cat === 'food'){
-    appendSvg(icon, 'path', { ...base, d:'M12 4.5C9.3 4.5 5.5 16 5.5 18a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1c0-2-3.8-13.5-6.5-13.5z', 'stroke-width':'2' });
-    appendSvg(icon, 'rect', { x:'9', y:'14.5', width:'6', height:'4.5', rx:'1.2', fill:'#fff', stroke:'none' });
-  } else {
-    appendSvg(icon, 'path', { ...base, d:'M2.5 9.5L12 5.5l9.5 4-9.5 4zM6.5 11.6v4.2c0 1 2.6 2.4 5.5 2.4s5.5-1.4 5.5-2.4v-4.2', 'stroke-width':'2' });
-  }
-  parent.appendChild(icon);
-}
-
-function clearPopupHideTimer(){
-  if (popupHideTimer !== null){
-    clearTimeout(popupHideTimer);
-    popupHideTimer = null;
-  }
-}
-function schedulePopupHide(btn){
-  clearPopupHideTimer();
-  popupHideTimer = setTimeout(() => {
-    if (hoveredHit === btn) hoveredHit = null;
-    if (!hoveredHit && !popupHovered && !pinned) hidePopup();
-    popupHideTimer = null;
-  }, 100);
-}
 function showPopup(btn, s){
-  currentPopupStore = s;
   const c = CATEGORIES[s.cat];
-  popupCat.replaceChildren();
-  const catIcon = document.createElement('span');
-  catIcon.className = 'ic';
-  appendCategoryIcon(catIcon, s.cat);
-  popupCat.append(catIcon, document.createTextNode(c.label));
+  popupCat.innerHTML = `<span class="ic">${ICONS[s.cat]}</span>${c.label}`;
   popupCat.style.background = c.color;
   popupName.textContent = s.name;
-  popupVoices.replaceChildren();
-  s.voices.forEach(v => {
-    const voice = document.createElement('div');
-    voice.className = 'voice';
-    voice.appendChild(document.createTextNode(`💬 ${v.text}`));
-    if (v.who){
-      const who = document.createElement('span');
-      who.className = 'who';
-      who.textContent = `— ${v.who}`;
-      voice.appendChild(who);
-    }
-    popupVoices.appendChild(voice);
-  });
+  popupVoices.innerHTML = s.voices.map(v =>
+    `<div class="voice">💬 ${v.text}${v.who?`<span class="who">— ${v.who}</span>`:''}</div>`).join('');
   if (s.url && s.url !== '#'){
     popupGo.href = s.url; popupGo.classList.remove('disabled');
     popupGo.style.background = c.color; popupGo.textContent = 'お店を見る →';
   } else { popupGo.removeAttribute('href'); popupGo.classList.add('disabled'); popupGo.textContent = 'サイト準備中'; }
-  updatePopupStamp();
   const wr = mapWrap.getBoundingClientRect(), pr = btn.getBoundingClientRect();
   const cy = pr.top - wr.top + pr.height/2;
   const shouldPlaceBelow = s.y < 16 || cy - popup.offsetHeight - 14 < 8;
@@ -741,516 +290,24 @@ function showPopup(btn, s){
   popup.style.top  = cy + 'px';
   popup.classList.add('show');
 }
-function hidePopup(){ popup.classList.remove('show'); currentPopupStore = null; clearPopupHideTimer(); }
-function closePopup(){ hidePopup(); pinned = null; }
+function hidePopup(){ popup.classList.remove('show'); }
 
-function hasScrollLockedUi(){
-  return stampbook.classList.contains('show') ||
-    Boolean(document.querySelector('.feature-modal.show')) ||
-    mapOverlay.classList.contains('open');
-}
-function lockScroll(){
-  document.body.style.overflow = 'hidden';
-}
-function unlockScroll(){
-  if (!hasScrollLockedUi()) document.body.style.overflow = '';
-}
-function openStampbook(){
-  renderStamps();
-  stampbook.classList.add('show');
-  lockScroll();
-}
-function closeStampbook(){
-  stampbook.classList.remove('show');
-  unlockScroll();
-}
-
-function loadStamps(){
-  try{
-    const saved = JSON.parse(localStorage.getItem(STAMP_KEY) || '[]');
-    return Array.isArray(saved) ? saved.filter(name => STORES.some(s => s.name === name)) : [];
-  }catch(e){
-    return [];
-  }
-}
-function saveStamps(){ localStorage.setItem(STAMP_KEY, JSON.stringify(stamps)); }
-function stampBadgeName(n){
-  if (n === 0) return '探検スタート';
-  if (n < 5) return 'みならい探検隊';
-  if (n < 15) return 'たんけん隊';
-  if (n < 30) return 'なかやま博士';
-  if (n < STORES.length) return '街マスター';
-  return '🏆全店制覇！';
-}
-function hasStamp(name){ return stamps.includes(name); }
-function toggleStamp(name){
-  stamps = hasStamp(name) ? stamps.filter(n => n !== name) : [...stamps, name];
-  saveStamps();
-  renderStamps();
-}
-function discover(name, btn){
-  if (hasStamp(name)) return;
-  stamps = [...stamps, name];
-  saveStamps();
-  renderStamps();
-  if (btn){
-    btn.classList.remove('found-burst');
-    void btn.offsetWidth;
-    btn.classList.add('found-burst');
-    setTimeout(() => btn.classList.remove('found-burst'), 700);
-  }
-}
-function updatePopupStamp(){
-  if (!currentPopupStore) return;
-  const got = hasStamp(currentPopupStore.name);
-  popupStamp.textContent = got ? '⭐ はっけんずみ' : '✓ はっけんする';
-  popupStamp.classList.toggle('got', got);
-}
-function renderStamps(){
-  const count = stamps.length;
-  stampCount.textContent = `✨ はっけん ${count}/${STORES.length}`;
-  stampBadge.textContent = stampBadgeName(count);
-  stampMeter.style.width = `${Math.round((count / STORES.length) * 100)}%`;
-  STORES.forEach(s => {
-    const got = hasStamp(s.name);
-    const hit = hitByName.get(s.name);
-    const row = rowByName.get(s.name);
-    if (hit) hit.classList.toggle('stamped', got);
-    if (row){
-      row.classList.toggle('stamped', got);
-      row.setAttribute('aria-label', got ? `${s.name} はっけんずみ` : s.name);
-    }
-  });
-  stampbookGrid.replaceChildren();
-  STORES.forEach(s => {
-    const c = CATEGORIES[s.cat];
-    const mark = hasStamp(s.name) ? '⭐' : '○';
-    const item = document.createElement('div');
-    item.className = 'stampbook-item';
-    const dot = document.createElement('span');
-    dot.className = 'book-dot';
-    dot.style.background = c.color;
-    const name = document.createElement('span');
-    name.className = 'book-name';
-    name.textContent = s.name;
-    const bookMark = document.createElement('span');
-    bookMark.className = 'book-mark';
-    bookMark.textContent = mark;
-    item.append(dot, name, bookMark);
-    stampbookGrid.appendChild(item);
-  });
-  updatePopupStamp();
-}
-
-function escapeHtml(text){
-  return String(text).replace(/[&<>"']/g, ch => ({
-    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
-  }[ch]));
-}
-function loadEma(){
-  try{
-    const saved = JSON.parse(localStorage.getItem(EMA_KEY) || '[]');
-    return Array.isArray(saved) ? saved.filter(item => item && typeof item.wish === 'string') : [];
-  }catch(e){
-    return [];
-  }
-}
-function saveEma(){ localStorage.setItem(EMA_KEY, JSON.stringify(emaItems)); }
-function renderEma(){
-  emaSummary.textContent = `これまでの絵馬 ${emaItems.length}枚`;
-  emaList.replaceChildren();
-  if (emaItems.length){
-    emaItems.forEach(item => {
-      const ema = document.createElement('div');
-      ema.className = 'ema';
-      ema.appendChild(document.createTextNode(item.wish));
-      const date = document.createElement('small');
-      date.textContent = item.date || '';
-      ema.appendChild(date);
-      emaList.appendChild(ema);
-    });
-  } else {
-    const empty = document.createElement('div');
-    empty.className = 'ema';
-    empty.textContent = 'まだ奉納はありません';
-    emaList.appendChild(empty);
-  }
-}
-function openFeatureModal(modal){
-  renderEma();
-  if (modal === quizModal) resetQuiz();
-  modal.classList.add('show');
-  lockScroll();
-}
-function closeFeatureModal(){
-  document.querySelectorAll('.feature-modal.show').forEach(modal => modal.classList.remove('show'));
-  unlockScroll();
-}
-function selectedEmaWish(){
-  const checked = document.querySelector('input[name="emaWish"]:checked');
-  if (!checked) return '';
-  if (checked.value !== 'じゆうに書く') return checked.value;
-  return emaFreeText.value.trim().slice(0, 20);
-}
-function quizBadge(score){
-  if (score === QUIZ.length) return 'なかやま博士';
-  if (score >= 3) return 'なかやま探検隊';
-  return 'なかやま見習い';
-}
-function loadQuizRecord(){
-  try{
-    const saved = JSON.parse(localStorage.getItem(QUIZ_KEY) || '{}');
-    return saved && typeof saved === 'object' ? saved : {};
-  }catch(e){
-    return {};
-  }
-}
-function saveQuizRecord(score){
-  const prev = loadQuizRecord();
-  const bestScore = Math.max(Number(prev.bestScore || 0), score);
-  localStorage.setItem(QUIZ_KEY, JSON.stringify({
-    bestScore,
-    cleared: score === QUIZ.length || Boolean(prev.cleared),
-    lastScore: score,
-    badge: quizBadge(score),
-    date: new Date().toISOString().slice(0, 10)
-  }));
-}
-function resetQuiz(){
-  quizState = { index:0, score:0, answered:false };
-  renderQuiz();
-}
-function renderQuiz(){
-  const record = loadQuizRecord();
-  quizBox.replaceChildren();
-  if (quizState.index >= QUIZ.length){
-    saveQuizRecord(quizState.score);
-    const status = document.createElement('p');
-    status.className = 'quiz-status';
-    status.textContent = `スコア ${quizState.score}/${QUIZ.length}　バッジ「${quizBadge(quizState.score)}」`;
-    const progress = document.createElement('p');
-    progress.className = 'quiz-progress';
-    progress.textContent = `ベストスコア ${Math.max(Number(record.bestScore || 0), quizState.score)}/${QUIZ.length}`;
-    const retry = document.createElement('button');
-    retry.className = 'quiz-retry';
-    retry.type = 'button';
-    retry.id = 'quizRetry';
-    retry.textContent = 'もう一回ちょうせん';
-    retry.addEventListener('click', resetQuiz);
-    quizBox.append(status, progress, retry);
-    return;
-  }
-  const item = QUIZ[quizState.index];
-  const progress = document.createElement('div');
-  progress.className = 'quiz-progress';
-  progress.textContent = `${quizState.index + 1}/${QUIZ.length}`;
-  const question = document.createElement('h3');
-  question.className = 'quiz-question';
-  question.textContent = item.q;
-  const choices = document.createElement('div');
-  choices.className = 'quiz-choices';
-  item.choices.forEach(choice => {
-    const button = document.createElement('button');
-    button.className = 'quiz-choice';
-    button.type = 'button';
-    button.dataset.choice = choice;
-    button.textContent = choice;
-    choices.appendChild(button);
-  });
-  const status = document.createElement('p');
-  status.className = 'quiz-status';
-  status.id = 'quizStatus';
-  status.textContent = record.bestScore ? `ベストスコア ${record.bestScore}/${QUIZ.length}` : '';
-  quizBox.append(progress, question, choices, status);
-}
-function answerQuiz(choice, btn){
-  if (quizState.answered) return;
-  const item = QUIZ[quizState.index];
-  const correct = choice === item.answer;
-  quizState.answered = true;
-  if (correct) quizState.score += 1;
-  btn.classList.add(correct ? 'correct' : 'wrong');
-  document.querySelectorAll('.quiz-choice').forEach(choiceBtn => {
-    choiceBtn.disabled = true;
-    if (choiceBtn.dataset.choice === item.answer) choiceBtn.classList.add('correct');
-  });
-  const status = document.getElementById('quizStatus');
-  status.replaceChildren();
-  if (correct){
-    const spark = document.createElement('span');
-    spark.className = 'quiz-spark';
-    spark.textContent = '✨ せいかい！';
-    status.appendChild(spark);
-  } else {
-    status.textContent = 'もう一回考えてみよう';
-  }
-  const next = document.createElement('button');
-  next.type = 'button';
-  next.className = 'quiz-next';
-  next.textContent = quizState.index === QUIZ.length - 1 ? '結果を見る' : '次の問題へ';
-  next.addEventListener('click', () => {
-    quizState.index += 1;
-    quizState.answered = false;
-    renderQuiz();
-  });
-  quizBox.appendChild(next);
-}
-
-function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
-function shortVoice(text){ return text.length > 14 ? text.slice(0, 14) + '…' : text; }
-function renderVoiceBubbles(startIndex){
-  document.querySelectorAll('.mapbubble').forEach(el => el.remove());
-  const voiced = STORES.filter(s => s.voices.length > 0);
-  const max = window.matchMedia('(max-width:430px)').matches ? 2 : 3;
-  for (let i = 0; i < Math.min(max, voiced.length); i++){
-    const s = voiced[(startIndex + i) % voiced.length];
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'mapbubble';
-    b.style.left = clamp(s.x, 20, 80) + '%';
-    b.style.top = clamp(s.y - 3, 5, 95) + '%';
-    b.textContent = `💬 ${shortVoice(s.voices[0].text)}`;
-    b.setAttribute('aria-label', `${s.name}の声を開く`);
-    b.addEventListener('click', e => {
-      e.stopPropagation();
-      pinned = hitByName.get(s.name);
-      if (pinned) showPopup(pinned, s);
-    });
-    mapWrap.appendChild(b);
-    requestAnimationFrame(() => b.classList.add('show'));
-  }
-}
-function startVoiceBubbles(){
-  if (!isMapVisible() || voiceBubbleTimer !== null) return;
-  const voiced = STORES.filter(s => s.voices.length > 0);
-  if (voiced.length === 0) return;
-  renderVoiceBubbles(voiceBubbleIndex);
-  if (window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
-  voiceBubbleTimer = setInterval(() => {
-    voiceBubbleIndex = (voiceBubbleIndex + (window.matchMedia('(max-width:430px)').matches ? 2 : 3)) % voiced.length;
-    renderVoiceBubbles(voiceBubbleIndex);
-  }, 4000);
-}
-function stopVoiceBubbles(){
-  if (voiceBubbleTimer !== null){
-    clearInterval(voiceBubbleTimer);
-    voiceBubbleTimer = null;
-  }
-  document.querySelectorAll('.mapbubble').forEach(el => el.remove());
-}
-
-function getSeason(date = new Date()){
-  const m = date.getMonth() + 1;
-  if (m >= 3 && m <= 5) return 'spring';
-  if (m >= 6 && m <= 8) return 'summer';
-  if (m >= 9 && m <= 11) return 'autumn';
-  return 'winter';
-}
-function thirdSaturday(year, monthIndex){
-  const d = new Date(year, monthIndex, 1);
-  const firstSaturday = 1 + ((6 - d.getDay() + 7) % 7);
-  return new Date(year, monthIndex, firstSaturday + 14);
-}
-function dayStart(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
-function daysUntil(target, today = new Date()){
-  return Math.round((dayStart(target) - dayStart(today)) / 86400000);
-}
-function nextFixedEvent(today = new Date()){
-  const y = today.getFullYear();
-  const candidates = [
-    { name:'七夕まつり', date:new Date(y, 7, 6), end:new Date(y, 7, 8) },
-    { name:'七夕まつり', date:new Date(y + 1, 7, 6), end:new Date(y + 1, 7, 8) },
-    { name:'街道市', date:thirdSaturday(y, today.getMonth()) },
-    { name:'街道市', date:thirdSaturday(y, today.getMonth() + 1) }
-  ];
-  return candidates
-    .filter(e => dayStart(e.end || e.date) >= dayStart(today))
-    .sort((a, b) => dayStart(a.date) - dayStart(b.date))[0];
-}
-function renderEventRibbon(){
-  const event = nextFixedEvent();
-  if (!event){ eventText.textContent = ''; return; }
-  const until = daysUntil(event.date);
-  const active = event.end && dayStart(event.date) <= dayStart(new Date()) && dayStart(new Date()) <= dayStart(event.end);
-  eventText.textContent = active || until === 0 ? `🎏 ${event.name} 本日開催！` : `🎏 ${event.name} まで あと${until}日`;
-}
-function renderSeason(){
-  const on = localStorage.getItem(DECO_KEY) !== 'off';
-  seasonLayer.hidden = !on;
-  decoToggle.setAttribute('aria-pressed', String(on));
-  decoToggle.style.opacity = on ? '1' : '.55';
-  if (!on || !isMapVisible()){ seasonLayer.replaceChildren(); seasonLayer.hidden = true; return; }
-  const season = getSeason();
-  const sets = {
-    spring:['🌸','🌸','🌸','🌸','🌸','🌸','🌸','🌸'],
-    summer:['🎋','⭐','🎋','⭐','🎋','⭐','🎋'],
-    autumn:['🍁','🍁','🍂','🍁','🍂','🍁','🍁','🍂'],
-    winter:['❄','❄','⛄','❄','❄','❄','⛄']
-  };
-  seasonLayer.replaceChildren();
-  sets[season].forEach((icon, i) => {
-    const left = [9,22,36,49,63,76,88,15][i] || 50;
-    const top = [8,18,11,26,9,20,14,34][i] || 12;
-    const delay = (i * -1.3).toFixed(1);
-    const piece = document.createElement('span');
-    piece.className = `season-piece season-${season}`;
-    piece.style.left = `${left}%`;
-    piece.style.top = `${top}%`;
-    piece.style.animationDelay = `${delay}s`;
-    piece.textContent = icon;
-    seasonLayer.appendChild(piece);
-  });
-}
-function isMapVisible(){
-  return !mobileMapQuery.matches || mapOverlay.classList.contains('open');
-}
-function syncMapDecorations(){
-  if (isMapVisible()){
-    mapOverlay.setAttribute('aria-hidden', 'false');
-    renderSeason();
-    startVoiceBubbles();
-  } else {
-    mapOverlay.setAttribute('aria-hidden', 'true');
-    closePopup();
-    stopVoiceBubbles();
-    seasonLayer.replaceChildren();
-    seasonLayer.hidden = true;
-  }
-}
-function openMapOverlay(){
-  mapOverlay.classList.add('open');
-  document.body.classList.add('map-open');
-  lockScroll();
-  closePopup();
-  syncMapDecorations();
-}
-function closeMapOverlay(){
-  mapOverlay.classList.remove('open');
-  document.body.classList.remove('map-open');
-  closePopup();
-  syncMapDecorations();
-  unlockScroll();
-}
-function getActiveCats(){
-  return new Set(
-    [...document.querySelectorAll('.chip-f[aria-pressed="true"]')].map(c => c.dataset.cat)
-  );
-}
-function norm(text){
-  return String(text)
-    .toLowerCase()
-    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
-    .replace(/[\u30a1-\u30f6]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
-}
-function applyFilters(){
-  const activeCats = getActiveCats();
-  const q = norm(shopSearch.value.trim());
-  let visibleCount = 0;
-  STORES.forEach(s => {
-    const matchesCat = activeCats.size === 0 || activeCats.has(s.cat);
-    const matchesName = q === '' || norm(s.name).includes(q);
-    const visible = matchesCat && matchesName;
-    const row = rowByName.get(s.name);
-    const hit = hitByName.get(s.name);
-    if (row) row.style.display = visible ? '' : 'none';
-    if (hit) hit.classList.toggle('glow', activeCats.has(s.cat) && matchesName);
-    if (visible) visibleCount += 1;
-  });
-  noResult.style.display = visibleCount === 0 ? 'flex' : 'none';
-}
-
-document.getElementById('popupClose').addEventListener('click', e=>{ e.stopPropagation(); closePopup(); });
+document.getElementById('popupClose').addEventListener('click', e=>{ e.stopPropagation(); hidePopup(); pinned=null; });
 popup.addEventListener('click', e=>e.stopPropagation());
-popup.addEventListener('mouseenter', () => {
-  popupHovered = true;
-  clearPopupHideTimer();
-});
-popup.addEventListener('mouseleave', () => {
-  popupHovered = false;
-  if (!pinned) hidePopup();
-});
-document.addEventListener('click', ()=>{ if(pinned) closePopup(); });
-popupStamp.addEventListener('click', e=>{
-  e.stopPropagation();
-  if (currentPopupStore) toggleStamp(currentPopupStore.name);
-});
-document.getElementById('stampbookOpen').addEventListener('click', openStampbook);
-document.getElementById('stampbookClose').addEventListener('click', closeStampbook);
-stampbook.addEventListener('click', e => { if (e.target === stampbook) closeStampbook(); });
-document.getElementById('stampReset').addEventListener('click', () => {
-  if (confirm('はっけんをぜんぶ消しますか？')){
-    stamps = [];
-    saveStamps();
-    renderStamps();
-  }
-});
-document.getElementById('openOmairi').addEventListener('click', () => openFeatureModal(omairiModal));
-document.getElementById('openQuiz').addEventListener('click', () => openFeatureModal(quizModal));
-document.querySelectorAll('[data-close-feature]').forEach(btn => {
-  btn.addEventListener('click', closeFeatureModal);
-});
-document.querySelectorAll('.feature-modal').forEach(modal => {
-  modal.addEventListener('click', e => {
-    if (e.target === modal) closeFeatureModal();
-  });
-});
-emaForm.addEventListener('submit', e => {
-  e.preventDefault();
-  const wish = selectedEmaWish();
-  if (!wish){
-    emaFreeText.focus();
-    return;
-  }
-  emaItems.push({ wish, date:new Date().toISOString().slice(0, 10) });
-  saveEma();
-  emaFreeText.value = '';
-  renderEma();
-});
-quizBox.addEventListener('click', e => {
-  const btn = e.target.closest('.quiz-choice');
-  if (!btn) return;
-  answerQuiz(btn.dataset.choice, btn);
-});
-decoToggle.addEventListener('click', e => {
-  e.stopPropagation();
-  const next = localStorage.getItem(DECO_KEY) === 'off' ? 'on' : 'off';
-  localStorage.setItem(DECO_KEY, next);
-  syncMapDecorations();
-});
-openMapBtn.addEventListener('click', openMapOverlay);
-closeMapBtn.addEventListener('click', e => {
-  e.stopPropagation();
-  closeMapOverlay();
-});
-mapOverlay.addEventListener('click', e => {
-  if (e.target === mapOverlay && mobileMapQuery.matches) closeMapOverlay();
-});
-mapOverlay.addEventListener('scroll', closePopup, { passive:true });
-document.addEventListener('keydown', e => {
-  if (e.key !== 'Escape') return;
-  if (document.querySelector('.feature-modal.show')) closeFeatureModal();
-  else if (stampbook.classList.contains('show')) closeStampbook();
-  else if (mapOverlay.classList.contains('open')) closeMapOverlay();
-  else if (pinned) closePopup();
-});
-if (mobileMapQuery.addEventListener){
-  mobileMapQuery.addEventListener('change', syncMapDecorations);
-} else {
-  mobileMapQuery.addListener(syncMapDecorations);
-}
+document.addEventListener('click', ()=>{ if(pinned){ hidePopup(); pinned=null; } });
 
 document.getElementById('filters').addEventListener('click', e=>{
   const chip = e.target.closest('.chip-f'); if(!chip) return;
   const on = chip.getAttribute('aria-pressed') === 'true';
   chip.setAttribute('aria-pressed', String(!on));
-  applyFilters();
+  const activeCats = new Set(
+    [...document.querySelectorAll('.chip-f[aria-pressed="true"]')].map(c => c.dataset.cat)
+  );
+  document.querySelectorAll('.hit').forEach(p=> p.classList.toggle('glow', activeCats.has(p.dataset.cat)));
+  document.querySelectorAll('.srow').forEach(row=>{
+    row.style.display = activeCats.size === 0 || activeCats.has(row.dataset.cat) ? '' : 'none';
+  });
 });
-shopSearch.addEventListener('input', applyFilters);
-renderStamps();
-renderEma();
-renderEventRibbon();
-applyFilters();
-syncMapDecorations();
 </script>
 </body>
 </html>
