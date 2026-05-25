@@ -297,7 +297,10 @@
     <button class="map-overlay-close" id="closeMapBtn" type="button" aria-label="地図を閉じる">×</button>
   </div>
   <div class="map-wrap" id="mapWrap">
-    <img class="base" src="map.png" alt="なかやま商店街マップ（なかやま商店街振興組合）">
+    <picture>
+      <source srcset="map.webp" type="image/webp">
+      <img class="base" src="map.png" alt="なかやま商店街マップ（なかやま商店街振興組合）" decoding="async" fetchpriority="high">
+    </picture>
     <div class="season-layer" id="seasonLayer" aria-hidden="true"></div>
     <div class="map-controls">
       <button class="deco-toggle" id="decoToggle" type="button" aria-label="季節演出の表示切替">🎨</button>
