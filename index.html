@@ -167,6 +167,9 @@
   .srow .sgo{ flex:0 0 auto; font-weight:700; color:var(--c-food) }
   .srow.disabled{ pointer-events:none; opacity:.6 }
   .srow.disabled .sgo{ color:#a59576; font-size:12px; font-weight:600 }
+  .no-result{ display:none; align-items:center; min-height:48px; padding:8px 12px;
+    border:1.5px solid var(--line); border-radius:12px; background:var(--paper); margin-bottom:7px;
+    color:#9a8763; font-size:clamp(13px,3.6vw,15px); font-weight:700 }
   .stampbook{ position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center;
     padding:18px; background:rgba(70,54,36,.36) }
   .stampbook.show{ display:flex }
@@ -485,6 +488,9 @@ let voiceBubbleTimer = null;
 let voiceBubbleIndex = 0;
 let emaItems = loadEma();
 let quizState = { index:0, score:0, answered:false };
+let hoveredHit = null;
+let popupHovered = false;
+let popupHideTimer = null;
 if (location.search.indexOf('debug') >= 0) document.body.classList.add('debug');
 
 STORES.forEach((s, i) => {
@@ -495,9 +501,16 @@ STORES.forEach((s, i) => {
   btn.style.top  = s.y + '%';
   btn.dataset.cat = s.cat;
   btn.setAttribute('aria-label', s.name);
+  btn.setAttribute('tabindex', '-1');
   btn.innerHTML = `<span class="num">${i}</span>`;
-  btn.addEventListener('mouseenter', () => { if(!pinned) showPopup(btn, s); });
-  btn.addEventListener('mouseleave', () => { if(!pinned) hidePopup(); });
+  btn.addEventListener('mouseenter', () => {
+    hoveredHit = btn;
+    clearPopupHideTimer();
+    if(!pinned) showPopup(btn, s);
+  });
+  btn.addEventListener('mouseleave', () => {
+    schedulePopupHide(btn);
+  });
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
     if (pinned === btn){ hidePopup(); pinned=null; }
@@ -538,6 +551,25 @@ STORES.forEach((s) => {
   rowByName.set(s.name, row);
 });
 
+const noResult = document.createElement('div');
+noResult.className = 'no-result';
+noResult.textContent = '🔍 お店が見つかりません';
+shopList.appendChild(noResult);
+
+function clearPopupHideTimer(){
+  if (popupHideTimer !== null){
+    clearTimeout(popupHideTimer);
+    popupHideTimer = null;
+  }
+}
+function schedulePopupHide(btn){
+  clearPopupHideTimer();
+  popupHideTimer = setTimeout(() => {
+    if (hoveredHit === btn) hoveredHit = null;
+    if (!hoveredHit && !popupHovered && !pinned) hidePopup();
+    popupHideTimer = null;
+  }, 100);
+}
 function showPopup(btn, s){
   currentPopupStore = s;
   const c = CATEGORIES[s.cat];
@@ -562,8 +594,29 @@ function showPopup(btn, s){
   popup.style.top  = cy + 'px';
   popup.classList.add('show');
 }
-function hidePopup(){ popup.classList.remove('show'); currentPopupStore = null; }
+function hidePopup(){ popup.classList.remove('show'); currentPopupStore = null; clearPopupHideTimer(); }
 function closePopup(){ hidePopup(); pinned = null; }
+
+function hasScrollLockedUi(){
+  return stampbook.classList.contains('show') ||
+    Boolean(document.querySelector('.feature-modal.show')) ||
+    mapOverlay.classList.contains('open');
+}
+function lockScroll(){
+  document.body.style.overflow = 'hidden';
+}
+function unlockScroll(){
+  if (!hasScrollLockedUi()) document.body.style.overflow = '';
+}
+function openStampbook(){
+  renderStamps();
+  stampbook.classList.add('show');
+  lockScroll();
+}
+function closeStampbook(){
+  stampbook.classList.remove('show');
+  unlockScroll();
+}
 
 function loadStamps(){
   try{
@@ -641,9 +694,11 @@ function openFeatureModal(modal){
   renderEma();
   if (modal === quizModal) resetQuiz();
   modal.classList.add('show');
+  lockScroll();
 }
 function closeFeatureModal(){
   document.querySelectorAll('.feature-modal.show').forEach(modal => modal.classList.remove('show'));
+  unlockScroll();
 }
 function selectedEmaWish(){
   const checked = document.querySelector('input[name="emaWish"]:checked');
@@ -843,6 +898,7 @@ function syncMapDecorations(){
 function openMapOverlay(){
   mapOverlay.classList.add('open');
   document.body.classList.add('map-open');
+  lockScroll();
   closePopup();
   syncMapDecorations();
 }
@@ -851,39 +907,54 @@ function closeMapOverlay(){
   document.body.classList.remove('map-open');
   closePopup();
   syncMapDecorations();
+  unlockScroll();
 }
 function getActiveCats(){
   return new Set(
     [...document.querySelectorAll('.chip-f[aria-pressed="true"]')].map(c => c.dataset.cat)
   );
 }
+function norm(text){
+  return String(text)
+    .toLowerCase()
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .replace(/[\u30a1-\u30f6]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+}
 function applyFilters(){
   const activeCats = getActiveCats();
-  const q = shopSearch.value.trim();
+  const q = norm(shopSearch.value.trim());
+  let visibleCount = 0;
   STORES.forEach(s => {
     const matchesCat = activeCats.size === 0 || activeCats.has(s.cat);
-    const matchesName = q === '' || s.name.includes(q);
+    const matchesName = q === '' || norm(s.name).includes(q);
     const visible = matchesCat && matchesName;
     const row = rowByName.get(s.name);
     const hit = hitByName.get(s.name);
     if (row) row.style.display = visible ? '' : 'none';
     if (hit) hit.classList.toggle('glow', activeCats.has(s.cat) && matchesName);
+    if (visible) visibleCount += 1;
   });
+  noResult.style.display = visibleCount === 0 ? 'flex' : 'none';
 }
 
 document.getElementById('popupClose').addEventListener('click', e=>{ e.stopPropagation(); closePopup(); });
 popup.addEventListener('click', e=>e.stopPropagation());
+popup.addEventListener('mouseenter', () => {
+  popupHovered = true;
+  clearPopupHideTimer();
+});
+popup.addEventListener('mouseleave', () => {
+  popupHovered = false;
+  if (!pinned) hidePopup();
+});
 document.addEventListener('click', ()=>{ if(pinned) closePopup(); });
 popupStamp.addEventListener('click', e=>{
   e.stopPropagation();
   if (currentPopupStore) toggleStamp(currentPopupStore.name);
 });
-document.getElementById('stampbookOpen').addEventListener('click', () => {
-  renderStamps();
-  stampbook.classList.add('show');
-});
-document.getElementById('stampbookClose').addEventListener('click', () => stampbook.classList.remove('show'));
-stampbook.addEventListener('click', e => { if (e.target === stampbook) stampbook.classList.remove('show'); });
+document.getElementById('stampbookOpen').addEventListener('click', openStampbook);
+document.getElementById('stampbookClose').addEventListener('click', closeStampbook);
+stampbook.addEventListener('click', e => { if (e.target === stampbook) closeStampbook(); });
 document.getElementById('stampReset').addEventListener('click', () => {
   if (confirm('スタンプをぜんぶ消しますか？')){
     stamps = [];
@@ -936,7 +1007,9 @@ mapOverlay.addEventListener('scroll', closePopup, { passive:true });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (document.querySelector('.feature-modal.show')) closeFeatureModal();
+  else if (stampbook.classList.contains('show')) closeStampbook();
   else if (mapOverlay.classList.contains('open')) closeMapOverlay();
+  else if (pinned) closePopup();
 });
 if (mobileMapQuery.addEventListener){
   mobileMapQuery.addEventListener('change', syncMapDecorations);
