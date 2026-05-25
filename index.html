@@ -7,7 +7,7 @@
 <style>
   :root{
     --bg:#f3e7cc; --ink:#5b4a3a; --paper:#fffaf0; --line:#d8c4a0;
-    --c-medical:#2a9488; --c-life:#4a9d3f; --c-food:#e8902f; --c-edu:#7e7ad0;
+    --c-medical:#1fb5a6; --c-life:#5fc24a; --c-food:#ff9d3b; --c-edu:#9b86e8;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
@@ -16,30 +16,30 @@
                 "Yu Gothic UI","Meiryo",system-ui,sans-serif;
     background:var(--bg); color:var(--ink); -webkit-text-size-adjust:100%;
   }
-  header{ text-align:center; padding:16px 16px 2px; }
+  header{ text-align:center; padding:12px 16px 0; }
   header h1{ margin:0; font-size:clamp(18px,4.6vw,27px); color:#6b5036 }
   header p{ margin:6px 12px 0; font-size:clamp(11px,3vw,13px); color:#9a8763 }
 
-  .event-banner{ max-width:720px; margin:8px auto 2px; padding:0 14px }
+  .event-banner{ max-width:720px; margin:6px auto 0; padding:0 14px }
   .event-text{ display:block; background:rgba(255,250,240,.9);
-    border:1.5px solid var(--line); border-radius:999px; padding:7px 12px;
+    border:1.5px solid var(--line); border-radius:999px; padding:6px 12px;
     font-size:clamp(12px,3.4vw,14px); font-weight:700; color:#6b5036;
     box-shadow:0 3px 10px rgba(120,100,60,.14); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     text-align:center }
-  .feature-cards{ max-width:720px; margin:8px auto 2px; padding:0 14px;
-    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px }
-  .feature-card{ min-height:48px; border:2px solid var(--line); border-radius:12px;
+  .feature-cards{ max-width:720px; margin:6px auto 0; padding:0 14px;
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px }
+  .feature-card{ min-height:44px; border:2px solid var(--line); border-radius:12px;
     background:var(--paper); color:#6b5036; font:800 clamp(13px,3.5vw,15px)/1.25 inherit;
-    cursor:pointer; box-shadow:0 3px 10px rgba(120,100,60,.12); padding:9px 10px;
+    cursor:pointer; box-shadow:0 3px 10px rgba(120,100,60,.12); padding:8px 10px;
     display:flex; align-items:center; justify-content:center; text-align:center }
   .feature-card:active{ transform:scale(.98); background:#f3e7cc }
-  .search-panel{ max-width:760px; margin:0 auto; padding:7px 12px 4px }
+  .search-panel{ max-width:760px; margin:0 auto; padding:6px 12px 3px }
   .shop-search{ display:block; width:100%; min-height:44px; border:2px solid var(--line);
     border-radius:12px; background:var(--paper); color:var(--ink); padding:9px 12px;
     font:700 clamp(13px,3.6vw,15px)/1.3 inherit; outline:none }
   .shop-search:focus{ border-color:#c39b51; box-shadow:0 0 0 3px rgba(232,144,47,.18) }
   .filters{ display:flex; flex-wrap:wrap; gap:7px; justify-content:center;
-    padding:9px 0 0; max-width:760px; margin:0 auto; }
+    padding:7px 0 0; max-width:760px; margin:0 auto; }
   .hint{ text-align:center; font-size:clamp(10px,2.8vw,12px); color:#9a8763; margin:2px 16px 0 }
   .chip-f{ border:2px solid currentColor; background:#fffaf0; color:var(--ink);
     border-radius:999px; padding:5px 12px; font-size:clamp(11px,3vw,12.5px); font-weight:700;
@@ -51,7 +51,7 @@
   .chip-f[aria-pressed="true"] .lbl{ color:#fff } .chip-f[aria-pressed="true"] .dot{ background:#fff }
   .chip-f.c-medical{ color:var(--c-medical) } .chip-f.c-life{ color:var(--c-life) }
   .chip-f.c-food{ color:var(--c-food) } .chip-f.c-edu{ color:var(--c-edu) }
-  .stamp-bar{ max-width:720px; margin:8px auto 4px; padding:0 14px;
+  .stamp-bar{ max-width:720px; margin:6px auto 3px; padding:0 14px;
     display:grid; grid-template-columns:1fr auto; gap:8px 10px; align-items:center }
   .stamp-status{ min-width:0; background:var(--paper); border:2px solid var(--line);
     border-radius:12px; padding:7px 10px; box-shadow:0 3px 10px rgba(120,100,60,.12) }
@@ -66,17 +66,17 @@
     border-radius:12px; padding:10px 12px; font-weight:700; cursor:pointer; white-space:nowrap }
 
   /* マップ：公式画像を土台に（位置関係＝原図と一致） */
-  .map-wrap{ position:relative; width:100%; max-width:720px; margin:8px auto;
+  .map-wrap{ position:relative; width:100%; max-width:760px; margin:5px auto 8px;
     aspect-ratio:977/1339; border:3px solid var(--line); border-radius:14px;
     overflow:hidden; box-shadow:0 8px 24px rgba(120,100,60,.2); background:#fff;
     container-type:inline-size; }
   .map-wrap img.base{ position:absolute; inset:0; z-index:1; width:100%; height:100%; object-fit:fill; }
   .map-wrap svg.base{ position:absolute; inset:0; z-index:1; width:100%; height:100%; display:block }
-  .shop-bldg{ transition:opacity .2s }
-  .shop-bldg:not(.found){ opacity:.66 }
+  .shop-bldg{ transition:opacity .2s, filter .2s }
+  .shop-bldg:not(.found){ opacity:.62; filter:saturate(.45) grayscale(.32) }
   .shop-bldg .bstar{ display:none }
   .shop-bldg.found .bstar{ display:block }
-  .shop-bldg.pop{ animation:bldg-pop .6s cubic-bezier(.34,1.56,.64,1) }
+  .shop-bldg.pop .bldg-core{ animation:bldg-pop .6s cubic-bezier(.34,1.56,.64,1); transform-box:fill-box; transform-origin:center bottom }
   @keyframes bldg-pop{ 0%{ transform:translateY(2px) scale(.8) } 55%{ transform:translateY(-3px) scale(1.18) } 100%{ transform:translateY(0) scale(1) } }
   .season-layer{ position:absolute; inset:0; z-index:3; pointer-events:none; overflow:hidden }
   .season-piece{ position:absolute; opacity:.48; font-size:clamp(12px,3.2cqw,23px);
@@ -307,29 +307,70 @@
   </div>
   <div class="map-wrap" id="mapWrap">
     <svg class="base" id="mapSvg" viewBox="0 0 977 1339" preserveAspectRatio="none" role="img" aria-label="なかやま商店街 デジタルマップ">
-      <rect x="0" y="0" width="977" height="1339" fill="#f6ecd4"/>
-      <ellipse cx="150" cy="560" rx="120" ry="150" fill="#dcebc4"/>
-      <ellipse cx="300" cy="1060" rx="165" ry="175" fill="#dcebc4"/>
-      <ellipse cx="820" cy="980" rx="150" ry="185" fill="#dcebc4"/>
-      <path d="M0,120 Q120,30 250,95 T500,80 T760,95 T977,70 L977,0 L0,0 Z" fill="#bcd99a"/>
-      <path d="M0,120 Q120,30 250,95 T500,80 T760,95 T977,70" fill="none" stroke="#9cc06f" stroke-width="4"/>
-      <g stroke="#ecdcb6" stroke-linecap="round" stroke-linejoin="round" fill="none">
-        <path d="M150,150 H905" stroke-width="48"/>
-        <path d="M545,150 V1160" stroke-width="62"/>
-        <path d="M545,560 H210 Q190,560 190,600 V1120" stroke-width="44"/>
-        <path d="M560,300 H800 Q825,300 825,340 V1110" stroke-width="44"/>
+      <defs>
+        <filter id="popShadow" x="-35%" y="-35%" width="170%" height="185%">
+          <feDropShadow dx="0" dy="3" stdDeviation="2" flood-color="rgba(60,50,30,.28)"/>
+        </filter>
+        <linearGradient id="grassShine" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stop-color="#9bdd6e"/>
+          <stop offset=".62" stop-color="#82cf5a"/>
+          <stop offset="1" stop-color="#70bf4e"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="977" height="1339" fill="url(#grassShine)"/>
+      <g opacity=".28" fill="#b8ec84">
+        <circle cx="74" cy="210" r="8"/><circle cx="112" cy="382" r="5"/><circle cx="890" cy="235" r="7"/>
+        <circle cx="378" cy="718" r="6"/><circle cx="704" cy="676" r="5"/><circle cx="146" cy="892" r="7"/>
+        <circle cx="874" cy="1156" r="8"/><circle cx="430" cy="1136" r="6"/>
       </g>
-      <g stroke="#d8c49a" stroke-linecap="round" fill="none" stroke-dasharray="2 22" opacity=".6">
-        <path d="M545,170 V1150"/><path d="M170,150 H895"/>
+      <path d="M0,128 Q92,50 207,84 Q306,111 396,73 Q494,32 602,80 Q713,128 829,85 Q908,55 977,76 L977,0 L0,0 Z" fill="#bfe79a"/>
+      <path d="M0,154 Q120,82 250,112 T500,100 T750,112 T977,94" fill="none" stroke="#8dca63" stroke-width="20" stroke-linecap="round" opacity=".42"/>
+      <path d="M0,111 Q92,40 207,74 Q306,101 396,63 Q494,24 602,70 Q713,116 829,75 Q908,46 977,66" fill="none" stroke="#e2f8c6" stroke-width="9" stroke-linecap="round" opacity=".78"/>
+      <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <g stroke="#e7ce92">
+          <path d="M145,150 H908" stroke-width="62"/>
+          <path d="M545,146 V1162" stroke-width="76"/>
+          <path d="M545,558 H214 Q188,558 188,596 V1132" stroke-width="56"/>
+          <path d="M558,300 H795 Q826,300 826,338 V1114" stroke-width="56"/>
+        </g>
+        <g stroke="#f6e4b8">
+          <path d="M145,150 H908" stroke-width="49"/>
+          <path d="M545,146 V1162" stroke-width="61"/>
+          <path d="M545,558 H214 Q200,558 200,596 V1132" stroke-width="43"/>
+          <path d="M558,300 H795 Q813,300 813,338 V1114" stroke-width="43"/>
+        </g>
+        <g stroke="#fff3cf" opacity=".72">
+          <path d="M158,138 H894" stroke-width="7"/>
+          <path d="M532,164 V1142" stroke-width="7"/>
+          <path d="M532,546 H224 Q212,546 212,591 V1116" stroke-width="6"/>
+          <path d="M571,288 H785 Q800,288 800,342 V1096" stroke-width="6"/>
+        </g>
       </g>
-      <path d="M20,1265 q110,-34 220,0 t220,0 t220,0 t220,0 t80,0" fill="none" stroke="#9bd4e6" stroke-width="30" stroke-linecap="round"/>
-      <path d="M20,1265 q110,-34 220,0 t220,0 t220,0 t220,0 t80,0" fill="none" stroke="#c2e9f3" stroke-width="11" stroke-linecap="round"/>
-      <text x="35" y="70" font-size="34">⛰️</text><text x="430" y="58" font-size="30">⛰️</text><text x="780" y="66" font-size="34">⛰️</text>
-      <text x="824" y="305" font-size="42">⛩️</text>
-      <text x="118" y="566" font-size="30">🌳</text><text x="250" y="700" font-size="30">🌳</text><text x="300" y="1066" font-size="30">🌳</text>
-      <text x="118" y="1152" font-size="32">🏯</text>
-      <text x="452" y="642" font-size="22">🏧</text>
-      <text x="120" y="1240" font-size="22">🌊</text>
+      <g fill="none" stroke="#6bb84a" stroke-width="5" stroke-linecap="round" opacity=".38">
+        <path d="M58,504 q34,-22 70,0"/><path d="M724,508 q42,-24 86,0"/>
+        <path d="M70,1012 q42,-25 86,0"/><path d="M720,1210 q48,-28 98,0"/>
+      </g>
+      <g id="treeLayer" filter="url(#popShadow)">
+        <g transform="translate(112 494)"><ellipse cx="0" cy="41" rx="20" ry="7" fill="#4f8e37" opacity=".25"/><rect x="-6" y="20" width="12" height="28" rx="5" fill="#9a6d3e"/><circle cx="0" cy="9" r="25" fill="#5fb84a"/><circle cx="-10" cy="2" r="16" fill="#7ed957"/><circle cx="9" cy="-5" r="14" fill="#8be060"/></g>
+        <g transform="translate(278 696) scale(.9)"><ellipse cx="0" cy="41" rx="20" ry="7" fill="#4f8e37" opacity=".25"/><rect x="-6" y="20" width="12" height="28" rx="5" fill="#9a6d3e"/><circle cx="0" cy="9" r="25" fill="#5fb84a"/><circle cx="-10" cy="2" r="16" fill="#7ed957"/><circle cx="9" cy="-5" r="14" fill="#8be060"/></g>
+        <g transform="translate(308 1063)"><ellipse cx="0" cy="41" rx="20" ry="7" fill="#4f8e37" opacity=".25"/><rect x="-6" y="20" width="12" height="28" rx="5" fill="#9a6d3e"/><circle cx="0" cy="9" r="25" fill="#5fb84a"/><circle cx="-10" cy="2" r="16" fill="#7ed957"/><circle cx="9" cy="-5" r="14" fill="#8be060"/></g>
+        <g transform="translate(735 933) scale(1.05)"><ellipse cx="0" cy="41" rx="20" ry="7" fill="#4f8e37" opacity=".25"/><rect x="-6" y="20" width="12" height="28" rx="5" fill="#9a6d3e"/><circle cx="0" cy="9" r="25" fill="#5fb84a"/><circle cx="-10" cy="2" r="16" fill="#7ed957"/><circle cx="9" cy="-5" r="14" fill="#8be060"/></g>
+        <g transform="translate(876 520) scale(.82)"><ellipse cx="0" cy="41" rx="20" ry="7" fill="#4f8e37" opacity=".25"/><rect x="-6" y="20" width="12" height="28" rx="5" fill="#9a6d3e"/><circle cx="0" cy="9" r="25" fill="#5fb84a"/><circle cx="-10" cy="2" r="16" fill="#7ed957"/><circle cx="9" cy="-5" r="14" fill="#8be060"/></g>
+      </g>
+      <g aria-hidden="true">
+        <g transform="translate(835 304)" filter="url(#popShadow)"><rect x="-24" y="-7" width="48" height="8" rx="3" fill="#ef4f3e"/><rect x="-18" y="0" width="8" height="42" rx="2" fill="#d83a30"/><rect x="10" y="0" width="8" height="42" rx="2" fill="#d83a30"/><rect x="-20" y="14" width="40" height="6" rx="3" fill="#ff806b"/></g>
+        <text x="116" y="1154" font-size="34">🏯</text>
+        <text x="450" y="644" font-size="22">🏧</text>
+        <text x="92" y="284" font-size="18">🌷</text><text x="844" y="398" font-size="17">🌼</text>
+        <text x="350" y="910" font-size="16">🌷</text><text x="862" y="1044" font-size="17">🌼</text>
+        <text x="240" y="1210" font-size="15">✨</text><text x="688" y="208" font-size="14">✨</text>
+      </g>
+      <path d="M22,1264 q109,-37 218,0 t218,0 t218,0 t218,0 t84,0" fill="none" stroke="#3eb6df" stroke-width="42" stroke-linecap="round"/>
+      <path d="M22,1264 q109,-37 218,0 t218,0 t218,0 t218,0 t84,0" fill="none" stroke="#5fc6ea" stroke-width="32" stroke-linecap="round"/>
+      <path d="M56,1253 q92,-24 184,0 t184,0 t184,0 t184,0" fill="none" stroke="#aee6f7" stroke-width="8" stroke-linecap="round" opacity=".95"/>
+      <g fill="none" stroke="#eefcff" stroke-width="4" stroke-linecap="round" opacity=".9">
+        <path d="M130,1281 q22,-12 44,0"/><path d="M412,1282 q22,-12 44,0"/><path d="M694,1281 q22,-12 44,0"/>
+      </g>
       <g id="shopLayer"></g>
     </svg>
     <div class="season-layer" id="seasonLayer" aria-hidden="true"></div>
@@ -418,10 +459,10 @@ const ICONS = {
    cat: medical/life/food/edu   url: 未定は "#"
    ========================================================================= */
 const CATEGORIES = {
-  medical:{ label:"健康・美容・医療", color:"#2a9488" },
-  life:   { label:"生活・日用・企業", color:"#4a9d3f" },
-  food:   { label:"食べる・飲む・食料", color:"#e8902f" },
-  edu:    { label:"保育・教育",        color:"#7e7ad0" },
+  medical:{ label:"健康・美容・医療", color:"#1fb5a6" },
+  life:   { label:"生活・日用・企業", color:"#5fc24a" },
+  food:   { label:"食べる・飲む・食料", color:"#ff9d3b" },
+  edu:    { label:"保育・教育",        color:"#9b86e8" },
 };
 const STORES = [
   { name:"工房しらかば", cat:"life", url:"https://www.nakayaman.com/post/kobo-shirakaba", x:15.4, y:8.1, voices:[] },
@@ -536,7 +577,10 @@ STORES.forEach((s, i) => {
   btn.dataset.cat = s.cat;
   btn.setAttribute('aria-label', s.name);
   btn.setAttribute('tabindex', '-1');
-  btn.innerHTML = `<span class="num">${i}</span>`;
+  const num = document.createElement('span');
+  num.className = 'num';
+  num.textContent = String(i);
+  btn.appendChild(num);
   btn.addEventListener('mouseenter', () => {
     hoveredHit = btn;
     clearPopupHideTimer();
@@ -598,16 +642,42 @@ function svgEl(tag, attrs){
   for (const k in attrs) el.setAttribute(k, attrs[k]);
   return el;
 }
+function appendSvg(parent, tag, attrs, text){
+  const el = svgEl(tag, attrs);
+  if (text !== undefined) el.textContent = text;
+  parent.appendChild(el);
+  return el;
+}
+function appendCategoryIcon(parent, cat){
+  const icon = svgEl('svg', { viewBox:'0 0 24 24', 'aria-hidden':'true' });
+  const base = { fill:'none', stroke:'#fff', 'stroke-linecap':'round', 'stroke-linejoin':'round' };
+  if (cat === 'medical'){
+    appendSvg(icon, 'path', { ...base, d:'M12 6.5v11M6.5 12h11', 'stroke-width':'3' });
+  } else if (cat === 'life'){
+    appendSvg(icon, 'path', { ...base, d:'M3.5 11L12 4.5 20.5 11M6 10v8.5h12V10', 'stroke-width':'2' });
+  } else if (cat === 'food'){
+    appendSvg(icon, 'path', { ...base, d:'M12 4.5C9.3 4.5 5.5 16 5.5 18a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1c0-2-3.8-13.5-6.5-13.5z', 'stroke-width':'2' });
+    appendSvg(icon, 'rect', { x:'9', y:'14.5', width:'6', height:'4.5', rx:'1.2', fill:'#fff', stroke:'none' });
+  } else {
+    appendSvg(icon, 'path', { ...base, d:'M2.5 9.5L12 5.5l9.5 4-9.5 4zM6.5 11.6v4.2c0 1 2.6 2.4 5.5 2.4s5.5-1.4 5.5-2.4v-4.2', 'stroke-width':'2' });
+  }
+  parent.appendChild(icon);
+}
 STORES.forEach(s => {
   const px = (s.x/100*977).toFixed(1), py = (s.y/100*1339).toFixed(1);
   const col = CATEGORIES[s.cat].color;
-  const g = svgEl('g', { class:`shop-bldg c-${s.cat}`, transform:`translate(${px} ${py})` });
-  g.appendChild(svgEl('rect', { x:-12, y:-3, width:24, height:17, rx:2.5, fill:'#fffaf0', stroke:col, 'stroke-width':2.4 }));
-  g.appendChild(svgEl('path', { d:'M-15,-2 L0,-18 L15,-2 Z', fill:col, stroke:'#fff', 'stroke-width':1.5 }));
-  g.appendChild(svgEl('rect', { x:-3.5, y:4, width:7, height:10, rx:1, fill:col }));
-  const star = svgEl('text', { class:'bstar', x:12, y:-13, 'font-size':16 });
-  star.textContent = '✨';
-  g.appendChild(star);
+  const g = svgEl('g', { class:`shop-bldg c-${s.cat}`, transform:`translate(${px} ${py})`, filter:'url(#popShadow)' });
+  const core = svgEl('g', { class:'bldg-core' });
+  appendSvg(core, 'ellipse', { cx:'0', cy:'16', rx:'19', ry:'6', fill:'#4e7f35', opacity:'.24' });
+  appendSvg(core, 'rect', { x:'-14', y:'-2', width:'28', height:'22', rx:'5', fill:'#fffdf8', stroke:'#e3cda6', 'stroke-width':'1.6' });
+  appendSvg(core, 'path', { d:'M-18,-2 Q-15,-15 0,-20 Q15,-15 18,-2 Z', fill:col, stroke:'#fff7de', 'stroke-width':'1.8' });
+  appendSvg(core, 'path', { d:'M-11,-8 Q-3,-15 10,-10', fill:'none', stroke:'#fff', 'stroke-width':'3', 'stroke-linecap':'round', opacity:'.5' });
+  appendSvg(core, 'rect', { x:'-10', y:'4', width:'7', height:'6', rx:'1.5', fill:'#bfe3f0', stroke:'#8dc8d8', 'stroke-width':'.8' });
+  appendSvg(core, 'rect', { x:'4', y:'4', width:'7', height:'6', rx:'1.5', fill:'#bfe3f0', stroke:'#8dc8d8', 'stroke-width':'.8' });
+  appendSvg(core, 'rect', { x:'-4', y:'8', width:'8', height:'12', rx:'2', fill:'#8a6a45' });
+  appendSvg(core, 'circle', { cx:'2.3', cy:'14', r:'1', fill:'#f7d36b' });
+  appendSvg(core, 'text', { class:'bstar', x:'12', y:'-14', 'font-size':'15', 'font-family':'system-ui, sans-serif' }, '✨');
+  g.appendChild(core);
   shopLayer.appendChild(g);
   bldgByName.set(s.name, g);
 });
@@ -629,11 +699,26 @@ function schedulePopupHide(btn){
 function showPopup(btn, s){
   currentPopupStore = s;
   const c = CATEGORIES[s.cat];
-  popupCat.innerHTML = `<span class="ic">${ICONS[s.cat]}</span>${c.label}`;
+  popupCat.replaceChildren();
+  const catIcon = document.createElement('span');
+  catIcon.className = 'ic';
+  appendCategoryIcon(catIcon, s.cat);
+  popupCat.append(catIcon, document.createTextNode(c.label));
   popupCat.style.background = c.color;
   popupName.textContent = s.name;
-  popupVoices.innerHTML = s.voices.map(v =>
-    `<div class="voice">💬 ${v.text}${v.who?`<span class="who">— ${v.who}</span>`:''}</div>`).join('');
+  popupVoices.replaceChildren();
+  s.voices.forEach(v => {
+    const voice = document.createElement('div');
+    voice.className = 'voice';
+    voice.appendChild(document.createTextNode(`💬 ${v.text}`));
+    if (v.who){
+      const who = document.createElement('span');
+      who.className = 'who';
+      who.textContent = `— ${v.who}`;
+      voice.appendChild(who);
+    }
+    popupVoices.appendChild(voice);
+  });
   if (s.url && s.url !== '#'){
     popupGo.href = s.url; popupGo.classList.remove('disabled');
     popupGo.style.background = c.color; popupGo.textContent = 'お店を見る →';
@@ -739,11 +824,24 @@ function renderStamps(){
       row.setAttribute('aria-label', got ? `${s.name} はっけんずみ` : s.name);
     }
   });
-  stampbookGrid.innerHTML = STORES.map(s => {
+  stampbookGrid.replaceChildren();
+  STORES.forEach(s => {
     const c = CATEGORIES[s.cat];
     const mark = hasStamp(s.name) ? '⭐' : '○';
-    return `<div class="stampbook-item"><span class="book-dot" style="background:${c.color}"></span><span class="book-name">${s.name}</span><span class="book-mark">${mark}</span></div>`;
-  }).join('');
+    const item = document.createElement('div');
+    item.className = 'stampbook-item';
+    const dot = document.createElement('span');
+    dot.className = 'book-dot';
+    dot.style.background = c.color;
+    const name = document.createElement('span');
+    name.className = 'book-name';
+    name.textContent = s.name;
+    const bookMark = document.createElement('span');
+    bookMark.className = 'book-mark';
+    bookMark.textContent = mark;
+    item.append(dot, name, bookMark);
+    stampbookGrid.appendChild(item);
+  });
   updatePopupStamp();
 }
 
@@ -763,9 +861,23 @@ function loadEma(){
 function saveEma(){ localStorage.setItem(EMA_KEY, JSON.stringify(emaItems)); }
 function renderEma(){
   emaSummary.textContent = `これまでの絵馬 ${emaItems.length}枚`;
-  emaList.innerHTML = emaItems.length ? emaItems.map(item =>
-    `<div class="ema">${escapeHtml(item.wish)}<small>${escapeHtml(item.date || '')}</small></div>`
-  ).join('') : '<div class="ema">まだ奉納はありません</div>';
+  emaList.replaceChildren();
+  if (emaItems.length){
+    emaItems.forEach(item => {
+      const ema = document.createElement('div');
+      ema.className = 'ema';
+      ema.appendChild(document.createTextNode(item.wish));
+      const date = document.createElement('small');
+      date.textContent = item.date || '';
+      ema.appendChild(date);
+      emaList.appendChild(ema);
+    });
+  } else {
+    const empty = document.createElement('div');
+    empty.className = 'ema';
+    empty.textContent = 'まだ奉納はありません';
+    emaList.appendChild(empty);
+  }
 }
 function openFeatureModal(modal){
   renderEma();
@@ -813,25 +925,46 @@ function resetQuiz(){
 }
 function renderQuiz(){
   const record = loadQuizRecord();
+  quizBox.replaceChildren();
   if (quizState.index >= QUIZ.length){
     saveQuizRecord(quizState.score);
-    quizBox.innerHTML = `
-      <p class="quiz-status">スコア ${quizState.score}/${QUIZ.length}　バッジ「${quizBadge(quizState.score)}」</p>
-      <p class="quiz-progress">ベストスコア ${Math.max(Number(record.bestScore || 0), quizState.score)}/${QUIZ.length}</p>
-      <button class="quiz-retry" type="button" id="quizRetry">もう一回ちょうせん</button>
-    `;
-    document.getElementById('quizRetry').addEventListener('click', resetQuiz);
+    const status = document.createElement('p');
+    status.className = 'quiz-status';
+    status.textContent = `スコア ${quizState.score}/${QUIZ.length}　バッジ「${quizBadge(quizState.score)}」`;
+    const progress = document.createElement('p');
+    progress.className = 'quiz-progress';
+    progress.textContent = `ベストスコア ${Math.max(Number(record.bestScore || 0), quizState.score)}/${QUIZ.length}`;
+    const retry = document.createElement('button');
+    retry.className = 'quiz-retry';
+    retry.type = 'button';
+    retry.id = 'quizRetry';
+    retry.textContent = 'もう一回ちょうせん';
+    retry.addEventListener('click', resetQuiz);
+    quizBox.append(status, progress, retry);
     return;
   }
   const item = QUIZ[quizState.index];
-  quizBox.innerHTML = `
-    <div class="quiz-progress">${quizState.index + 1}/${QUIZ.length}</div>
-    <h3 class="quiz-question">${item.q}</h3>
-    <div class="quiz-choices">
-      ${item.choices.map(choice => `<button class="quiz-choice" type="button" data-choice="${escapeHtml(choice)}">${choice}</button>`).join('')}
-    </div>
-    <p class="quiz-status" id="quizStatus">${record.bestScore ? `ベストスコア ${record.bestScore}/${QUIZ.length}` : ''}</p>
-  `;
+  const progress = document.createElement('div');
+  progress.className = 'quiz-progress';
+  progress.textContent = `${quizState.index + 1}/${QUIZ.length}`;
+  const question = document.createElement('h3');
+  question.className = 'quiz-question';
+  question.textContent = item.q;
+  const choices = document.createElement('div');
+  choices.className = 'quiz-choices';
+  item.choices.forEach(choice => {
+    const button = document.createElement('button');
+    button.className = 'quiz-choice';
+    button.type = 'button';
+    button.dataset.choice = choice;
+    button.textContent = choice;
+    choices.appendChild(button);
+  });
+  const status = document.createElement('p');
+  status.className = 'quiz-status';
+  status.id = 'quizStatus';
+  status.textContent = record.bestScore ? `ベストスコア ${record.bestScore}/${QUIZ.length}` : '';
+  quizBox.append(progress, question, choices, status);
 }
 function answerQuiz(choice, btn){
   if (quizState.answered) return;
@@ -845,7 +978,15 @@ function answerQuiz(choice, btn){
     if (choiceBtn.dataset.choice === item.answer) choiceBtn.classList.add('correct');
   });
   const status = document.getElementById('quizStatus');
-  status.innerHTML = correct ? '<span class="quiz-spark">✨ せいかい！</span>' : 'もう一回考えてみよう';
+  status.replaceChildren();
+  if (correct){
+    const spark = document.createElement('span');
+    spark.className = 'quiz-spark';
+    spark.textContent = '✨ せいかい！';
+    status.appendChild(spark);
+  } else {
+    status.textContent = 'もう一回考えてみよう';
+  }
   const next = document.createElement('button');
   next.type = 'button';
   next.className = 'quiz-next';
@@ -941,7 +1082,7 @@ function renderSeason(){
   seasonLayer.hidden = !on;
   decoToggle.setAttribute('aria-pressed', String(on));
   decoToggle.style.opacity = on ? '1' : '.55';
-  if (!on || !isMapVisible()){ seasonLayer.innerHTML = ''; seasonLayer.hidden = true; return; }
+  if (!on || !isMapVisible()){ seasonLayer.replaceChildren(); seasonLayer.hidden = true; return; }
   const season = getSeason();
   const sets = {
     spring:['🌸','🌸','🌸','🌸','🌸','🌸','🌸','🌸'],
@@ -949,12 +1090,19 @@ function renderSeason(){
     autumn:['🍁','🍁','🍂','🍁','🍂','🍁','🍁','🍂'],
     winter:['❄','❄','⛄','❄','❄','❄','⛄']
   };
-  seasonLayer.innerHTML = sets[season].map((icon, i) => {
+  seasonLayer.replaceChildren();
+  sets[season].forEach((icon, i) => {
     const left = [9,22,36,49,63,76,88,15][i] || 50;
     const top = [8,18,11,26,9,20,14,34][i] || 12;
     const delay = (i * -1.3).toFixed(1);
-    return `<span class="season-piece season-${season}" style="left:${left}%;top:${top}%;animation-delay:${delay}s">${icon}</span>`;
-  }).join('');
+    const piece = document.createElement('span');
+    piece.className = `season-piece season-${season}`;
+    piece.style.left = `${left}%`;
+    piece.style.top = `${top}%`;
+    piece.style.animationDelay = `${delay}s`;
+    piece.textContent = icon;
+    seasonLayer.appendChild(piece);
+  });
 }
 function isMapVisible(){
   return !mobileMapQuery.matches || mapOverlay.classList.contains('open');
@@ -968,7 +1116,7 @@ function syncMapDecorations(){
     mapOverlay.setAttribute('aria-hidden', 'true');
     closePopup();
     stopVoiceBubbles();
-    seasonLayer.innerHTML = '';
+    seasonLayer.replaceChildren();
     seasonLayer.hidden = true;
   }
 }
