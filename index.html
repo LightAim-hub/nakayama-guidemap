@@ -20,8 +20,19 @@
   header h1{ margin:0; font-size:clamp(18px,4.6vw,27px); color:#6b5036 }
   header p{ margin:6px 12px 0; font-size:clamp(11px,3vw,13px); color:#9a8763 }
 
+  .event-banner{ max-width:720px; margin:8px auto 2px; padding:0 14px }
+  .event-text{ display:block; background:rgba(255,250,240,.9);
+    border:1.5px solid var(--line); border-radius:999px; padding:7px 12px;
+    font-size:clamp(12px,3.4vw,14px); font-weight:700; color:#6b5036;
+    box-shadow:0 3px 10px rgba(120,100,60,.14); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    text-align:center }
+  .search-panel{ max-width:760px; margin:0 auto; padding:7px 12px 4px }
+  .shop-search{ display:block; width:100%; min-height:44px; border:2px solid var(--line);
+    border-radius:12px; background:var(--paper); color:var(--ink); padding:9px 12px;
+    font:700 clamp(13px,3.6vw,15px)/1.3 inherit; outline:none }
+  .shop-search:focus{ border-color:#c39b51; box-shadow:0 0 0 3px rgba(232,144,47,.18) }
   .filters{ display:flex; flex-wrap:wrap; gap:7px; justify-content:center;
-    padding:11px 12px 4px; max-width:760px; margin:0 auto; }
+    padding:9px 0 0; max-width:760px; margin:0 auto; }
   .hint{ text-align:center; font-size:clamp(10px,2.8vw,12px); color:#9a8763; margin:2px 16px 0 }
   .chip-f{ border:2px solid currentColor; background:#fffaf0; color:var(--ink);
     border-radius:999px; padding:5px 12px; font-size:clamp(11px,3vw,12.5px); font-weight:700;
@@ -36,12 +47,12 @@
   .stamp-bar{ max-width:720px; margin:8px auto 4px; padding:0 14px;
     display:grid; grid-template-columns:1fr auto; gap:8px 10px; align-items:center }
   .stamp-status{ min-width:0; background:var(--paper); border:2px solid var(--line);
-    border-radius:12px; padding:8px 10px; box-shadow:0 3px 10px rgba(120,100,60,.12) }
+    border-radius:12px; padding:7px 10px; box-shadow:0 3px 10px rgba(120,100,60,.12) }
   .stamp-line{ display:flex; align-items:center; justify-content:space-between; gap:8px;
     font-size:clamp(12px,3.4vw,14px); font-weight:700; color:#6b5036 }
   .stamp-count{ white-space:nowrap }
   .stamp-badge{ color:#9a6b27; text-align:right }
-  .stamp-meter{ height:8px; border-radius:999px; background:#ead8b7; overflow:hidden; margin-top:7px }
+  .stamp-meter{ display:none; height:8px; border-radius:999px; background:#ead8b7; overflow:hidden; margin-top:7px }
   .stamp-meter i{ display:block; height:100%; width:0%; border-radius:inherit;
     background:linear-gradient(90deg,var(--c-food),#e2b64a); transition:width .25s ease }
   .stampbook-open{ border:2px solid var(--line); background:var(--paper); color:var(--ink);
@@ -62,12 +73,11 @@
     50%{ transform:translateY(16px) rotate(8deg) }
     100%{ transform:translateY(36px) rotate(-4deg) }
   }
-  .event-ribbon{ position:absolute; left:10px; right:10px; top:10px; z-index:4;
-    display:flex; align-items:center; justify-content:center; gap:8px; pointer-events:none }
-  .event-text{ min-width:0; max-width:calc(100% - 44px); background:rgba(255,250,240,.9);
-    border:1.5px solid var(--line); border-radius:999px; padding:5px 11px;
-    font-size:clamp(10px,2.6cqw,13px); font-weight:700; color:#6b5036;
-    box-shadow:0 3px 10px rgba(120,100,60,.14); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .map-overlay{ display:contents }
+  .map-overlay-head{ display:none }
+  .open-map-btn{ display:none }
+  .map-controls{ position:absolute; right:10px; top:10px; z-index:4;
+    display:flex; align-items:center; justify-content:flex-end; pointer-events:none }
   .deco-toggle{ pointer-events:auto; border:1.5px solid var(--line); background:rgba(255,250,240,.92);
     border-radius:999px; width:32px; height:32px; cursor:pointer; box-shadow:0 3px 10px rgba(120,100,60,.14) }
   .mapbubble{ position:absolute; z-index:4; width:min(31cqw,176px); min-height:32px;
@@ -169,11 +179,27 @@
   .stamp-reset{ border:2px solid var(--line); background:#f3e7cc; color:#6b5036; border-radius:10px;
     padding:8px 12px; font-weight:700; cursor:pointer }
   .note{ text-align:center; font-size:clamp(10px,2.8vw,11px); color:#a59576; margin:6px 16px 26px; line-height:1.6 }
+  @media (max-width:859px){
+    body.map-open{ overflow:hidden }
+    .open-map-btn{ display:flex; align-items:center; justify-content:center; width:calc(100% - 28px);
+      max-width:720px; min-height:48px; margin:8px auto; border:2px solid var(--line);
+      border-radius:12px; background:#6b5036; color:#fffaf0; font-weight:800;
+      font-size:clamp(14px,4vw,16px); cursor:pointer; box-shadow:0 5px 16px rgba(80,60,30,.2) }
+    .map-overlay{ display:none }
+    .map-overlay.open{ position:fixed; inset:0; z-index:1000; display:flex; flex-direction:column;
+      background:var(--bg); overflow:auto; padding:0 12px 18px }
+    .map-overlay-head{ position:sticky; top:0; z-index:30; display:flex; align-items:center; justify-content:space-between;
+      gap:12px; min-height:56px; margin:0 -12px 10px; padding:8px 14px; background:rgba(243,231,204,.96);
+      border-bottom:1.5px solid var(--line); color:#6b5036; font-weight:800 }
+    .map-overlay-close{ border:2px solid var(--line); background:var(--paper); color:var(--ink);
+      border-radius:10px; min-width:44px; min-height:40px; font-size:20px; line-height:1; cursor:pointer }
+    .map-overlay.open .map-wrap{ width:100%; margin:0 auto; flex:0 0 auto }
+  }
   @media (max-width:430px){
-    .stamp-bar{ grid-template-columns:1fr; gap:7px }
-    .stampbook-open{ width:100%; padding:9px }
+    .stamp-bar{ gap:6px; padding:0 10px }
+    .stampbook-open{ padding:8px 9px }
     .mapbubble{ width:min(38cqw,132px); padding:6px 8px }
-    .event-ribbon{ top:7px; left:7px; right:7px }
+    .map-controls{ top:7px; right:7px }
   }
   @media (prefers-reduced-motion:reduce){
     .season-piece,.hit.glow::before{ animation:none }
@@ -199,35 +225,49 @@
   <button class="stampbook-open" id="stampbookOpen" type="button">📖 スタンプ帳</button>
 </div>
 
-<div class="filters" id="filters">
-  <button class="chip-f c-medical" data-cat="medical" aria-pressed="false"><i class="dot"></i><span class="lbl">健康・美容・医療</span></button>
-  <button class="chip-f c-life"    data-cat="life"    aria-pressed="false"><i class="dot"></i><span class="lbl">生活・日用・企業</span></button>
-  <button class="chip-f c-food"    data-cat="food"    aria-pressed="false"><i class="dot"></i><span class="lbl">食べる・飲む・食料</span></button>
-  <button class="chip-f c-edu"     data-cat="edu"     aria-pressed="false"><i class="dot"></i><span class="lbl">保育・教育</span></button>
+<div class="event-banner">
+  <span class="event-text" id="eventText"></span>
+</div>
+
+<div class="search-panel">
+  <input type="search" id="shopSearch" class="shop-search" placeholder="お店をさがす（名前で検索）" autocomplete="off">
+  <div class="filters" id="filters">
+    <button class="chip-f c-medical" data-cat="medical" aria-pressed="false"><i class="dot"></i><span class="lbl">健康・美容・医療</span></button>
+    <button class="chip-f c-life"    data-cat="life"    aria-pressed="false"><i class="dot"></i><span class="lbl">生活・日用・企業</span></button>
+    <button class="chip-f c-food"    data-cat="food"    aria-pressed="false"><i class="dot"></i><span class="lbl">食べる・飲む・食料</span></button>
+    <button class="chip-f c-edu"     data-cat="edu"     aria-pressed="false"><i class="dot"></i><span class="lbl">保育・教育</span></button>
+  </div>
 </div>
 <p class="hint">お店をタップすると詳細＆サイトへ。カテゴリを押すとその種類のお店が光ります。スマホは指で拡大できます。</p>
 
-<div class="map-wrap" id="mapWrap">
-  <img class="base" src="map.png" alt="なかやま商店街マップ（なかやま商店街振興組合）">
-  <div class="season-layer" id="seasonLayer" aria-hidden="true"></div>
-  <div class="event-ribbon" id="eventRibbon">
-    <span class="event-text" id="eventText"></span>
-    <button class="deco-toggle" id="decoToggle" type="button" aria-label="季節演出の表示切替">🎨</button>
+<button class="open-map-btn" id="openMapBtn" type="button">🗺 地図で見る</button>
+
+<div class="map-overlay" id="mapOverlay" aria-hidden="false">
+  <div class="map-overlay-head">
+    <span>なかやま地図</span>
+    <button class="map-overlay-close" id="closeMapBtn" type="button" aria-label="地図を閉じる">×</button>
   </div>
-  <div class="popup" id="popup" role="dialog">
-    <button class="close" id="popupClose" aria-label="閉じる">×</button>
-    <span class="cat" id="popupCat"></span>
-    <h3 id="popupName"></h3>
-    <div class="voices" id="popupVoices"></div>
-    <a class="go" id="popupGo" target="_blank" rel="noopener">お店を見る →</a>
-    <button class="stamp-btn" id="popupStamp" type="button">✓ 来たよ！スタンプGET</button>
+  <div class="map-wrap" id="mapWrap">
+    <img class="base" src="map.png" alt="なかやま商店街マップ（なかやま商店街振興組合）">
+    <div class="season-layer" id="seasonLayer" aria-hidden="true"></div>
+    <div class="map-controls">
+      <button class="deco-toggle" id="decoToggle" type="button" aria-label="季節演出の表示切替">🎨</button>
+    </div>
+    <div class="popup" id="popup" role="dialog">
+      <button class="close" id="popupClose" aria-label="閉じる">×</button>
+      <span class="cat" id="popupCat"></span>
+      <h3 id="popupName"></h3>
+      <div class="voices" id="popupVoices"></div>
+      <a class="go" id="popupGo" target="_blank" rel="noopener">お店を見る →</a>
+      <button class="stamp-btn" id="popupStamp" type="button">✓ 来たよ！スタンプGET</button>
+    </div>
+    <!-- クリック領域はJSで生成 -->
   </div>
-  <!-- クリック領域はJSで生成 -->
 </div>
 
 <section class="shoplist" aria-label="店舗リスト">
-  <h2 class="sl-title">🔍 お店をさがす</h2>
-  <p class="sl-hint">上のカテゴリボタンで絞り込めます。タップで公式ページへ。</p>
+  <h2 class="sl-title">店舗リスト</h2>
+  <p class="sl-hint">検索とカテゴリで絞り込めます。タップで公式ページへ。</p>
   <div id="shopList"></div>
 </section>
 
@@ -319,6 +359,9 @@ const STORES = [
 /* ▲▲▲ 編集ここまで ▲▲▲ */
 
 const mapWrap = document.getElementById('mapWrap');
+const mapOverlay = document.getElementById('mapOverlay');
+const openMapBtn = document.getElementById('openMapBtn');
+const closeMapBtn = document.getElementById('closeMapBtn');
 const popup = document.getElementById('popup');
 const popupCat = document.getElementById('popupCat');
 const popupName = document.getElementById('popupName');
@@ -334,13 +377,17 @@ const stampbookGrid = document.getElementById('stampbookGrid');
 const seasonLayer = document.getElementById('seasonLayer');
 const eventText = document.getElementById('eventText');
 const decoToggle = document.getElementById('decoToggle');
+const shopSearch = document.getElementById('shopSearch');
 const STAMP_KEY = 'naka_stamps_v1';
 const DECO_KEY = 'naka_deco';
 const hitByName = new Map();
 const rowByName = new Map();
+const mobileMapQuery = window.matchMedia('(max-width:859px)');
 let stamps = loadStamps();
 let currentPopupStore = null;
 let pinned = null;
+let voiceBubbleTimer = null;
+let voiceBubbleIndex = 0;
 if (location.search.indexOf('debug') >= 0) document.body.classList.add('debug');
 
 STORES.forEach((s, i) => {
@@ -368,6 +415,7 @@ STORES.forEach((s) => {
   const row = document.createElement(hasUrl ? 'a' : 'div');
   row.className = `srow c-${s.cat}${hasUrl ? '' : ' disabled'}`;
   row.dataset.cat = s.cat;
+  row.dataset.name = s.name;
   if (hasUrl){
     row.href = s.url;
     row.target = '_blank';
@@ -418,6 +466,7 @@ function showPopup(btn, s){
   popup.classList.add('show');
 }
 function hidePopup(){ popup.classList.remove('show'); currentPopupStore = null; }
+function closePopup(){ hidePopup(); pinned = null; }
 
 function loadStamps(){
   try{
@@ -489,22 +538,29 @@ function renderVoiceBubbles(startIndex){
     b.addEventListener('click', e => {
       e.stopPropagation();
       pinned = hitByName.get(s.name);
-      showPopup(pinned, s);
+      if (pinned) showPopup(pinned, s);
     });
     mapWrap.appendChild(b);
     requestAnimationFrame(() => b.classList.add('show'));
   }
 }
-function initVoiceBubbles(){
+function startVoiceBubbles(){
+  if (!isMapVisible() || voiceBubbleTimer !== null) return;
   const voiced = STORES.filter(s => s.voices.length > 0);
   if (voiced.length === 0) return;
-  let index = 0;
-  renderVoiceBubbles(index);
+  renderVoiceBubbles(voiceBubbleIndex);
   if (window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
-  setInterval(() => {
-    index = (index + (window.matchMedia('(max-width:430px)').matches ? 2 : 3)) % voiced.length;
-    renderVoiceBubbles(index);
+  voiceBubbleTimer = setInterval(() => {
+    voiceBubbleIndex = (voiceBubbleIndex + (window.matchMedia('(max-width:430px)').matches ? 2 : 3)) % voiced.length;
+    renderVoiceBubbles(voiceBubbleIndex);
   }, 4000);
+}
+function stopVoiceBubbles(){
+  if (voiceBubbleTimer !== null){
+    clearInterval(voiceBubbleTimer);
+    voiceBubbleTimer = null;
+  }
+  document.querySelectorAll('.mapbubble').forEach(el => el.remove());
 }
 
 function getSeason(date = new Date()){
@@ -547,7 +603,7 @@ function renderSeason(){
   seasonLayer.hidden = !on;
   decoToggle.setAttribute('aria-pressed', String(on));
   decoToggle.style.opacity = on ? '1' : '.55';
-  if (!on){ seasonLayer.innerHTML = ''; return; }
+  if (!on || !isMapVisible()){ seasonLayer.innerHTML = ''; seasonLayer.hidden = true; return; }
   const season = getSeason();
   const sets = {
     spring:['🌸','🌸','🌸','🌸','🌸','🌸','🌸','🌸'],
@@ -562,10 +618,56 @@ function renderSeason(){
     return `<span class="season-piece season-${season}" style="left:${left}%;top:${top}%;animation-delay:${delay}s">${icon}</span>`;
   }).join('');
 }
+function isMapVisible(){
+  return !mobileMapQuery.matches || mapOverlay.classList.contains('open');
+}
+function syncMapDecorations(){
+  if (isMapVisible()){
+    mapOverlay.setAttribute('aria-hidden', 'false');
+    renderSeason();
+    startVoiceBubbles();
+  } else {
+    mapOverlay.setAttribute('aria-hidden', 'true');
+    closePopup();
+    stopVoiceBubbles();
+    seasonLayer.innerHTML = '';
+    seasonLayer.hidden = true;
+  }
+}
+function openMapOverlay(){
+  mapOverlay.classList.add('open');
+  document.body.classList.add('map-open');
+  closePopup();
+  syncMapDecorations();
+}
+function closeMapOverlay(){
+  mapOverlay.classList.remove('open');
+  document.body.classList.remove('map-open');
+  closePopup();
+  syncMapDecorations();
+}
+function getActiveCats(){
+  return new Set(
+    [...document.querySelectorAll('.chip-f[aria-pressed="true"]')].map(c => c.dataset.cat)
+  );
+}
+function applyFilters(){
+  const activeCats = getActiveCats();
+  const q = shopSearch.value.trim();
+  STORES.forEach(s => {
+    const matchesCat = activeCats.size === 0 || activeCats.has(s.cat);
+    const matchesName = q === '' || s.name.includes(q);
+    const visible = matchesCat && matchesName;
+    const row = rowByName.get(s.name);
+    const hit = hitByName.get(s.name);
+    if (row) row.style.display = visible ? '' : 'none';
+    if (hit) hit.classList.toggle('glow', activeCats.has(s.cat) && matchesName);
+  });
+}
 
-document.getElementById('popupClose').addEventListener('click', e=>{ e.stopPropagation(); hidePopup(); pinned=null; });
+document.getElementById('popupClose').addEventListener('click', e=>{ e.stopPropagation(); closePopup(); });
 popup.addEventListener('click', e=>e.stopPropagation());
-document.addEventListener('click', ()=>{ if(pinned){ hidePopup(); pinned=null; } });
+document.addEventListener('click', ()=>{ if(pinned) closePopup(); });
 popupStamp.addEventListener('click', e=>{
   e.stopPropagation();
   if (currentPopupStore) toggleStamp(currentPopupStore.name);
@@ -587,25 +689,37 @@ decoToggle.addEventListener('click', e => {
   e.stopPropagation();
   const next = localStorage.getItem(DECO_KEY) === 'off' ? 'on' : 'off';
   localStorage.setItem(DECO_KEY, next);
-  renderSeason();
+  syncMapDecorations();
 });
+openMapBtn.addEventListener('click', openMapOverlay);
+closeMapBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  closeMapOverlay();
+});
+mapOverlay.addEventListener('click', e => {
+  if (e.target === mapOverlay && mobileMapQuery.matches) closeMapOverlay();
+});
+mapOverlay.addEventListener('scroll', closePopup, { passive:true });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && mapOverlay.classList.contains('open')) closeMapOverlay();
+});
+if (mobileMapQuery.addEventListener){
+  mobileMapQuery.addEventListener('change', syncMapDecorations);
+} else {
+  mobileMapQuery.addListener(syncMapDecorations);
+}
 
 document.getElementById('filters').addEventListener('click', e=>{
   const chip = e.target.closest('.chip-f'); if(!chip) return;
   const on = chip.getAttribute('aria-pressed') === 'true';
   chip.setAttribute('aria-pressed', String(!on));
-  const activeCats = new Set(
-    [...document.querySelectorAll('.chip-f[aria-pressed="true"]')].map(c => c.dataset.cat)
-  );
-  document.querySelectorAll('.hit').forEach(p=> p.classList.toggle('glow', activeCats.has(p.dataset.cat)));
-  document.querySelectorAll('.srow').forEach(row=>{
-    row.style.display = activeCats.size === 0 || activeCats.has(row.dataset.cat) ? '' : 'none';
-  });
+  applyFilters();
 });
+shopSearch.addEventListener('input', applyFilters);
 renderStamps();
-renderSeason();
 renderEventRibbon();
-initVoiceBubbles();
+applyFilters();
+syncMapDecorations();
 </script>
 </body>
 </html>
