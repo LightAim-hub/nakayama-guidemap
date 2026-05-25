@@ -26,6 +26,13 @@
     font-size:clamp(12px,3.4vw,14px); font-weight:700; color:#6b5036;
     box-shadow:0 3px 10px rgba(120,100,60,.14); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     text-align:center }
+  .feature-cards{ max-width:720px; margin:8px auto 2px; padding:0 14px;
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px }
+  .feature-card{ min-height:48px; border:2px solid var(--line); border-radius:12px;
+    background:var(--paper); color:#6b5036; font:800 clamp(13px,3.5vw,15px)/1.25 inherit;
+    cursor:pointer; box-shadow:0 3px 10px rgba(120,100,60,.12); padding:9px 10px;
+    display:flex; align-items:center; justify-content:center; text-align:center }
+  .feature-card:active{ transform:scale(.98); background:#f3e7cc }
   .search-panel{ max-width:760px; margin:0 auto; padding:7px 12px 4px }
   .shop-search{ display:block; width:100%; min-height:44px; border:2px solid var(--line);
     border-radius:12px; background:var(--paper); color:var(--ink); padding:9px 12px;
@@ -178,6 +185,39 @@
   .stampbook-actions{ display:flex; justify-content:flex-end; margin-top:12px }
   .stamp-reset{ border:2px solid var(--line); background:#f3e7cc; color:#6b5036; border-radius:10px;
     padding:8px 12px; font-weight:700; cursor:pointer }
+  .feature-modal{ position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center;
+    padding:18px; background:rgba(70,54,36,.38) }
+  .feature-modal.show{ display:flex }
+  .feature-panel{ width:min(680px,100%); max-height:min(84vh,760px); overflow:auto;
+    background:var(--paper); border:3px solid var(--line); border-radius:14px;
+    box-shadow:0 18px 40px rgba(60,42,25,.36); padding:14px }
+  .feature-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px }
+  .feature-title{ margin:0; color:#6b5036; font-size:clamp(17px,4.5vw,22px) }
+  .feature-close{ border:0; background:none; color:#9a8763; font-size:24px; line-height:1; cursor:pointer }
+  .legend-text{ margin:0 0 12px; padding:10px 12px; border:1.5px solid var(--line);
+    border-radius:10px; background:#fffdf7; font-size:clamp(13px,3.6vw,15px); line-height:1.7 }
+  .ema-form,.quiz-box{ display:grid; gap:10px }
+  .ema-options{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:7px }
+  .ema-options label,.quiz-choice{ min-height:44px; border:1.5px solid var(--line); border-radius:10px;
+    background:#fffdf7; padding:9px 10px; font-weight:700; cursor:pointer }
+  .ema-input{ width:100%; min-height:44px; border:2px solid var(--line); border-radius:10px;
+    background:#fffdf7; color:var(--ink); padding:9px 10px; font:700 14px/1.4 inherit }
+  .feature-submit,.quiz-next,.quiz-retry{ min-height:44px; border:2px solid #d8b86e; border-radius:10px;
+    background:#fff4cf; color:#6b5036; font-weight:800; cursor:pointer; padding:9px 12px }
+  .ema-heading{ margin:6px 0 0; color:#6b5036; font-size:clamp(15px,4vw,18px) }
+  .ema-summary,.quiz-status{ margin:2px 0 0; color:#9a6b27; font-weight:800 }
+  .ema-list{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:8px; margin-top:8px }
+  .ema{ min-height:72px; border:2px solid #d8b86e; border-radius:8px 8px 12px 12px;
+    background:#fff4cf; color:#6b5036; padding:10px; text-align:center; font-weight:800;
+    box-shadow:0 3px 8px rgba(120,100,60,.12) }
+  .ema small{ display:block; margin-top:6px; color:#9a8763; font-weight:700 }
+  .quiz-progress{ color:#9a8763; font-size:12px; font-weight:800 }
+  .quiz-question{ margin:0; color:#6b5036; font-size:clamp(16px,4.2vw,20px) }
+  .quiz-choices{ display:grid; gap:8px }
+  .quiz-choice.correct{ border-color:#6aad52; background:#eef8e9 }
+  .quiz-choice.wrong{ border-color:#d7826a; background:#fff0ea }
+  .quiz-spark{ display:inline-block; animation:quiz-spark .55s ease }
+  @keyframes quiz-spark{ 0%{ transform:scale(.8) rotate(-8deg) } 60%{ transform:scale(1.2) rotate(8deg) } 100%{ transform:scale(1) } }
   .note{ text-align:center; font-size:clamp(10px,2.8vw,11px); color:#a59576; margin:6px 16px 26px; line-height:1.6 }
   @media (max-width:859px){
     body.map-open{ overflow:hidden }
@@ -196,6 +236,7 @@
     .map-overlay.open .map-wrap{ width:100%; margin:0 auto; flex:0 0 auto }
   }
   @media (max-width:430px){
+    .feature-cards{ grid-template-columns:1fr; padding:0 10px }
     .stamp-bar{ gap:6px; padding:0 10px }
     .stampbook-open{ padding:8px 9px }
     .mapbubble{ width:min(38cqw,132px); padding:6px 8px }
@@ -227,6 +268,11 @@
 
 <div class="event-banner">
   <span class="event-text" id="eventText"></span>
+</div>
+
+<div class="feature-cards" aria-label="なかやま体験">
+  <button class="feature-card" id="openOmairi" type="button">🙏 目の神様におまいり</button>
+  <button class="feature-card" id="openQuiz" type="button">🔍 なかやま探検クイズ</button>
 </div>
 
 <div class="search-panel">
@@ -286,6 +332,39 @@
     <div class="stampbook-actions">
       <button class="stamp-reset" id="stampReset" type="button">ぜんぶ消す</button>
     </div>
+  </div>
+</div>
+
+<div class="feature-modal omairi-modal" id="omairiModal" role="dialog" aria-modal="true" aria-labelledby="omairiTitle">
+  <div class="feature-panel">
+    <div class="feature-head">
+      <h2 class="feature-title" id="omairiTitle">目の神様（中山鳥瀧不動尊）</h2>
+      <button class="feature-close" type="button" data-close-feature aria-label="おまいりを閉じる">×</button>
+    </div>
+    <p class="legend-text">むかし、中山に住む人が目の病気になったとき、不動尊（ふどうそん）の滝（たき）の水で目をあらったら、病気が治ったといわれています。それから『目の神様』として、今もたくさんの人がおまいりに来る、中山のパワースポットです。</p>
+    <form class="ema-form" id="emaForm">
+      <div class="ema-options" id="emaOptions">
+        <label><input type="radio" name="emaWish" value="目を大切に" checked> 目を大切に</label>
+        <label><input type="radio" name="emaWish" value="勉強がんばる"> 勉強がんばる</label>
+        <label><input type="radio" name="emaWish" value="けがをしない"> けがをしない</label>
+        <label><input type="radio" name="emaWish" value="じゆうに書く"> じゆうに書く</label>
+      </div>
+      <input class="ema-input" id="emaFreeText" type="text" maxlength="20" placeholder="20字まで" aria-label="じゆうに書く願い事">
+      <button class="feature-submit" type="submit">🙏 奉納する</button>
+    </form>
+    <h3 class="ema-heading">あなたの絵馬</h3>
+    <p class="ema-summary" id="emaSummary">これまでの絵馬 0枚</p>
+    <div class="ema-list" id="emaList" aria-label="あなたの絵馬"></div>
+  </div>
+</div>
+
+<div class="feature-modal quiz-modal" id="quizModal" role="dialog" aria-modal="true" aria-labelledby="quizTitle">
+  <div class="feature-panel">
+    <div class="feature-head">
+      <h2 class="feature-title" id="quizTitle">🔍 なかやま探検クイズ</h2>
+      <button class="feature-close" type="button" data-close-feature aria-label="クイズを閉じる">×</button>
+    </div>
+    <div class="quiz-box" id="quizBox"></div>
   </div>
 </div>
 
@@ -380,6 +459,22 @@ const decoToggle = document.getElementById('decoToggle');
 const shopSearch = document.getElementById('shopSearch');
 const STAMP_KEY = 'naka_stamps_v1';
 const DECO_KEY = 'naka_deco';
+const EMA_KEY = 'naka_ema';
+const QUIZ_KEY = 'naka_quiz';
+const QUIZ = [
+  { q:"目の神様のお名前は？", choices:["中山鳥瀧不動尊","中山八幡神社","中山天神"], answer:"中山鳥瀧不動尊" },
+  { q:"七夕（たなばた）まつりは何月？", choices:["7月","8月","9月"], answer:"8月" },
+  { q:"中山の北にそびえる山は？", choices:["泉ヶ岳","蔵王山","船形山"], answer:"泉ヶ岳" },
+  { q:"商店街のそばを流れる川は？", choices:["梅田川","広瀬川","名取川"], answer:"梅田川" },
+  { q:"冬のおまつりは？", choices:["スノーマンまつり","雪まつり","どんと祭"], answer:"スノーマンまつり" },
+];
+const omairiModal = document.getElementById('omairiModal');
+const quizModal = document.getElementById('quizModal');
+const emaForm = document.getElementById('emaForm');
+const emaFreeText = document.getElementById('emaFreeText');
+const emaSummary = document.getElementById('emaSummary');
+const emaList = document.getElementById('emaList');
+const quizBox = document.getElementById('quizBox');
 const hitByName = new Map();
 const rowByName = new Map();
 const mobileMapQuery = window.matchMedia('(max-width:859px)');
@@ -388,6 +483,8 @@ let currentPopupStore = null;
 let pinned = null;
 let voiceBubbleTimer = null;
 let voiceBubbleIndex = 0;
+let emaItems = loadEma();
+let quizState = { index:0, score:0, answered:false };
 if (location.search.indexOf('debug') >= 0) document.body.classList.add('debug');
 
 STORES.forEach((s, i) => {
@@ -518,6 +615,115 @@ function renderStamps(){
     return `<div class="stampbook-item"><span class="book-dot" style="background:${c.color}"></span><span class="book-name">${s.name}</span><span class="book-mark">${mark}</span></div>`;
   }).join('');
   updatePopupStamp();
+}
+
+function escapeHtml(text){
+  return String(text).replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[ch]));
+}
+function loadEma(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(EMA_KEY) || '[]');
+    return Array.isArray(saved) ? saved.filter(item => item && typeof item.wish === 'string') : [];
+  }catch(e){
+    return [];
+  }
+}
+function saveEma(){ localStorage.setItem(EMA_KEY, JSON.stringify(emaItems)); }
+function renderEma(){
+  emaSummary.textContent = `これまでの絵馬 ${emaItems.length}枚`;
+  emaList.innerHTML = emaItems.length ? emaItems.map(item =>
+    `<div class="ema">${escapeHtml(item.wish)}<small>${escapeHtml(item.date || '')}</small></div>`
+  ).join('') : '<div class="ema">まだ奉納はありません</div>';
+}
+function openFeatureModal(modal){
+  renderEma();
+  if (modal === quizModal) resetQuiz();
+  modal.classList.add('show');
+}
+function closeFeatureModal(){
+  document.querySelectorAll('.feature-modal.show').forEach(modal => modal.classList.remove('show'));
+}
+function selectedEmaWish(){
+  const checked = document.querySelector('input[name="emaWish"]:checked');
+  if (!checked) return '';
+  if (checked.value !== 'じゆうに書く') return checked.value;
+  return emaFreeText.value.trim().slice(0, 20);
+}
+function quizBadge(score){
+  if (score === QUIZ.length) return 'なかやま博士';
+  if (score >= 3) return 'なかやま探検隊';
+  return 'なかやま見習い';
+}
+function loadQuizRecord(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(QUIZ_KEY) || '{}');
+    return saved && typeof saved === 'object' ? saved : {};
+  }catch(e){
+    return {};
+  }
+}
+function saveQuizRecord(score){
+  const prev = loadQuizRecord();
+  const bestScore = Math.max(Number(prev.bestScore || 0), score);
+  localStorage.setItem(QUIZ_KEY, JSON.stringify({
+    bestScore,
+    cleared: score === QUIZ.length || Boolean(prev.cleared),
+    lastScore: score,
+    badge: quizBadge(score),
+    date: new Date().toISOString().slice(0, 10)
+  }));
+}
+function resetQuiz(){
+  quizState = { index:0, score:0, answered:false };
+  renderQuiz();
+}
+function renderQuiz(){
+  const record = loadQuizRecord();
+  if (quizState.index >= QUIZ.length){
+    saveQuizRecord(quizState.score);
+    quizBox.innerHTML = `
+      <p class="quiz-status">スコア ${quizState.score}/${QUIZ.length}　バッジ「${quizBadge(quizState.score)}」</p>
+      <p class="quiz-progress">ベストスコア ${Math.max(Number(record.bestScore || 0), quizState.score)}/${QUIZ.length}</p>
+      <button class="quiz-retry" type="button" id="quizRetry">もう一回ちょうせん</button>
+    `;
+    document.getElementById('quizRetry').addEventListener('click', resetQuiz);
+    return;
+  }
+  const item = QUIZ[quizState.index];
+  quizBox.innerHTML = `
+    <div class="quiz-progress">${quizState.index + 1}/${QUIZ.length}</div>
+    <h3 class="quiz-question">${item.q}</h3>
+    <div class="quiz-choices">
+      ${item.choices.map(choice => `<button class="quiz-choice" type="button" data-choice="${escapeHtml(choice)}">${choice}</button>`).join('')}
+    </div>
+    <p class="quiz-status" id="quizStatus">${record.bestScore ? `ベストスコア ${record.bestScore}/${QUIZ.length}` : ''}</p>
+  `;
+}
+function answerQuiz(choice, btn){
+  if (quizState.answered) return;
+  const item = QUIZ[quizState.index];
+  const correct = choice === item.answer;
+  quizState.answered = true;
+  if (correct) quizState.score += 1;
+  btn.classList.add(correct ? 'correct' : 'wrong');
+  document.querySelectorAll('.quiz-choice').forEach(choiceBtn => {
+    choiceBtn.disabled = true;
+    if (choiceBtn.dataset.choice === item.answer) choiceBtn.classList.add('correct');
+  });
+  const status = document.getElementById('quizStatus');
+  status.innerHTML = correct ? '<span class="quiz-spark">✨ せいかい！</span>' : 'もう一回考えてみよう';
+  const next = document.createElement('button');
+  next.type = 'button';
+  next.className = 'quiz-next';
+  next.textContent = quizState.index === QUIZ.length - 1 ? '結果を見る' : '次の問題へ';
+  next.addEventListener('click', () => {
+    quizState.index += 1;
+    quizState.answered = false;
+    renderQuiz();
+  });
+  quizBox.appendChild(next);
 }
 
 function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
@@ -685,6 +891,33 @@ document.getElementById('stampReset').addEventListener('click', () => {
     renderStamps();
   }
 });
+document.getElementById('openOmairi').addEventListener('click', () => openFeatureModal(omairiModal));
+document.getElementById('openQuiz').addEventListener('click', () => openFeatureModal(quizModal));
+document.querySelectorAll('[data-close-feature]').forEach(btn => {
+  btn.addEventListener('click', closeFeatureModal);
+});
+document.querySelectorAll('.feature-modal').forEach(modal => {
+  modal.addEventListener('click', e => {
+    if (e.target === modal) closeFeatureModal();
+  });
+});
+emaForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const wish = selectedEmaWish();
+  if (!wish){
+    emaFreeText.focus();
+    return;
+  }
+  emaItems.push({ wish, date:new Date().toISOString().slice(0, 10) });
+  saveEma();
+  emaFreeText.value = '';
+  renderEma();
+});
+quizBox.addEventListener('click', e => {
+  const btn = e.target.closest('.quiz-choice');
+  if (!btn) return;
+  answerQuiz(btn.dataset.choice, btn);
+});
 decoToggle.addEventListener('click', e => {
   e.stopPropagation();
   const next = localStorage.getItem(DECO_KEY) === 'off' ? 'on' : 'off';
@@ -701,7 +934,9 @@ mapOverlay.addEventListener('click', e => {
 });
 mapOverlay.addEventListener('scroll', closePopup, { passive:true });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && mapOverlay.classList.contains('open')) closeMapOverlay();
+  if (e.key !== 'Escape') return;
+  if (document.querySelector('.feature-modal.show')) closeFeatureModal();
+  else if (mapOverlay.classList.contains('open')) closeMapOverlay();
 });
 if (mobileMapQuery.addEventListener){
   mobileMapQuery.addEventListener('change', syncMapDecorations);
@@ -717,6 +952,7 @@ document.getElementById('filters').addEventListener('click', e=>{
 });
 shopSearch.addEventListener('input', applyFilters);
 renderStamps();
+renderEma();
 renderEventRibbon();
 applyFilters();
 syncMapDecorations();
