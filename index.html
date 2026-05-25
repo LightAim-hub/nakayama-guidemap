@@ -71,6 +71,15 @@
     overflow:hidden; box-shadow:0 8px 24px rgba(120,100,60,.2); background:#fff;
     container-type:inline-size; }
   .map-wrap img.base{ position:absolute; inset:0; z-index:1; width:100%; height:100%; object-fit:fill; }
+  .map-wrap svg.base{ position:absolute; inset:0; z-index:1; width:100%; height:100%; display:block }
+  .shop-bldg{ cursor:pointer; transition:opacity .2s, transform .15s }
+  .shop-bldg .bsymbol{ font-size:26px; text-anchor:middle }
+  .shop-bldg .bdisc{ transition:fill .2s }
+  .shop-bldg:not(.found){ opacity:.66 }
+  .shop-bldg.found .bstar{ display:block }
+  .shop-bldg .bstar{ display:none }
+  .shop-bldg.pop{ animation:bldg-pop .6s cubic-bezier(.34,1.56,.64,1) }
+  @keyframes bldg-pop{ 0%{ transform:translateY(2px) scale(.8) } 55%{ transform:translateY(-3px) scale(1.18) } 100%{ transform:translateY(0) scale(1) } }
   .season-layer{ position:absolute; inset:0; z-index:3; pointer-events:none; overflow:hidden }
   .season-piece{ position:absolute; opacity:.48; font-size:clamp(12px,3.2cqw,23px);
     animation:season-float 9s linear infinite; filter:drop-shadow(0 1px 1px rgba(120,90,50,.12)) }
@@ -297,10 +306,32 @@
     <button class="map-overlay-close" id="closeMapBtn" type="button" aria-label="地図を閉じる">×</button>
   </div>
   <div class="map-wrap" id="mapWrap">
-    <picture>
-      <source srcset="map.webp" type="image/webp">
-      <img class="base" src="map.png" alt="なかやま商店街マップ（なかやま商店街振興組合）" decoding="async" fetchpriority="high">
-    </picture>
+    <svg class="base" id="mapSvg" viewBox="0 0 977 1339" preserveAspectRatio="none" role="img" aria-label="なかやま商店街 デジタルマップ">
+      <rect x="0" y="0" width="977" height="1339" fill="#f6ecd4"/>
+      <ellipse cx="150" cy="560" rx="120" ry="150" fill="#dcebc4"/>
+      <ellipse cx="300" cy="1060" rx="165" ry="175" fill="#dcebc4"/>
+      <ellipse cx="820" cy="980" rx="150" ry="185" fill="#dcebc4"/>
+      <path d="M0,120 Q120,30 250,95 T500,80 T760,95 T977,70 L977,0 L0,0 Z" fill="#bcd99a"/>
+      <path d="M0,120 Q120,30 250,95 T500,80 T760,95 T977,70" fill="none" stroke="#9cc06f" stroke-width="4"/>
+      <g stroke="#ecdcb6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <path d="M150,150 H905" stroke-width="48"/>
+        <path d="M545,150 V1160" stroke-width="62"/>
+        <path d="M545,560 H210 Q190,560 190,600 V1120" stroke-width="44"/>
+        <path d="M560,300 H800 Q825,300 825,340 V1110" stroke-width="44"/>
+      </g>
+      <g stroke="#d8c49a" stroke-linecap="round" fill="none" stroke-dasharray="2 22" opacity=".6">
+        <path d="M545,170 V1150"/><path d="M170,150 H895"/>
+      </g>
+      <path d="M20,1265 q110,-34 220,0 t220,0 t220,0 t220,0 t80,0" fill="none" stroke="#9bd4e6" stroke-width="30" stroke-linecap="round"/>
+      <path d="M20,1265 q110,-34 220,0 t220,0 t220,0 t220,0 t80,0" fill="none" stroke="#c2e9f3" stroke-width="11" stroke-linecap="round"/>
+      <text x="35" y="70" font-size="34">⛰️</text><text x="430" y="58" font-size="30">⛰️</text><text x="780" y="66" font-size="34">⛰️</text>
+      <text x="824" y="305" font-size="42">⛩️</text>
+      <text x="118" y="566" font-size="30">🌳</text><text x="250" y="700" font-size="30">🌳</text><text x="300" y="1066" font-size="30">🌳</text>
+      <text x="118" y="1152" font-size="32">🏯</text>
+      <text x="452" y="642" font-size="22">🏧</text>
+      <text x="120" y="1240" font-size="22">🌊</text>
+      <g id="shopLayer"></g>
+    </svg>
     <div class="season-layer" id="seasonLayer" aria-hidden="true"></div>
     <div class="map-controls">
       <button class="deco-toggle" id="decoToggle" type="button" aria-label="季節演出の表示切替">🎨</button>
@@ -559,6 +590,28 @@ noResult.className = 'no-result';
 noResult.textContent = '🔍 お店が見つかりません';
 shopList.appendChild(noResult);
 
+const SVGNS = 'http://www.w3.org/2000/svg';
+const shopLayer = document.getElementById('shopLayer');
+const bldgByName = new Map();
+function svgEl(tag, attrs){
+  const el = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+STORES.forEach(s => {
+  const px = (s.x/100*977).toFixed(1), py = (s.y/100*1339).toFixed(1);
+  const col = CATEGORIES[s.cat].color;
+  const g = svgEl('g', { class:`shop-bldg c-${s.cat}`, transform:`translate(${px} ${py})` });
+  g.appendChild(svgEl('rect', { class:'bdisc', x:-12, y:-3, width:24, height:17, rx:2.5, fill:'#fffaf0', stroke:col, 'stroke-width':2.4 }));
+  g.appendChild(svgEl('path', { d:'M-15,-2 L0,-18 L15,-2 Z', fill:col, stroke:'#fff', 'stroke-width':1.5 }));
+  g.appendChild(svgEl('rect', { x:-3.5, y:4, width:7, height:10, rx:1, fill:col }));
+  const star = svgEl('text', { class:'bstar', x:12, y:-13, 'font-size':16 });
+  star.textContent = '✨';
+  g.appendChild(star);
+  shopLayer.appendChild(g);
+  bldgByName.set(s.name, g);
+});
+
 function clearPopupHideTimer(){
   if (popupHideTimer !== null){
     clearTimeout(popupHideTimer);
@@ -644,6 +697,28 @@ function toggleStamp(name){
   saveStamps();
   renderStamps();
 }
+<<<<<<< Updated upstream
+=======
+function discover(name, btn){
+  if (hasStamp(name)) return;
+  stamps = [...stamps, name];
+  saveStamps();
+  renderStamps();
+  if (btn){
+    btn.classList.remove('found-burst');
+    void btn.offsetWidth;
+    btn.classList.add('found-burst');
+    setTimeout(() => btn.classList.remove('found-burst'), 700);
+  }
+  const bldg = bldgByName.get(name);
+  if (bldg){
+    bldg.classList.remove('pop');
+    void bldg.getBoundingClientRect();
+    bldg.classList.add('pop');
+    setTimeout(() => bldg.classList.remove('pop'), 650);
+  }
+}
+>>>>>>> Stashed changes
 function updatePopupStamp(){
   if (!currentPopupStore) return;
   const got = hasStamp(currentPopupStore.name);
@@ -660,6 +735,8 @@ function renderStamps(){
     const hit = hitByName.get(s.name);
     const row = rowByName.get(s.name);
     if (hit) hit.classList.toggle('stamped', got);
+    const bldg = bldgByName.get(s.name);
+    if (bldg) bldg.classList.toggle('found', got);
     if (row){
       row.classList.toggle('stamped', got);
       row.setAttribute('aria-label', got ? `${s.name} スタンプ取得済み` : s.name);
