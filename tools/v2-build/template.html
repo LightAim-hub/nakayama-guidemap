@@ -175,7 +175,7 @@
 
 <header>
   <h1>なかやま商店街マップ <small>実測版 β</small></h1>
-  <p>道路も星印も実際の位置どおり（OpenStreetMap・国土地理院データ準拠）。星をタップするとお店の紹介が見られます。</p>
+  <p>道路も星印も実際の位置準拠（OpenStreetMap・国土地理院データ）。星をタップするとお店の紹介が見られます。※密集部の星は見やすさのため通り沿いに間隔を少し広げています</p>
 </header>
 
 <div class="filters" id="filters"></div>
@@ -459,7 +459,12 @@ function drawShops(){
       el('path', {d:'M'+ex+','+ey+' l'+(-7*Math.cos(rad-0.5))+','+(7*Math.sin(rad-0.5))+' M'+ex+','+ey+' l'+(-7*Math.cos(rad+0.5))+','+(7*Math.sin(rad+0.5)), class:'faraway'}, gLead);
     }
     const g = el('g', {class:'hit', tabindex:0, role:'button', 'data-i':idx, 'aria-label':s.name}, gShops);
-    el('circle', {cx:s.x, cy:s.y, r:22, class:'pad'}, g);  // タップ領域拡大 (実測44px相当)
+    el('circle', {cx:s.x, cy:s.y, r:s.padr || 22, class:'pad'}, g);  // タップ領域 (隣の星と重ならない半径)
+    if (IS_DEBUG && s.tx !== undefined){
+      // スプレッド表示された星の真の位置を可視化
+      el('path', {d:'M'+(s.tx-5)+','+(s.ty-5)+' L'+(s.tx+5)+','+(s.ty+5)+' M'+(s.tx-5)+','+(s.ty+5)+' L'+(s.tx+5)+','+(s.ty-5), stroke:'#d13030', 'stroke-width':1.6, fill:'none'}, g);
+      el('path', {d:'M'+s.tx+','+s.ty+' L'+s.x+','+s.y, stroke:'rgba(209,48,48,.5)', 'stroke-width':1, 'stroke-dasharray':'2 2', fill:'none'}, g);
+    }
     const st = el('use', {href:'#starShape', x:0, y:0, class:'star '+s.cat,
       transform:'translate('+s.x+','+s.y+') scale('+starSize(s)+')'}, g);
     if (IS_DEBUG){
@@ -592,7 +597,7 @@ const zoneByShop = {};
 (GEO.zones||[]).forEach(z => z.members.forEach(i => { zoneByShop[i] = z; }));
 function zoneDense(z){
   const scale = wrap.offsetWidth / (W + 2*PAD);   // 画面px / SVG座標px
-  return z.gap * scale < 40;  // 隣の星との実表示間隔が40px未満なら個別タップは無理と判定
+  return z.gap * scale < 26;  // 隣の星との画面上の間隔が26px未満なら区画一覧へ (拡大すれば個別タップ)
 }
 function openZoneList(z){
   renderList(z.members, z.name);  // 件数はrenderList側でフィルタ後の実数を付与
@@ -733,8 +738,8 @@ if (IS_EDIT){
   document.getElementById('exportBtn').addEventListener('click', () => {
     const P = GEO.meta.proj, rot = -P.rot_deg*Math.PI/180;
     const out = GEO.shops.map(s => {
-      // 縁クランプ店(表示位置≠実位置)はドラッグしていない限り元の実座標を出力
-      if (s.clamped && !s.moved) return {name:s.name, lat:s.lat, lng:s.lng, clamped:true};
+      // ドラッグしていない星は常に真のlat/lngを出力 (クランプ・スプレッドの表示位置に汚染されない)
+      if (!s.moved) return {name:s.name, lat:s.lat, lng:s.lng};
       const gx = s.x + GEO.meta.minx, gy = s.y + GEO.meta.miny;
       const x0 = gx*Math.cos(rot) - gy*Math.sin(rot);
       const y0 = gx*Math.sin(rot) + gy*Math.cos(rot);
