@@ -310,8 +310,10 @@ de4['src'] = 'approx'
 SHOP_HINTS = {
     '東北電力研究開発センター': {'anchor': 'middle', 'dy': 27},
     'ヨークベニマル 仙台中山店': {'anchor': 'end', 'dx': -15},
-    '商店街モニュメント': {'anchor': 'end', 'dx': -15, 'dy': -4},
-    '認定こども園 TOBINOKO': {'anchor': 'start', 'dx': 15, 'dy': 6},
+    '商店街モニュメント': {'anchor': 'end', 'dx': -30, 'dy': -4},  # 右端が横断道路帯に触れるため左へ
+    'みなみ歯科クリニック': {'anchor': 'end', 'dx': -15, 'dy': 0},  # 右側は上下2本の道路に挟まれ幅不足
+    'カーブス アクロスガーデン中山': {'anchor': 'start', 'dx': 15, 'dy': 12},  # 道路間の空きレーンへ
+    '認定こども園 TOBINOKO': {'anchor': 'end', 'dx': -15, 'dy': 18},  # 右側はNOBU列と衝突するため左に出す
     '多夢多夢舎中山工房': {'anchor': 'end', 'dx': -15, 'dy': 10},
     '中山ドライブスクール': {'anchor': 'start', 'dx': 15, 'dy': -14},
 }
@@ -394,12 +396,14 @@ def _busx(y):
             return lo[0] + t * (hi[0] - lo[0])
     return _bus_shifted[-1][0]
 
-MINGAP_STAR = 33  # 密集店舗の余白拡大 (ボスFB 2026-07-04: 26では窮屈)
+MINGAP_STAR = 40  # 密集店舗の余白 (ボスFB段階拡大: 26→33→40)
+# 帯幅160px: 通り近傍の店(ドライブスクール等)も同じ順序保存スプレッドに含め、
+# 列だけ動いて近傍店と表示順が逆転する事故を防ぐ
 for _side in (-1, 1):
     col = [sh for sh in shops
            if not sh.get('clamped')
-           and 240 < sh['y'] < 1460
-           and abs(sh['x'] - _busx(sh['y'])) < 95
+           and 240 < sh['y'] < 1560
+           and abs(sh['x'] - _busx(sh['y'])) < 160
            and ((sh['x'] - _busx(sh['y'])) <= 0) == (_side < 0)]
     col.sort(key=lambda s: s['y'])
     ys = [s['y'] for s in col]
@@ -420,11 +424,85 @@ for _side in (-1, 1):
             s_['x'] = round(s_['x'] + (_busx(ny) - _busx(s_['y'])), 1)  # 通りのカーブに追従
             s_['y'] = round(ny, 1)
 
+# 道路拡幅に伴う横方向クリアランス: 通り沿いの星は中心線から最低28px離す
+# (道路を挟んで向かい合う店の間に「道路の余白」を作る・ボスFB 2026-07-04)
+MINOFF_STAR = 42  # 主要道路38px幅(半径19)+星半径10+余白
+for sh in shops:
+    if sh.get('clamped') or not (240 < sh['y'] < 1460):
+        continue
+    bx0 = _busx(sh['y'])
+    dx0 = sh['x'] - bx0
+    if abs(dx0) < 95 and abs(dx0) < MINOFF_STAR:
+        if 'tx' not in sh:
+            sh['tx'], sh['ty'] = sh['x'], sh['y']
+        side_ = -1 if dx0 <= 0 else 1
+        sh['x'] = round(bx0 + side_ * MINOFF_STAR, 1)
+
+# 全道路クリアランス: 路面店の星が「どの道路とも」被らない位置へ押し出す
+# (OSM座標は店頭=道路縁に載りがち・ボスFB 2026-07-04)
+ROAD_HALF = {'major': 19.0, 'mid': 10.5}
+CLEAR_NEED = 14.0  # 星半径10 + 余白4
+
+def _clear_roads_once():
+    changed = 0
+    for sh in shops:
+        if sh.get('clamped'):
+            continue
+        for r in roads:
+            need = ROAD_HALF[r['cls']] + CLEAR_NEED
+            pts_ = r['pts']
+            for k in range(1, len(pts_)):
+                ax, ay = pts_[k - 1]
+                bx2, by2 = pts_[k]
+                vx, vy = bx2 - ax, by2 - ay
+                L2 = vx * vx + vy * vy
+                if L2 < 1e-9:
+                    continue
+                t = max(0.0, min(1.0, ((sh['x'] - ax) * vx + (sh['y'] - ay) * vy) / L2))
+                cx, cy = ax + t * vx, ay + t * vy
+                dx, dy = sh['x'] - cx, sh['y'] - cy
+                d = math.hypot(dx, dy)
+                if d >= need:
+                    continue
+                if d < 1e-6:  # 道路の真上: 法線方向へ
+                    nl = math.hypot(vx, vy)
+                    dx, dy, d = -vy / nl, vx / nl, 1.0
+                if 'tx' not in sh:
+                    sh['tx'], sh['ty'] = sh['x'], sh['y']
+                sh['x'] = round(cx + dx / d * need, 1)
+                sh['y'] = round(cy + dy / d * need, 1)
+                changed += 1
+    return changed
+
+for _it in range(4):
+    if _clear_roads_once() == 0:
+        break
+
 # タップ領域は隣の星と重ならない半径に (最小12・最大22)
 for sh in shops:
     nn = min((math.hypot(sh['x'] - o['x'], sh['y'] - o['y'])
               for o in shops if o is not sh), default=44)
     sh['padr'] = max(12, min(22, int(nn / 2) - 1))
+
+# ---------------- 信号機 (OSM traffic_signals 実データ・30mクラスタ統合) ----------------
+signals = []
+try:
+    _sig_raw = json.load(open(P('signals_raw.json'), encoding='utf-8'))
+    _sig_pts = []
+    for e in _sig_raw.get('elements', []):
+        if e.get('lat') is None:
+            continue
+        sx, sy = project(e['lat'], e['lon'])
+        sx, sy = sx - minx, sy - miny
+        if -40 <= sx <= W + 40 and -40 <= sy <= H + 40:
+            _sig_pts.append((sx, sy))
+    for sx, sy in _sig_pts:  # 同一交差点の複数灯を1つに統合
+        if all(math.hypot(sx - gx, sy - gy) >= 30 for gx, gy in signals):
+            signals.append((round(sx, 1), round(sy, 1)))
+    signals = [list(p) for p in signals]
+except FileNotFoundError:
+    pass
+print('signals:', len(signals))
 
 # ---------------- 密集区画の自動検出 (チェーン距離36px・5店以上 → タップで区画一覧) ----------------
 _parent = list(range(len(shops)))
@@ -466,7 +544,7 @@ print('zones:', [(len(z['members']), z['gap']) for z in zones])
 
 data = {'meta': meta, 'shops': shops, 'roads': roads, 'rivers': rivers,
         'parks': parks, 'waters': waters, 'sando': sando, 'busway': busway, 'exits': exits,
-        'zones': zones}
+        'zones': zones, 'signals': signals}
 with open(P('mapdata.json'), 'w', encoding='utf-8') as f:
     json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
 
