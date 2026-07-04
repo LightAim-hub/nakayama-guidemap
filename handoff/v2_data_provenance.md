@@ -61,7 +61,19 @@ Claude系subagentがセッション上限(3:10リセット)のため、2周目�
 - **LOW修正**: color-mix非対応ブラウザのフォールバック背景 / editモードで一覧ボタンを非表示(重なり解消) / GEO注入JSONの`</`エスケープ(script破り防止)
 - regression検証7項目: renderList初期化順序PASS / EscハンドラPASS / XSS対策PASS(textContent/https限定)ほか
 
-3周目(Claude系agent2本による最終確認)は3:10のリセット後に自動実行予定。
+## レビューループ収束 (2026-07-04 01時台・計6周)
+
+| 周 | レビュアー | 結果 |
+|---|---|---|
+| R1 | Claude 3視点並列 (データ/地理/UX) | HIGH9+MID19+LOW多数 → 全反映 |
+| R2 | Codex別スレッド + 本人ブラウザ実測 | HIGH1+MID2+LOW3 + 列崩れ自己検出 → 全反映 |
+| R3 | Codex修正検証 | 新規HIGH/MIDゼロ (エスケープのパイプライン恒久化のみ残→反映) |
+| R4 | Codex敵対的新スレッド | MID2 (パイプライン場所依存/偽矢印) → 全反映 (tools/v2-build移設) |
+| R5 | Codex収束確認新スレッド | **新規HIGH/MIDゼロ** (GEO整合性: cat5種/URL形式/座標範囲 全異常なし) |
+| R6 | 機械検査+機能バッテリー | **ラベル重なり0・星被覆0・canvas外0 / 20項目全PASS** |
+
+**R5+R6の2周連続クリーンで収束・納品基準到達。**
+再現ビルド: `python tools/v2-build/build_mapdata.py` (入力データ同梱・任意の場所から実行可)
 
 ## 🔶 ボス/振興組合への確認事項
 
