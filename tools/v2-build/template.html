@@ -80,7 +80,7 @@
   .hit.dim{ opacity:.25; pointer-events:none; }
   .hit.glowing .star{ filter:drop-shadow(0 0 5px rgba(233,150,60,.95)); stroke-width:2.8; }
   .shoplabel{ font-family:'Yusei Magic',sans-serif; fill:var(--ink);
-    paint-order:stroke; stroke:var(--paper); stroke-width:3.5px; stroke-linejoin:round; }
+    paint-order:stroke; stroke:var(--paper); stroke-width:6px; stroke-linejoin:round; }
   .shoplabel.b{ font-weight:700; }
   .leader{ stroke:rgba(122,92,59,.55); stroke-width:1.1; fill:none; }
   .roadname{ font-family:'Yusei Magic',sans-serif; fill:var(--ink-soft); opacity:.75;
@@ -268,7 +268,7 @@ GEO.sando.forEach(s => el('path', {d:poly(s), class:'sando', 'stroke-width':3}, 
 
 /* 道路名 (実名・表示域内に実在する道路のみ) */
 const ROADLBL = [
-  {match:'中山幹線１号線', text:'中山バス通り', dy:-16, targetY:1360},
+  {match:'中山幹線１号線', text:'中山バス通り', dy:-18, targetY:1455},
   {match:'荒巻本沢街道線', text:'荒巻本沢街道', dy:-11},
   {match:'通町中山線', text:'通町中山線', dy:-11, targetY:900, size:13},
   {match:'北山実沢線', text:'北山実沢線', dy:-11, size:13},
@@ -398,16 +398,49 @@ function layoutLabels(){
       (s.x <= bx ? colL : colR).push(s);
     } else free.push(s);
   });
+  // ラベル列のx帯を横切る「水平寄り道路」の帯 (ラベル行の禁止区間)
+  function roadBands(xmin, xmax){
+    const bands = [];
+    GEO.roads.forEach(r => {
+      const half = (r.cls === 'major' ? 19 : 10.5) + FS * 0.62 + 2;
+      for (let k = 1; k < r.pts.length; k++){
+        const [x1, y1] = r.pts[k-1], [x2, y2] = r.pts[k];
+        if (Math.max(x1, x2) < xmin || Math.min(x1, x2) > xmax) continue;
+        const dx = x2 - x1, dy = y2 - y1;
+        if (Math.abs(dx) < 20 || Math.abs(dy / dx) > 0.6) continue;  // 縦寄りの道は対象外
+        const ymid = (y1 + y2) / 2;
+        bands.push([ymid - half, ymid + half]);
+      }
+    });
+    return bands;
+  }
   [ [colL,-1], [colR,1] ].forEach(([col, side]) => {
     col.sort((a,b)=>a.y-b.y);
     const ys = col.map(s=>s.y);
-    for (let i=1;i<ys.length;i++) if (ys[i] < ys[i-1]+GAP) ys[i] = ys[i-1]+GAP;
-    for (let i=ys.length-2;i>=0;i--) if (ys[i] > ys[i+1]-GAP) ys[i] = ys[i+1]-GAP;
-    for (let it=0; it<3; it++){
-      for (let i=0;i<ys.length;i++){
-        let lo = i? ys[i-1]+GAP : -1e9, hi = i<ys.length-1? ys[i+1]-GAP : 1e9;
-        ys[i] = Math.max(lo, Math.min(hi, col[i].y));
+    const bx0 = busXAtY(H/2);
+    const bands = side > 0 ? roadBands(bx0 + COLOFF, bx0 + COLOFF + 200)
+                           : roadBands(bx0 - COLOFF - 200, bx0 - COLOFF);
+    const relax = () => {
+      for (let i=1;i<ys.length;i++) if (ys[i] < ys[i-1]+GAP) ys[i] = ys[i-1]+GAP;
+      for (let i=ys.length-2;i>=0;i--) if (ys[i] > ys[i+1]-GAP) ys[i] = ys[i+1]-GAP;
+      for (let it=0; it<3; it++){
+        for (let i=0;i<ys.length;i++){
+          let lo = i? ys[i-1]+GAP : -1e9, hi = i<ys.length-1? ys[i+1]-GAP : 1e9;
+          ys[i] = Math.max(lo, Math.min(hi, col[i].y));
+        }
       }
+    };
+    relax();
+    // 横断道路の帯からラベル行を押し出し→間隔を再解決 (2周)
+    for (let pass = 0; pass < 2; pass++){
+      let hit = false;
+      for (let i = 0; i < ys.length; i++){
+        const b = bands.find(bd => ys[i] > bd[0] && ys[i] < bd[1]);
+        if (b){ ys[i] = (ys[i] - b[0] < b[1] - ys[i]) ? b[0] - 5 : b[1] + 5; hit = true; }
+      }
+      if (!hit) break;
+      for (let i=1;i<ys.length;i++) if (ys[i] < ys[i-1]+GAP) ys[i] = ys[i-1]+GAP;
+      for (let i=ys.length-2;i>=0;i--) if (ys[i] > ys[i+1]-GAP) ys[i] = ys[i+1]-GAP;
     }
     col.forEach((s,i) => {
       s.ly = ys[i];
@@ -426,10 +459,19 @@ function layoutLabels(){
     s.lx = s.x + (h.dx !== undefined ? h.dx : side * 16);
     s.ly = s.y + (h.dy !== undefined ? h.dy : 5);
     clampToCanvas(s);
+    // 水平寄り道路の帯からラベルを縦に逃がす (最大3帯連鎖)
+    const w = estW(s.name);
+    const fx0 = s.anchor === 'start' ? s.lx : s.anchor === 'end' ? s.lx - w : s.lx - w / 2;
+    const myBands = roadBands(fx0, fx0 + w);
+    for (let it = 0; it < 3; it++){
+      const bd = myBands.find(b => s.ly > b[0] && s.ly < b[1]);
+      if (!bd) break;
+      s.ly = (s.ly - bd[0] < bd[1] - s.ly) ? bd[0] - 5 : bd[1] + 5;
+    }
   });
   // 衝突回避: ①freeラベル×列ラベル (列は固定・freeを縦に逃がす) ②freeラベル同士
   const colBoxes = [...colL, ...colR].map(s => labelBox(s));
-  for (let outer = 0; outer < 3; outer++){
+  for (let outer = 0; outer < 5; outer++){
     free.forEach(f => {
       let dir = 0;  // 逃げる方向は最初に決めて固定 (2行に挟まれた時の振動防止)
       for (let it = 0; it < 10; it++){
@@ -454,7 +496,20 @@ function layoutLabels(){
       }
       if (!m2) break;
     }
-    if (!moved) break;  // free同士の再調整が無ければ列との衝突も再発していない
+    // solverが道路帯内へ動かした分を再エスケープ (安定するまでouterを回す)
+    let bandMoved = false;
+    free.forEach(f => {
+      const w2 = estW(f.name);
+      const fx0 = f.anchor === 'start' ? f.lx : f.anchor === 'end' ? f.lx - w2 : f.lx - w2 / 2;
+      const mb = roadBands(fx0, fx0 + w2);
+      for (let it = 0; it < 3; it++){
+        const bd = mb.find(b => f.ly > b[0] && f.ly < b[1]);
+        if (!bd) break;
+        f.ly = (f.ly - bd[0] < bd[1] - f.ly) ? bd[0] - 5 : bd[1] + 5;
+        bandMoved = true;
+      }
+    });
+    if (!moved && !bandMoved) break;
   }
 }
 
