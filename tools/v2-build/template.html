@@ -91,12 +91,6 @@
     paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
   .deco{ font-family:'Yusei Magic',sans-serif; fill:var(--ink-soft); }
   .faraway{ stroke:rgba(122,92,59,.7); stroke-dasharray:4 4; fill:none; }
-  .zonebox{ fill:rgba(233,150,60,.06); stroke:rgba(201,123,61,.55); stroke-width:1.6; stroke-dasharray:6 5; pointer-events:none; }
-  .zonepill{ cursor:pointer; }
-  .zonepill rect{ fill:#fffaf0; stroke:var(--accent); stroke-width:1.8; }
-  .zonepill text{ font-family:'Yusei Magic',sans-serif; fill:var(--ink); font-weight:bold; }
-  .zonepill:hover rect, .zonepill:focus rect{ fill:#f6ecd4; }
-  .zonepill:focus-visible rect{ filter:drop-shadow(0 0 5px rgba(201,123,61,.95)); stroke-width:2.6; }
 
   .popup{ position:absolute; z-index:30; width:224px; max-width:78vw;
     background:#fffaf0; border:2px solid #d8c4a0; border-radius:14px;
@@ -257,10 +251,10 @@ GEO.rivers.forEach(r => el('path', {d:poly(r.pts), class:'river', 'stroke-width'
 
 const roadsSorted = GEO.roads;
 roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor', 'stroke-width':3.4}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-c', 'stroke-width':13}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-f', 'stroke-width':7.6}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-c', 'stroke-width':24}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-f', 'stroke-width':16}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-c', 'stroke-width':17}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-f', 'stroke-width':10.5}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-c', 'stroke-width':31}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-f', 'stroke-width':21}, gRoads); });
 GEO.sando.forEach(s => el('path', {d:poly(s), class:'sando', 'stroke-width':3}, gRoads));
 
 /* 信号機 (OSM実データ・実在の交差点のみ) */
@@ -433,19 +427,34 @@ function layoutLabels(){
     s.ly = s.y + (h.dy !== undefined ? h.dy : 5);
     clampToCanvas(s);
   });
-  // freeラベル同士のbbox衝突回避
-  for (let it = 0; it < 8; it++){
-    let moved = false;
-    for (let a = 0; a < free.length; a++) for (let b = a + 1; b < free.length; b++){
-      const A = free[a], B = free[b];
-      const ba = labelBox(A), bb = labelBox(B);
-      if (ba.x0 < bb.x1 && bb.x0 < ba.x1 && ba.y0 < bb.y1 && bb.y0 < ba.y1){
-        const push = (ba.y1 - bb.y0) / 2 + 2;
-        if (A.ly <= B.ly){ A.ly -= push; B.ly += push; } else { A.ly += push; B.ly -= push; }
-        moved = true;
+  // 衝突回避: ①freeラベル×列ラベル (列は固定・freeを縦に逃がす) ②freeラベル同士
+  const colBoxes = [...colL, ...colR].map(s => labelBox(s));
+  for (let outer = 0; outer < 3; outer++){
+    free.forEach(f => {
+      let dir = 0;  // 逃げる方向は最初に決めて固定 (2行に挟まれた時の振動防止)
+      for (let it = 0; it < 10; it++){
+        const fb = labelBox(f);
+        const hitBox = colBoxes.find(cb => fb.x0 < cb.x1 && cb.x0 < fb.x1 && fb.y0 < cb.y1 && cb.y0 < fb.y1);
+        if (!hitBox) break;
+        if (!dir) dir = (f.y <= (hitBox.y0 + hitBox.y1) / 2) ? -1 : 1;
+        f.ly = dir < 0 ? hitBox.y0 - FS * 0.62 - 3 : hitBox.y1 + FS * 0.62 + 3;
       }
+    });
+    let moved = false;
+    for (let it = 0; it < 8; it++){
+      let m2 = false;
+      for (let a = 0; a < free.length; a++) for (let b = a + 1; b < free.length; b++){
+        const A = free[a], B = free[b];
+        const ba = labelBox(A), bb = labelBox(B);
+        if (ba.x0 < bb.x1 && bb.x0 < ba.x1 && ba.y0 < bb.y1 && bb.y0 < ba.y1){
+          const push = (ba.y1 - bb.y0) / 2 + 2;
+          if (A.ly <= B.ly){ A.ly -= push; B.ly += push; } else { A.ly += push; B.ly -= push; }
+          m2 = moved = true;
+        }
+      }
+      if (!m2) break;
     }
-    if (!moved) break;
+    if (!moved) break;  // free同士の再調整が無ければ列との衝突も再発していない
   }
 }
 
@@ -601,25 +610,11 @@ function showChooser(list, s){
   chooser.classList.add('show');
   const first = chooser.querySelector('.copt'); if (first) first.focus();
 }
-/* 密集区画: どの店の区画か / 現在のズームで星が判別できる密度か */
-const zoneByShop = {};
-(GEO.zones||[]).forEach(z => z.members.forEach(i => { zoneByShop[i] = z; }));
-function zoneDense(z){
-  const scale = wrap.offsetWidth / (W + 2*PAD);   // 画面px / SVG座標px
-  return z.gap * scale < 26;  // 隣の星との画面上の間隔が26px未満なら区画一覧へ (拡大すれば個別タップ)
-}
-function openZoneList(z){
-  renderList(z.members, z.name);  // 件数はrenderList側でフィルタ後の実数を付与
-  listpanel.classList.add('show');
-}
 gShops.addEventListener('click', e => {
   const h = e.target.closest('.hit'); if (!h) return;
   e.stopPropagation();
   lastFocusHit = h;
-  const idx = +h.dataset.i;
-  const s = GEO.shops[idx];
-  const z = zoneByShop[idx];
-  if (z && zoneDense(z) && !IS_EDIT){ openZoneList(z); return; }
+  const s = GEO.shops[+h.dataset.i];
   const nb = nearby(s).filter(o => matchesFilter(o));
   if (nb.length > 1){ showChooser(nb, s); } else { pinned = s; showPopup(s, false); }
 });
@@ -699,25 +694,6 @@ function renderList(memberIdx, title){
   });
 }
 document.getElementById('listbtn').addEventListener('click', e => { e.stopPropagation(); renderList(null); listpanel.classList.add('show'); });
-
-/* 密集区画の枠とバッジ */
-(GEO.zones||[]).forEach((z, zi) => {
-  el('rect', {x:z.x0, y:z.y0, width:z.x1-z.x0, height:z.y1-z.y0, rx:14, class:'zonebox'}, gWater.parentNode.insertBefore(el('g',{}), gShops));
-});
-const gZonePills = el('g', {}, svg);
-(GEO.zones||[]).forEach((z, zi) => {
-  const g = el('g', {class:'zonepill', tabindex:0, role:'button', 'aria-label':z.name+'の店一覧を開く'}, gZonePills);
-  const label = z.members.length + '店 まとめて見る';
-  const wpx = label.length * 16.5 + 26;
-  // 区画の右上(東の空き地帯)に置く: 中央上は尚絅教会・下は店ラベルに被る
-  const bx = z.x1 + 12, by = z.y0 - 48;
-  el('rect', {x:bx, y:by, width:wpx, height:38, rx:19}, g);
-  const t = el('text', {x:bx+wpx/2, y:by+26, 'font-size':18, 'text-anchor':'middle'}, g);
-  t.textContent = label;
-  const open = ev => { ev.stopPropagation(); openZoneList(z); };
-  g.addEventListener('click', open);
-  g.addEventListener('keydown', ev => { if (ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); open(ev); } });
-});
 document.getElementById('listclose').addEventListener('click', () => listpanel.classList.remove('show'));
 listpanel.addEventListener('click', e => e.stopPropagation());
 document.addEventListener('keydown', e => { if (e.key === 'Escape') listpanel.classList.remove('show'); });

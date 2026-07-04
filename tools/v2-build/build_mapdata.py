@@ -311,7 +311,7 @@ SHOP_HINTS = {
     '東北電力研究開発センター': {'anchor': 'middle', 'dy': 27},
     'ヨークベニマル 仙台中山店': {'anchor': 'end', 'dx': -15},
     '商店街モニュメント': {'anchor': 'end', 'dx': -15, 'dy': -4},
-    '認定こども園 TOBINOKO': {'anchor': 'start', 'dx': 15, 'dy': 6},
+    '認定こども園 TOBINOKO': {'anchor': 'end', 'dx': -15, 'dy': 18},  # 右側はNOBU列と衝突するため左に出す
     '多夢多夢舎中山工房': {'anchor': 'end', 'dx': -15, 'dy': 10},
     '中山ドライブスクール': {'anchor': 'start', 'dx': 15, 'dy': -14},
 }
@@ -394,12 +394,14 @@ def _busx(y):
             return lo[0] + t * (hi[0] - lo[0])
     return _bus_shifted[-1][0]
 
-MINGAP_STAR = 33  # 密集店舗の余白拡大 (ボスFB 2026-07-04: 26では窮屈)
+MINGAP_STAR = 40  # 密集店舗の余白 (ボスFB段階拡大: 26→33→40)
+# 帯幅160px: 通り近傍の店(ドライブスクール等)も同じ順序保存スプレッドに含め、
+# 列だけ動いて近傍店と表示順が逆転する事故を防ぐ
 for _side in (-1, 1):
     col = [sh for sh in shops
            if not sh.get('clamped')
-           and 240 < sh['y'] < 1460
-           and abs(sh['x'] - _busx(sh['y'])) < 95
+           and 240 < sh['y'] < 1560
+           and abs(sh['x'] - _busx(sh['y'])) < 160
            and ((sh['x'] - _busx(sh['y'])) <= 0) == (_side < 0)]
     col.sort(key=lambda s: s['y'])
     ys = [s['y'] for s in col]
@@ -422,7 +424,7 @@ for _side in (-1, 1):
 
 # 道路拡幅に伴う横方向クリアランス: 通り沿いの星は中心線から最低28px離す
 # (道路を挟んで向かい合う店の間に「道路の余白」を作る・ボスFB 2026-07-04)
-MINOFF_STAR = 28
+MINOFF_STAR = 36  # 主要道路31px幅(半径15.5)+星半径10+余白
 for sh in shops:
     if sh.get('clamped') or not (240 < sh['y'] < 1460):
         continue
