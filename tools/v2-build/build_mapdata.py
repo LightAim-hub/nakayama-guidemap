@@ -394,7 +394,7 @@ def _busx(y):
             return lo[0] + t * (hi[0] - lo[0])
     return _bus_shifted[-1][0]
 
-MINGAP_STAR = 26
+MINGAP_STAR = 33  # 密集店舗の余白拡大 (ボスFB 2026-07-04: 26では窮屈)
 for _side in (-1, 1):
     col = [sh for sh in shops
            if not sh.get('clamped')
