@@ -424,7 +424,7 @@ for _side in (-1, 1):
 
 # 道路拡幅に伴う横方向クリアランス: 通り沿いの星は中心線から最低28px離す
 # (道路を挟んで向かい合う店の間に「道路の余白」を作る・ボスFB 2026-07-04)
-MINOFF_STAR = 36  # 主要道路31px幅(半径15.5)+星半径10+余白
+MINOFF_STAR = 42  # 主要道路38px幅(半径19)+星半径10+余白
 for sh in shops:
     if sh.get('clamped') or not (240 < sh['y'] < 1460):
         continue
@@ -435,6 +435,46 @@ for sh in shops:
             sh['tx'], sh['ty'] = sh['x'], sh['y']
         side_ = -1 if dx0 <= 0 else 1
         sh['x'] = round(bx0 + side_ * MINOFF_STAR, 1)
+
+# 全道路クリアランス: 路面店の星が「どの道路とも」被らない位置へ押し出す
+# (OSM座標は店頭=道路縁に載りがち・ボスFB 2026-07-04)
+ROAD_HALF = {'major': 19.0, 'mid': 10.5}
+CLEAR_NEED = 14.0  # 星半径10 + 余白4
+
+def _clear_roads_once():
+    changed = 0
+    for sh in shops:
+        if sh.get('clamped'):
+            continue
+        for r in roads:
+            need = ROAD_HALF[r['cls']] + CLEAR_NEED
+            pts_ = r['pts']
+            for k in range(1, len(pts_)):
+                ax, ay = pts_[k - 1]
+                bx2, by2 = pts_[k]
+                vx, vy = bx2 - ax, by2 - ay
+                L2 = vx * vx + vy * vy
+                if L2 < 1e-9:
+                    continue
+                t = max(0.0, min(1.0, ((sh['x'] - ax) * vx + (sh['y'] - ay) * vy) / L2))
+                cx, cy = ax + t * vx, ay + t * vy
+                dx, dy = sh['x'] - cx, sh['y'] - cy
+                d = math.hypot(dx, dy)
+                if d >= need:
+                    continue
+                if d < 1e-6:  # 道路の真上: 法線方向へ
+                    nl = math.hypot(vx, vy)
+                    dx, dy, d = -vy / nl, vx / nl, 1.0
+                if 'tx' not in sh:
+                    sh['tx'], sh['ty'] = sh['x'], sh['y']
+                sh['x'] = round(cx + dx / d * need, 1)
+                sh['y'] = round(cy + dy / d * need, 1)
+                changed += 1
+    return changed
+
+for _it in range(4):
+    if _clear_roads_once() == 0:
+        break
 
 # タップ領域は隣の星と重ならない半径に (最小12・最大22)
 for sh in shops:
