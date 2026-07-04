@@ -420,11 +420,45 @@ for _side in (-1, 1):
             s_['x'] = round(s_['x'] + (_busx(ny) - _busx(s_['y'])), 1)  # 通りのカーブに追従
             s_['y'] = round(ny, 1)
 
+# 道路拡幅に伴う横方向クリアランス: 通り沿いの星は中心線から最低28px離す
+# (道路を挟んで向かい合う店の間に「道路の余白」を作る・ボスFB 2026-07-04)
+MINOFF_STAR = 28
+for sh in shops:
+    if sh.get('clamped') or not (240 < sh['y'] < 1460):
+        continue
+    bx0 = _busx(sh['y'])
+    dx0 = sh['x'] - bx0
+    if abs(dx0) < 95 and abs(dx0) < MINOFF_STAR:
+        if 'tx' not in sh:
+            sh['tx'], sh['ty'] = sh['x'], sh['y']
+        side_ = -1 if dx0 <= 0 else 1
+        sh['x'] = round(bx0 + side_ * MINOFF_STAR, 1)
+
 # タップ領域は隣の星と重ならない半径に (最小12・最大22)
 for sh in shops:
     nn = min((math.hypot(sh['x'] - o['x'], sh['y'] - o['y'])
               for o in shops if o is not sh), default=44)
     sh['padr'] = max(12, min(22, int(nn / 2) - 1))
+
+# ---------------- 信号機 (OSM traffic_signals 実データ・30mクラスタ統合) ----------------
+signals = []
+try:
+    _sig_raw = json.load(open(P('signals_raw.json'), encoding='utf-8'))
+    _sig_pts = []
+    for e in _sig_raw.get('elements', []):
+        if e.get('lat') is None:
+            continue
+        sx, sy = project(e['lat'], e['lon'])
+        sx, sy = sx - minx, sy - miny
+        if -40 <= sx <= W + 40 and -40 <= sy <= H + 40:
+            _sig_pts.append((sx, sy))
+    for sx, sy in _sig_pts:  # 同一交差点の複数灯を1つに統合
+        if all(math.hypot(sx - gx, sy - gy) >= 30 for gx, gy in signals):
+            signals.append((round(sx, 1), round(sy, 1)))
+    signals = [list(p) for p in signals]
+except FileNotFoundError:
+    pass
+print('signals:', len(signals))
 
 # ---------------- 密集区画の自動検出 (チェーン距離36px・5店以上 → タップで区画一覧) ----------------
 _parent = list(range(len(shops)))
@@ -466,7 +500,7 @@ print('zones:', [(len(z['members']), z['gap']) for z in zones])
 
 data = {'meta': meta, 'shops': shops, 'roads': roads, 'rivers': rivers,
         'parks': parks, 'waters': waters, 'sando': sando, 'busway': busway, 'exits': exits,
-        'zones': zones}
+        'zones': zones, 'signals': signals}
 with open(P('mapdata.json'), 'w', encoding='utf-8') as f:
     json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
 

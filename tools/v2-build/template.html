@@ -257,19 +257,28 @@ GEO.rivers.forEach(r => el('path', {d:poly(r.pts), class:'river', 'stroke-width'
 
 const roadsSorted = GEO.roads;
 roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor', 'stroke-width':3.4}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-c', 'stroke-width':10}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-f', 'stroke-width':5.6}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-c', 'stroke-width':17}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-f', 'stroke-width':10.5}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-c', 'stroke-width':13}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-f', 'stroke-width':7.6}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-c', 'stroke-width':24}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-f', 'stroke-width':16}, gRoads); });
 GEO.sando.forEach(s => el('path', {d:poly(s), class:'sando', 'stroke-width':3}, gRoads));
+
+/* 信号機 (OSM実データ・実在の交差点のみ) */
+(GEO.signals||[]).forEach(p => {
+  const g = el('g', {transform:'translate('+p[0]+','+p[1]+')'}, gRoads);
+  el('rect', {x:-11, y:-5.5, width:22, height:11, rx:5.5, fill:'#fffdf5', stroke:'var(--ink)', 'stroke-width':1.5}, g);
+  el('circle', {cx:-6, cy:0, r:2.7, fill:'#e4574d'}, g);
+  el('circle', {cx:0,  cy:0, r:2.7, fill:'#f0c93f'}, g);
+  el('circle', {cx:6,  cy:0, r:2.7, fill:'#57b06a'}, g);
+});
 
 /* 道路名 (実名・表示域内に実在する道路のみ) */
 const ROADLBL = [
-  {match:'中山幹線１号線', text:'中山バス通り', dy:-8, targetY:1360},
-  {match:'荒巻本沢街道線', text:'荒巻本沢街道', dy:-8},
-  {match:'通町中山線', text:'通町中山線', dy:-8, targetY:900, size:13},
-  {match:'北山実沢線', text:'北山実沢線', dy:-8, size:13},
-  {match:'荒巻泉線', text:'荒巻泉線', dy:-8, targetY:740, size:13},
+  {match:'中山幹線１号線', text:'中山バス通り', dy:-16, targetY:1360},
+  {match:'荒巻本沢街道線', text:'荒巻本沢街道', dy:-11},
+  {match:'通町中山線', text:'通町中山線', dy:-11, targetY:900, size:13},
+  {match:'北山実沢線', text:'北山実沢線', dy:-11, size:13},
+  {match:'荒巻泉線', text:'荒巻泉線', dy:-11, targetY:740, size:13},
 ];
 const usedLbl = new Set();
 ROADLBL.forEach((rl, i) => {
