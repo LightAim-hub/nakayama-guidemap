@@ -1,0 +1,502 @@
+[
+ {
+  "name": "工房しらかば",
+  "url": "https://www.nakayaman.com/post/kobo-shirakaba",
+  "address": "仙台市青葉区中山3-20-15",
+  "tel": "022-278-8099",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.294327,
+   "lng": 140.833237,
+   "title": "宮城県仙台市青葉区中山三丁目２０番１５号"
+  }
+ },
+ {
+  "name": "ヨークベニマル 仙台中山店",
+  "url": "https://www.nakayaman.com/post/yorkbenimaru-nakayama-store",
+  "address": "宮城県仙台市青葉区中山7丁目1-1番60号",
+  "tel": "022-303-5661",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.294415,
+   "lng": 140.835968,
+   "title": "宮城県仙台市青葉区中山七丁目１番１号"
+  }
+ },
+ {
+  "name": "みなみ歯科クリニック",
+  "url": "https://www.nakayaman.com/post/%E3%81%BF%E3%81%AA%E3%81%BF%E6%AD%AF%E7%A7%91%E3%82%AF%E3%83%AA%E3%83%8B%E3%83%83%E3%82%AF",
+  "address": "仙台市青葉区中山7-2-31",
+  "tel": "022-719-8288",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.295868,
+   "lng": 140.835419,
+   "title": "宮城県仙台市青葉区中山七丁目２番"
+  }
+ },
+ {
+  "name": "カーブス アクロスガーデン中山",
+  "url": "https://www.nakayaman.com/post/%E3%82%AB%E3%83%BC%E3%83%96%E3%82%B9%E3%82%A2%E3%82%AF%E3%83%AD%E3%82%B9%E3%82%AC%E3%83%BC%E3%83%87%E3%83%B3%E4%B8%AD%E5%B1%B1",
+  "address": "仙台市青葉区中山7-2-31",
+  "tel": "022-347-3757",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.295868,
+   "lng": 140.835419,
+   "title": "宮城県仙台市青葉区中山七丁目２番"
+  }
+ },
+ {
+  "name": "ダイシン長命ヶ丘店",
+  "url": "https://www.nakayaman.com/post/%E3%83%80%E3%82%A4%E3%82%B7%E3%83%B3%E9%95%B7%E5%91%BD%E3%83%B6%E4%B8%98",
+  "address": "仙台市青葉区南中山1-32-1",
+  "tel": "022-277-1815",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.286873,
+   "lng": 140.82106,
+   "title": "宮城県仙台市青葉区南吉成"
+  }
+ },
+ {
+  "name": "Friend.vividhair",
+  "url": "https://www.nakayaman.com/post/friend-vividhair",
+  "address": "仙台市泉区南中山2-17-4 南中山中学校隣",
+  "tel": "022-379-6007",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.308353,
+   "lng": 140.826447,
+   "title": "宮城県仙台市泉区南中山二丁目１７番"
+  }
+ },
+ {
+  "name": "七十七銀行 中山支店",
+  "url": "https://www.nakayaman.com/post/%E4%B8%83%E5%8D%81%E4%B8%83%E4%B8%AD%E5%B1%B1%E6%94%AF%E5%BA%97",
+  "address": "仙台市青葉区中山4-23-28",
+  "tel": "022-279-7011",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.294365,
+   "lng": 140.837509,
+   "title": "宮城県仙台市青葉区中山四丁目２３番２８号"
+  }
+ },
+ {
+  "name": "ウジエスーパー中山店",
+  "url": "https://www.nakayaman.com/post/%E3%82%A6%E3%82%B8%E3%82%A8%E3%82%B9%E3%83%BC%E3%83%91%E3%83%BC%E4%B8%AD%E5%B1%B1",
+  "address": "仙台市青葉区中山4-22-2",
+  "tel": "022-303-2200",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.29319,
+   "lng": 140.838348,
+   "title": "宮城県仙台市青葉区中山四丁目２２番"
+  }
+ },
+ {
+  "name": "リハビリステーション中山",
+  "url": "https://www.nakayaman.com/post/%E3%83%AA%E3%83%8F%E3%83%93%E3%83%AA%E3%82%B9%E3%83%86%E3%83%BC%E3%82%B7%E3%83%A7%E3%83%B3%E4%B8%AD%E5%B1%B1",
+  "address": "仙台市青葉区中山6-11-3",
+  "tel": "022-343-7088",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.294842,
+   "lng": 140.836639,
+   "title": "宮城県仙台市青葉区中山六丁目１１番３号"
+  }
+ },
+ {
+  "name": "志摩整骨院",
+  "url": "https://www.nakayaman.com/post/%E5%BF%97%E6%91%A9%E6%95%B4%E9%AA%A8%E9%99%A2",
+  "address": "仙台市青葉区中山6-9-3",
+  "tel": "022-346-6167",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.294483,
+   "lng": 140.837509,
+   "title": "宮城県仙台市青葉区中山六丁目９番３号"
+  }
+ },
+ {
+  "name": "BURB usedclothing",
+  "url": "https://www.nakayaman.com/post/burb-used-clothing",
+  "address": "仙台市青葉区中山6-8-1",
+  "tel": "070-9030-6316",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.294231,
+   "lng": 140.83812,
+   "title": "宮城県仙台市青葉区中山六丁目８番１号"
+  }
+ },
+ {
+  "name": "レストランKAYA",
+  "url": "https://www.nakayaman.com/post/%E3%83%AC%E3%82%B9%E3%83%88%E3%83%A9%E3%83%B3kaya",
+  "address": "仙台市青葉区中山6-7-3",
+  "tel": "022-278-0039",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.294163,
+   "lng": 140.838287,
+   "title": "宮城県仙台市青葉区中山六丁目７番３号"
+  }
+ },
+ {
+  "name": "中山歯科",
+  "url": "https://www.nakayaman.com/post/_%E4%B8%AD%E5%B1%B1%E6%AD%AF%E7%A7%91",
+  "address": "仙台市青葉区中山6-6-45",
+  "tel": "022-279-1024",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.294731,
+   "lng": 140.839233,
+   "title": "宮城県仙台市青葉区中山六丁目６番"
+  }
+ },
+ {
+  "name": "中山中学校",
+  "url": "https://www.nakayaman.com/post/%E4%BB%99%E5%8F%B0%E5%B8%82%E7%AB%8B%E4%B8%AD%E5%B1%B1%E4%B8%AD%E5%AD%A6%E6%A0%A1",
+  "address": "仙台市青葉区中山6-16-1",
+  "tel": "022-278-8833",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.296448,
+   "lng": 140.839447,
+   "title": "宮城県仙台市青葉区中山六丁目１６番"
+  }
+ },
+ {
+  "name": "佐藤紀夫税理士事務所",
+  "url": "https://www.nakayaman.com/post/%E4%BD%90%E8%97%A4%E7%B4%80%E5%A4%AB%E7%A8%8E%E7%90%86%E5%A3%AB%E4%BA%8B%E5%8B%99%E6%89%80",
+  "address": "仙台市青葉区中山5-19-5",
+  "tel": "022-303-6761",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.292782,
+   "lng": 140.841629,
+   "title": "宮城県仙台市青葉区中山五丁目１９番５号"
+  }
+ },
+ {
+  "name": "Dogsalon Blanche",
+  "url": "https://www.nakayaman.com/post/dogsalon-blanche",
+  "address": "仙台市青葉区中山5丁目19-15 4号室",
+  "tel": "090-4163-9955",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.293217,
+   "lng": 140.840607,
+   "title": "宮城県仙台市青葉区中山五丁目１９番１５号"
+  }
+ },
+ {
+  "name": "中華レストランとらの子",
+  "url": "https://www.nakayaman.com/post/%E4%B8%AD%E8%8F%AF%E3%83%AC%E3%82%B9%E3%83%88%E3%83%A9%E3%83%B3-%E3%81%A8%E3%82%89%E3%81%AE%E5%AD%90",
+  "address": "仙台市青葉区中山5-19-13",
+  "tel": "022-279-0703",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.293137,
+   "lng": 140.840805,
+   "title": "宮城県仙台市青葉区中山五丁目１９番１３号"
+  }
+ },
+ {
+  "name": "中山不動産",
+  "url": "https://www.nakayaman.com/post/%E4%B8%AD%E5%B1%B1%E4%B8%8D%E5%8B%95%E7%94%A3",
+  "address": "仙台市青葉区中山5-19-10",
+  "tel": "022-278-9151",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.293015,
+   "lng": 140.841095,
+   "title": "宮城県仙台市青葉区中山五丁目１９番１０号"
+  }
+ },
+ {
+  "name": "ダイニングバー祭",
+  "url": "https://www.nakayaman.com/post/dinig-ba-%E7%A5%AD",
+  "address": "仙台市青葉区中山5-19-9",
+  "tel": "022-341-5660",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.292969,
+   "lng": 140.841217,
+   "title": "宮城県仙台市青葉区中山五丁目１９番９号"
+  }
+ },
+ {
+  "name": "Double Egg 5丁目",
+  "url": "https://www.nakayaman.com/post/double-egg",
+  "address": "仙台市青葉区中山5-19-5",
+  "tel": "022-279-7955",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.292782,
+   "lng": 140.841629,
+   "title": "宮城県仙台市青葉区中山五丁目１９番５号"
+  }
+ },
+ {
+  "name": "中山接骨院",
+  "url": "https://www.nakayaman.com/post/%E4%B8%AD%E5%B1%B1%E9%8D%BC%E7%81%B8%E6%8E%A5%E9%AA%A8%E9%99%A2",
+  "address": "仙台市青葉区中山5-7-1",
+  "tel": "022-277-1463",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.291767,
+   "lng": 140.843033,
+   "title": "宮城県仙台市青葉区中山五丁目７番１号"
+  }
+ },
+ {
+  "name": "フラワー中山",
+  "url": "https://www.nakayaman.com/post/%E3%83%95%E3%83%A9%E3%83%AF%E3%83%BC%E4%B8%AD%E5%B1%B1",
+  "address": "仙台市青葉区中山5-6-3",
+  "tel": "022-303-1187",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.291618,
+   "lng": 140.843246,
+   "title": "宮城県仙台市青葉区中山五丁目６番３号"
+  }
+ },
+ {
+  "name": "河村内科外科クリニック",
+  "url": "https://www.nakayaman.com/post/%E6%B2%B3%E6%9D%91%E5%86%85%E7%A7%91%E5%A4%96%E7%A7%91%E3%82%AF%E3%83%AA%E3%83%8B%E3%83%83%E3%82%AF",
+  "address": "仙台市青葉区中山5-6-1",
+  "tel": "022-278-0533",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.291508,
+   "lng": 140.843399,
+   "title": "宮城県仙台市青葉区中山五丁目６番１号"
+  }
+ },
+ {
+  "name": "ウエルシア中山店",
+  "url": "https://www.nakayaman.com/post/welcia-najkayama-store",
+  "address": "仙台市青葉区中山5-2-3",
+  "tel": "022-303-7055",
+  "status": "ok",
+  "note": "調剤薬局はページ表記で022-3303-7066(桁数不審・原文ママ)",
+  "gsi": {
+   "lat": 38.291111,
+   "lng": 140.843948,
+   "title": "宮城県仙台市青葉区中山五丁目２番３号"
+  }
+ },
+ {
+  "name": "左官職人早坂組",
+  "url": "https://www.nakayaman.com/post/plastererhayasakagroupco-ltd",
+  "address": "宮城県仙台市青葉区中山5丁目1-6",
+  "tel": "022-779-6271",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.291031,
+   "lng": 140.844315,
+   "title": "宮城県仙台市青葉区中山五丁目１番６号"
+  }
+ },
+ {
+  "name": "河北仙販 中山支店",
+  "url": "https://www.nakayaman.com/post/%E6%B2%B3%E5%8C%97%E4%BB%99%E8%B2%A9%E4%B8%AD%E5%B1%B1%E5%BA%97",
+  "address": "仙台市青葉区中山1-19-3",
+  "tel": "022-278-1625",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.290173,
+   "lng": 140.845261,
+   "title": "宮城県仙台市青葉区中山一丁目１９番３号"
+  }
+ },
+ {
+  "name": "カットショップ NOBU",
+  "url": "https://www.nakayaman.com/post/%E3%82%AB%E3%83%83%E3%83%88%E3%82%B7%E3%83%A7%E3%83%83%E3%83%97nobu",
+  "address": "仙台市青葉区中山1-12-3",
+  "tel": "022-278-7192",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.289646,
+   "lng": 140.845993,
+   "title": "宮城県仙台市青葉区中山一丁目１２番３号"
+  }
+ },
+ {
+  "name": "梅原表具店",
+  "url": "https://www.nakayaman.com/post/%E6%A2%85%E5%8E%9F%E8%A1%A8%E5%85%B7%E5%BA%97",
+  "address": "仙台市青葉区中山1-12-2",
+  "tel": "022-278-3320",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.289597,
+   "lng": 140.846054,
+   "title": "宮城県仙台市青葉区中山一丁目１２番２号"
+  }
+ },
+ {
+  "name": "cafe NAO",
+  "url": "https://www.nakayaman.com/post/cafe-nao",
+  "address": "仙台市青葉区中山1-11-5",
+  "tel": "022-277-7351",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.289501,
+   "lng": 140.846283,
+   "title": "宮城県仙台市青葉区中山一丁目１１番５号"
+  }
+ },
+ {
+  "name": "ビバホーム荒巻店",
+  "url": "https://www.nakayaman.com/post/%E3%83%93%E3%83%90%E3%83%9B%E3%83%BC%E3%83%A0-%E8%8D%92%E5%B7%BB%E5%BA%97",
+  "address": "",
+  "tel": "",
+  "status": "fetch_fail",
+  "note": "HTTP 404 Not Found (2回試行)",
+  "gsi": null
+ },
+ {
+  "name": "中山市民センター",
+  "url": "https://www.nakayaman.com/post/%E4%B8%AD%E5%B1%B1%E5%B8%82%E6%B0%91%E3%82%BB%E3%83%B3%E3%82%BF%E3%83%BC",
+  "address": "仙台市青葉区中山3-3-1",
+  "tel": "022-279-9216",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.289234,
+   "lng": 140.83844,
+   "title": "宮城県仙台市青葉区中山三丁目３番１号"
+  }
+ },
+ {
+  "name": "藤倉設備",
+  "url": "https://www.nakayaman.com/post/_%E8%97%A4%E5%80%89%E8%A8%AD%E5%82%99",
+  "address": "仙台市青葉区中山4-13-1",
+  "tel": "022-279-1090",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.292404,
+   "lng": 140.841873,
+   "title": "宮城県仙台市青葉区中山四丁目１３番１号"
+  }
+ },
+ {
+  "name": "Double Egg 4丁目",
+  "url": "https://www.nakayaman.com/post/double-egg",
+  "address": "",
+  "tel": "",
+  "status": "no_address",
+  "note": "URLが5丁目店と同一ページ。ページ本文に4丁目店の住所記載なし(記載は中山5-19-5のみ・4丁目/複数店舗への言及なし)",
+  "gsi": null
+ },
+ {
+  "name": "柏屋",
+  "url": "https://www.nakayaman.com/post/%E6%9F%8F%E5%B1%8B%EF%BC%88%E6%96%87%E5%85%B7%E3%83%BB%E5%8C%96%E7%B2%A7%E5%93%81%EF%BC%89",
+  "address": "仙台市青葉区中山4-5-1",
+  "tel": "022-278-4427",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.29137,
+   "lng": 140.843307,
+   "title": "宮城県仙台市青葉区中山四丁目５番１号"
+  }
+ },
+ {
+  "name": "たけむらや",
+  "url": "https://www.nakayaman.com/post/%E3%81%9F%E3%81%91%E3%82%80%E3%82%89%E3%82%84",
+  "address": "仙台市青葉区中山4-2-1",
+  "tel": "022-278-2233",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.291115,
+   "lng": 140.843658,
+   "title": "宮城県仙台市青葉区中山四丁目２番１号"
+  }
+ },
+ {
+  "name": "和泉生花",
+  "url": "https://www.nakayaman.com/post/_%E5%92%8C%E6%B3%89%E7%94%9F%E8%8A%B1",
+  "address": "仙台市青葉区中山2-7-20",
+  "tel": "022-278-3142",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.289745,
+   "lng": 140.84288,
+   "title": "宮城県仙台市青葉区中山二丁目７番２０号"
+  }
+ },
+ {
+  "name": "西原歯科医院",
+  "url": "https://www.nakayaman.com/post/%E8%A5%BF%E5%8E%9F%E6%AD%AF%E7%A7%91%E5%8C%BB%E9%99%A2",
+  "address": "仙台市青葉区中山2-1-18",
+  "tel": "022-303-6480",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.28886,
+   "lng": 140.846359,
+   "title": "宮城県仙台市青葉区中山二丁目１番"
+  }
+ },
+ {
+  "name": "認定こども園 TOBINOKO",
+  "url": "https://www.nakayaman.com/post/tobinoko",
+  "address": "仙台市青葉区中山2-17-1",
+  "tel": "022-279-1187",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.288342,
+   "lng": 140.846191,
+   "title": "宮城県仙台市青葉区中山二丁目１７番"
+  }
+ },
+ {
+  "name": "多夢多夢舎中山工房",
+  "url": "https://www.nakayaman.com/post/tamutamushanakayamastudio",
+  "address": "宮城県仙台市青葉区中山2-18-5",
+  "tel": "022-277-0081",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.287903,
+   "lng": 140.846832,
+   "title": "宮城県仙台市青葉区中山二丁目１８番"
+  }
+ },
+ {
+  "name": "中山小学校",
+  "url": "https://www.nakayaman.com/post/%E4%BB%99%E5%8F%B0%E5%B8%82%E7%AB%8B%E4%B8%AD%E5%B1%B1%E5%B0%8F%E5%AD%A6%E6%A0%A1",
+  "address": "仙台市青葉区中山1丁目6-1",
+  "tel": "022-278-0206",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.291859,
+   "lng": 140.850586,
+   "title": "宮城県仙台市青葉区中山一丁目６番"
+  }
+ },
+ {
+  "name": "サト商会",
+  "url": "https://www.nakayaman.com/post/sato-aramaki",
+  "address": "仙台市青葉区荒巻本沢1-17-4",
+  "tel": "022-342-0223",
+  "status": "ok",
+  "gsi": {
+   "lat": 38.289295,
+   "lng": 140.85054,
+   "title": "宮城県仙台市青葉区荒巻本沢一丁目１７番４号"
+  }
+ },
+ {
+  "name": "みなとや",
+  "url": "https://www.nakayaman.com/post/minataya",
+  "address": "仙台市青葉区荒巻本沢1-17-4",
+  "tel": "022-344-6733",
+  "status": "ok",
+  "note": "サト商会と同一住所表記(再取得で本文由来と確認済・電話番号は別)",
+  "gsi": {
+   "lat": 38.289295,
+   "lng": 140.85054,
+   "title": "宮城県仙台市青葉区荒巻本沢一丁目１７番４号"
+  }
+ }
+]

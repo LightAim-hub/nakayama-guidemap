@@ -1,0 +1,110 @@
+[
+ {
+  "name": "おたからや",
+  "cat": "life",
+  "url": "https://www.nakayaman.com/post/otakaraya",
+  "address": "仙台市青葉区中山5-19-6",
+  "lat": 38.292839,
+  "lng": 140.841537,
+  "gsi_title": "宮城県仙台市青葉区中山五丁目１９番６号"
+ },
+ {
+  "name": "お菜とお酒アイリス",
+  "cat": "food",
+  "url": "https://www.nakayaman.com/post/%E3%82%B9%E3%83%8A%E3%83%83%E3%82%AF%E3%82%A2%E3%82%A4%E3%83%AA%E3%82%B9",
+  "address": "仙台市青葉区中山5-19-1",
+  "lat": 38.292538,
+  "lng": 140.841965,
+  "gsi_title": "宮城県仙台市青葉区中山五丁目１９番１号"
+ },
+ {
+  "name": "デイサービス はるの風",
+  "cat": "medical",
+  "url": "https://www.nakayaman.com/post/%E3%83%87%E3%82%A4%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9%E3%81%AF%E3%82%8B%E3%81%AE%E9%A2%A8",
+  "address": "仙台市青葉区中山5-11-3",
+  "lat": 38.292133,
+  "lng": 140.842529,
+  "gsi_title": "宮城県仙台市青葉区中山五丁目１１番３号"
+ },
+ {
+  "name": "遊季ガーデン",
+  "cat": "life",
+  "url": "https://www.nakayaman.com/post/%E9%81%8A%E5%B8%8C%E3%82%AC%E3%83%BC%E3%83%87%E3%83%B3%E6%A0%AA%E5%BC%8F%E4%BC%9A%E7%A4%BE",
+  "address": "仙台市青葉区中山5-11-3",
+  "lat": 38.292133,
+  "lng": 140.842529,
+  "gsi_title": "宮城県仙台市青葉区中山五丁目１１番３号"
+ },
+ {
+  "name": "中杜建設",
+  "cat": "life",
+  "url": "https://www.nakayaman.com/post/_%E4%B8%AD%E6%9D%9C%E5%BB%BA%E8%A8%AD",
+  "address": "仙台市青葉区中山5-19-10",
+  "lat": 38.293015,
+  "lng": 140.841095,
+  "gsi_title": "宮城県仙台市青葉区中山五丁目１９番１０号"
+ },
+ {
+  "name": "ん daccha とこや",
+  "cat": "medical",
+  "url": "https://www.nakayaman.com/post/%E3%82%93-daccha-%E3%81%A8%E3%81%93%E3%82%84",
+  "address": "仙台市青葉区中山5-19-10",
+  "lat": 38.293015,
+  "lng": 140.841095,
+  "gsi_title": "宮城県仙台市青葉区中山五丁目１９番１０号"
+ },
+ {
+  "name": "花祭壇",
+  "cat": "life",
+  "url": "https://www.nakayaman.com/post/%E8%8A%B1%E7%A5%AD%E5%A3%87-%EF%BC%88%E6%9C%AC%E7%A4%BE%EF%BC%89",
+  "address": "仙台市青葉区中山4-14-35",
+  "lat": 38.292927,
+  "lng": 140.841019,
+  "gsi_title": "宮城県仙台市青葉区中山四丁目１４番３５号"
+ },
+ {
+  "name": "尚絅教会",
+  "cat": "life",
+  "url": "https://www.nakayaman.com/post/%E6%97%A5%E6%9C%AC%E3%83%91%E3%83%96%E3%83%86%E3%82%B9%E3%83%88%E5%B0%9A%E7%B5%85%E5%8D%94%E4%BC%9A",
+  "address": "仙台市青葉区中山4-17-25",
+  "lat": 38.29274,
+  "lng": 140.838791,
+  "gsi_title": "宮城県仙台市青葉区中山四丁目１７番２５号"
+ },
+ {
+  "name": "学習塾 スクールIE 仙台中山校",
+  "cat": "edu",
+  "url": "https://www.nakayaman.com/post/ie-school",
+  "address": "仙台市青葉区中山5-19-17",
+  "lat": 38.293297,
+  "lng": 140.840408,
+  "gsi_title": "宮城県仙台市青葉区中山五丁目１９番１７号"
+ },
+ {
+  "name": "BAKERY&BAKE EndRoll",
+  "cat": "food",
+  "url": "https://www.nakayaman.com/post/bakery-bake-endroll",
+  "address": "仙台市青葉区中山1-11-5",
+  "lat": 38.289501,
+  "lng": 140.846283,
+  "gsi_title": "宮城県仙台市青葉区中山一丁目１１番５号"
+ },
+ {
+  "name": "ビバホーム荒巻店",
+  "cat": "life",
+  "url": "#",
+  "address": "仙台市青葉区荒巻本沢2-1-1",
+  "lat": 38.28764,
+  "lng": 140.849121,
+  "gsi_title": "宮城県仙台市青葉区荒巻本沢二丁目１番"
+ },
+ {
+  "name": "中山鳥瀧不動尊（目の神様）",
+  "cat": "place",
+  "url": "#",
+  "address": "仙台市青葉区中山6-19-3",
+  "lat": 38.29512,
+  "lng": 140.841537,
+  "gsi_title": "宮城県仙台市青葉区中山六丁目１９番"
+ }
+]
