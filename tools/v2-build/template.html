@@ -96,6 +96,7 @@
   .zonepill rect{ fill:#fffaf0; stroke:var(--accent); stroke-width:1.8; }
   .zonepill text{ font-family:'Yusei Magic',sans-serif; fill:var(--ink); font-weight:bold; }
   .zonepill:hover rect, .zonepill:focus rect{ fill:#f6ecd4; }
+  .zonepill:focus-visible rect{ filter:drop-shadow(0 0 5px rgba(201,123,61,.95)); stroke-width:2.6; }
 
   .popup{ position:absolute; z-index:30; width:224px; max-width:78vw;
     background:#fffaf0; border:2px solid #d8c4a0; border-radius:14px;
@@ -310,6 +311,11 @@ GEO.parks.forEach(p => {
 });
 GEO.waters.forEach(w => {
   const cx = w.pts.reduce((a,q)=>a+q[0],0)/w.pts.length, cy = w.pts.reduce((a,q)=>a+q[1],0)/w.pts.length;
+  // 「うどう沼」と呼べるのはうどう沼公園の敷地内の池だけ (将来表示域を広げた時の誤ラベル防止)
+  const upark = GEO.parks.find(p => p.name === 'うどう沼公園');
+  if (!upark) return;
+  const kx = upark.pts.reduce((a,q)=>a+q[0],0)/upark.pts.length, ky = upark.pts.reduce((a,q)=>a+q[1],0)/upark.pts.length;
+  if (Math.hypot(cx-kx, cy-ky) > 140) return;
   const t = el('text', {x:cx, y:cy+4, class:'rivername', 'font-size':13, 'text-anchor':'middle'}, gNames);
   t.textContent = 'うどう沼';
 });
@@ -589,7 +595,7 @@ function zoneDense(z){
   return z.gap * scale < 40;  // 隣の星との実表示間隔が40px未満なら個別タップは無理と判定
 }
 function openZoneList(z){
-  renderList(z.members, z.name + '（' + z.members.length + '店）');
+  renderList(z.members, z.name);  // 件数はrenderList側でフィルタ後の実数を付与
   listpanel.classList.add('show');
 }
 gShops.addEventListener('click', e => {
@@ -650,13 +656,17 @@ window.addEventListener('resize', () => { hidePopup(); hideChooser(); });
 /* ---------- お店一覧パネル ---------- */
 const listpanel = document.getElementById('listpanel');
 const listrows = document.getElementById('listrows');
+let listCtx = {members: null, title: null};  // 一覧の現在文脈 (区画絞り込み中にフィルタ再描画されても維持)
 function renderList(memberIdx, title){
   if (!listrows) return;
+  if (arguments.length > 0){ listCtx = {members: memberIdx, title: title || null}; }
   listrows.innerHTML = '';
-  document.getElementById('listtitle').textContent = title || 'お店一覧';
   let src = GEO.shops;
-  if (Array.isArray(memberIdx)) src = memberIdx.map(i => GEO.shops[i]);
-  src.filter(matchesFilter).slice().sort((a,b)=>a.y-b.y).forEach(s => {
+  if (Array.isArray(listCtx.members)) src = listCtx.members.map(i => GEO.shops[i]);
+  const visible = src.filter(matchesFilter);
+  document.getElementById('listtitle').textContent =
+    (listCtx.title ? listCtx.title + '（' + visible.length + '店）' : 'お店一覧');
+  visible.slice().sort((a,b)=>a.y-b.y).forEach(s => {
     const b = document.createElement('button'); b.className = 'lrow';
     const d = document.createElement('span'); d.className='ldot'; d.style.background = CATS[s.cat].cc;
     const nm = document.createElement('span'); nm.className='lname'; nm.textContent = s.name;
@@ -684,10 +694,11 @@ const gZonePills = el('g', {}, svg);
 (GEO.zones||[]).forEach((z, zi) => {
   const g = el('g', {class:'zonepill', tabindex:0, role:'button', 'aria-label':z.name+'の店一覧を開く'}, gZonePills);
   const label = z.members.length + '店 まとめて見る';
-  const wpx = label.length * 11.5 + 20;
-  const bx = (z.x0+z.x1)/2 - wpx/2, by = z.y0 - 34;  // 区画の上(空き地帯)に置く: 下に置くと店ラベルに被る
-  el('rect', {x:bx, y:by, width:wpx, height:26, rx:13}, g);
-  const t = el('text', {x:bx+wpx/2, y:by+18, 'font-size':12.5, 'text-anchor':'middle'}, g);
+  const wpx = label.length * 16.5 + 26;
+  // 区画の右上(東の空き地帯)に置く: 中央上は尚絅教会・下は店ラベルに被る
+  const bx = z.x1 + 12, by = z.y0 - 48;
+  el('rect', {x:bx, y:by, width:wpx, height:38, rx:19}, g);
+  const t = el('text', {x:bx+wpx/2, y:by+26, 'font-size':18, 'text-anchor':'middle'}, g);
   t.textContent = label;
   const open = ev => { ev.stopPropagation(); openZoneList(z); };
   g.addEventListener('click', open);
