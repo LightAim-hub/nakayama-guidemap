@@ -212,8 +212,9 @@ def clip_line(points):
         segs.append(cur)
     return [s for s in segs if len(s) >= 2]
 
+# residential/living_street(路地)は描かない: 視覚ノイズの主因 (紙マップも主要道路のみ・ボスFB 2026-07-04)
 CLASS_MAP = {'primary': 'major', 'secondary': 'major', 'tertiary': 'mid',
-             'unclassified': 'mid', 'residential': 'minor', 'living_street': 'minor'}
+             'unclassified': 'mid'}
 BUS_NAMES = ('中山幹線１号線', '中山幹線２号線', '中山幹線1号線', '中山幹線2号線')
 roads = []
 for e in raw['elements']:
