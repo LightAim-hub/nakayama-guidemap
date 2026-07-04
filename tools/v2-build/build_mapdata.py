@@ -374,8 +374,44 @@ p = edge_exit('貝ケ森中山幹線', lambda c: min(c, key=lambda q: q[0]))
 if p: exits.append({'x': max(p[0], -70), 'y': p[1] - 12, 'text': '← 至 貝ヶ森', 'anchor': 'start'})
 meta = {'W': W, 'H': H, 'proj': unproject_expr(), 'minx': round(minx, 2), 'miny': round(miny, 2),
         'scale_m_per_px': 1.0}
+
+# ---------------- 密集区画の自動検出 (チェーン距離36px・5店以上 → タップで区画一覧) ----------------
+_parent = list(range(len(shops)))
+def _find(a):
+    while _parent[a] != a:
+        _parent[a] = _parent[_parent[a]]
+        a = _parent[a]
+    return a
+for _i in range(len(shops)):
+    for _j in range(_i + 1, len(shops)):
+        if shops[_i].get('clamped') or shops[_j].get('clamped'):
+            continue
+        if math.hypot(shops[_i]['x'] - shops[_j]['x'], shops[_i]['y'] - shops[_j]['y']) < 36:
+            ra, rb = _find(_i), _find(_j)
+            if ra != rb:
+                _parent[ra] = rb
+_groups = defaultdict(list)
+for _i in range(len(shops)):
+    _groups[_find(_i)].append(_i)
+zones = []
+for _members in _groups.values():
+    if len(_members) < 5:
+        continue
+    xs_ = [shops[i]['x'] for i in _members]
+    ys_ = [shops[i]['y'] for i in _members]
+    gaps_ = sorted(min(math.hypot(shops[i]['x'] - shops[j]['x'], shops[i]['y'] - shops[j]['y'])
+                       for j in _members if j != i) for i in _members)
+    names_ = {shops[i]['name'] for i in _members}
+    zname = '5丁目19番かいわい' if 'ダイニングバー 祭' in names_ else 'この区画'
+    zones.append({'name': zname, 'members': sorted(_members, key=lambda i: shops[i]['y']),
+                  'x0': round(min(xs_) - 16), 'y0': round(min(ys_) - 16),
+                  'x1': round(max(xs_) + 16), 'y1': round(max(ys_) + 16),
+                  'gap': round(gaps_[len(gaps_) // 2], 1)})
+print('zones:', [(len(z['members']), z['gap']) for z in zones])
+
 data = {'meta': meta, 'shops': shops, 'roads': roads, 'rivers': rivers,
-        'parks': parks, 'waters': waters, 'sando': sando, 'busway': busway, 'exits': exits}
+        'parks': parks, 'waters': waters, 'sando': sando, 'busway': busway, 'exits': exits,
+        'zones': zones}
 with open(P('mapdata.json'), 'w', encoding='utf-8') as f:
     json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
 
