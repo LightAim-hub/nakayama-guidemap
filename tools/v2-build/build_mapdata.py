@@ -375,6 +375,56 @@ if p: exits.append({'x': max(p[0], -70), 'y': p[1] - 12, 'text': '← 至 貝ヶ
 meta = {'W': W, 'H': H, 'proj': unproject_expr(), 'minx': round(minx, 2), 'miny': round(miny, 2),
         'scale_m_per_px': 1.0}
 
+# ---------------- 密集部の星間隔スプレッド ----------------
+# 位置関係(並び順・通りの側)は不変のまま、通り沿い方向に最小26px間隔を確保する。
+# 真の座標は lat/lng に保持。表示をずらした星は tx/ty に真の表示位置を記録 (?debug=1で可視)。
+_bus_shifted = sorted((p for seg in busway for p in seg), key=lambda p: p[1])
+def _busx(y):
+    if not _bus_shifted:
+        return W / 2
+    if y <= _bus_shifted[0][1]:
+        return _bus_shifted[0][0]
+    if y >= _bus_shifted[-1][1]:
+        return _bus_shifted[-1][0]
+    for k in range(1, len(_bus_shifted)):
+        if _bus_shifted[k][1] >= y:
+            lo, hi = _bus_shifted[k - 1], _bus_shifted[k]
+            t = (y - lo[1]) / ((hi[1] - lo[1]) or 1e-9)
+            return lo[0] + t * (hi[0] - lo[0])
+    return _bus_shifted[-1][0]
+
+MINGAP_STAR = 26
+for _side in (-1, 1):
+    col = [sh for sh in shops
+           if not sh.get('clamped')
+           and 240 < sh['y'] < 1460
+           and abs(sh['x'] - _busx(sh['y'])) < 95
+           and ((sh['x'] - _busx(sh['y'])) <= 0) == (_side < 0)]
+    col.sort(key=lambda s: s['y'])
+    ys = [s['y'] for s in col]
+    for i in range(1, len(ys)):
+        if ys[i] < ys[i - 1] + MINGAP_STAR:
+            ys[i] = ys[i - 1] + MINGAP_STAR
+    for i in range(len(ys) - 2, -1, -1):
+        if ys[i] > ys[i + 1] - MINGAP_STAR:
+            ys[i] = ys[i + 1] - MINGAP_STAR
+    for _ in range(4):
+        for i in range(len(ys)):
+            lo = ys[i - 1] + MINGAP_STAR if i else -1e9
+            hi = ys[i + 1] - MINGAP_STAR if i < len(ys) - 1 else 1e9
+            ys[i] = max(lo, min(hi, col[i]['y']))
+    for s_, ny in zip(col, ys):
+        if abs(ny - s_['y']) > 2:
+            s_['tx'], s_['ty'] = s_['x'], s_['y']       # 真の表示位置を保持
+            s_['x'] = round(s_['x'] + (_busx(ny) - _busx(s_['y'])), 1)  # 通りのカーブに追従
+            s_['y'] = round(ny, 1)
+
+# タップ領域は隣の星と重ならない半径に (最小12・最大22)
+for sh in shops:
+    nn = min((math.hypot(sh['x'] - o['x'], sh['y'] - o['y'])
+              for o in shops if o is not sh), default=44)
+    sh['padr'] = max(12, min(22, int(nn / 2) - 1))
+
 # ---------------- 密集区画の自動検出 (チェーン距離36px・5店以上 → タップで区画一覧) ----------------
 _parent = list(range(len(shops)))
 def _find(a):
@@ -382,11 +432,15 @@ def _find(a):
         _parent[a] = _parent[_parent[a]]
         a = _parent[a]
     return a
+def _true_xy(sh):
+    return (sh.get('tx', sh['x']), sh.get('ty', sh['y']))  # 区画判定はスプレッド前の真の密集で
 for _i in range(len(shops)):
     for _j in range(_i + 1, len(shops)):
         if shops[_i].get('clamped') or shops[_j].get('clamped'):
             continue
-        if math.hypot(shops[_i]['x'] - shops[_j]['x'], shops[_i]['y'] - shops[_j]['y']) < 36:
+        ax, ay = _true_xy(shops[_i])
+        bx_, by_ = _true_xy(shops[_j])
+        if math.hypot(ax - bx_, ay - by_) < 36:
             ra, rb = _find(_i), _find(_j)
             if ra != rb:
                 _parent[ra] = rb
@@ -397,10 +451,10 @@ zones = []
 for _members in _groups.values():
     if len(_members) < 5:
         continue
-    xs_ = [shops[i]['x'] for i in _members]
+    xs_ = [shops[i]['x'] for i in _members]   # 枠は表示座標で描く
     ys_ = [shops[i]['y'] for i in _members]
     gaps_ = sorted(min(math.hypot(shops[i]['x'] - shops[j]['x'], shops[i]['y'] - shops[j]['y'])
-                       for j in _members if j != i) for i in _members)
+                       for j in _members if j != i) for i in _members)  # ズーム判定も表示座標で
     names_ = {shops[i]['name'] for i in _members}
     zname = '5丁目19番かいわい' if 'ダイニングバー 祭' in names_ else 'この区画'
     zones.append({'name': zname, 'members': sorted(_members, key=lambda i: shops[i]['y']),
