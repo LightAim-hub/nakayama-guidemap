@@ -44,14 +44,27 @@
   .chip.c-medical{ color:var(--c-medical); } .chip.c-medical .dot{ background:#fffdf5; }
   .chip.c-life{ color:var(--c-life); }
   .chip.c-food{ color:var(--c-food); } .chip.c-edu{ color:var(--c-edu); } .chip.c-place{ color:var(--c-place); }
+  .chip.voice-filter{ color:var(--voice); }
+  .voice-chip-icon{ position:relative; width:18px; height:13px; flex:0 0 auto; border:1.7px solid currentColor;
+    border-radius:5px; background:#fffaf0; }
+  .voice-chip-icon::before{ content:"···"; position:absolute; inset:-3px 0 0; text-align:center; font-size:8px; font-weight:700; }
+  .voice-chip-icon::after{ content:""; position:absolute; left:3px; bottom:-4px; width:6px; height:6px;
+    background:#fffaf0; border-left:1.7px solid currentColor; border-bottom:1.7px solid currentColor; transform:skewY(-35deg); }
   .searchbar{ padding:0 12px 6px; background:var(--paper); z-index:20; display:flex; gap:6px; align-items:center; }
   .searchbar input{
-    flex:1; max-width:340px; font:inherit; font-size:16px; color:var(--ink);
+    flex:1; min-width:0; max-width:340px; font:inherit; font-size:16px; color:var(--ink);
     padding:6px 14px; border:2px solid rgba(122,92,59,.5); border-radius:999px; background:#fffaf0; outline:none;
   }
   .searchbar input:focus{ border-color:var(--accent); }
-  #nohit{ display:none; font-size:.78rem; font-weight:700; color:#b3562e; }
-  #nohit.show{ display:inline; }
+  #searchstatus{ min-width:5.5em; font-size:.78rem; font-weight:700; color:var(--voice); white-space:nowrap; }
+  #searchstatus.empty{ color:#b3562e; }
+  @media(max-width:759px){
+    header{ padding-bottom:7px; }
+    header p{ display:none; }
+    .filters{ flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:none; padding-bottom:7px; }
+    .filters::-webkit-scrollbar{ display:none; }
+    .chip{ flex:0 0 auto; }
+  }
 
   #viewport{ flex:1; overflow:auto; position:relative; background:var(--paper); -webkit-overflow-scrolling:touch; }
   #mapwrap{ width:175%; max-width:none; margin:0 auto; position:relative; }
@@ -80,6 +93,8 @@
   .hit:focus .star, .hit:hover .star{ stroke-width:2.8; }
   .hit.dim{ opacity:.25; pointer-events:none; }
   .hit.glowing .star{ filter:drop-shadow(0 0 5px rgba(233,150,60,.95)); stroke-width:2.8; }
+  .selected-ring{ fill:#fffaf0; fill-opacity:.8; stroke:var(--accent); stroke-width:3; opacity:0; }
+  .hit.selected .selected-ring{ opacity:1; }
   .voice-badge{ pointer-events:none; }
   .voice-badge .bubble{ fill:#fffaf0; stroke:var(--voice); stroke-width:1.7; }
   .voice-badge .tail{ fill:#fffaf0; stroke:var(--voice); stroke-width:1.7; stroke-linejoin:round; }
@@ -87,7 +102,12 @@
   .shoplabel{ font-family:'Yusei Magic',sans-serif; fill:var(--ink);
     paint-order:stroke; stroke:var(--paper); stroke-width:6px; stroke-linejoin:round; }
   .shoplabel.b{ font-weight:700; }
+  .shoplabel.detail{ opacity:0; }
+  body.detail-labels .shoplabel.detail, .hit.glowing .shoplabel.detail, .hit.selected .shoplabel.detail{ opacity:1; }
   .leader{ stroke:rgba(122,92,59,.55); stroke-width:1.1; fill:none; }
+  .leader.detail, .faraway.detail{ opacity:0; }
+  body.detail-labels .leader.detail, body.detail-labels .faraway.detail,
+  .leader.detail.emphasis, .faraway.detail.emphasis, .leader.detail.selected-lead, .faraway.detail.selected-lead{ opacity:1; }
   .roadname{ font-family:'Yusei Magic',sans-serif; fill:var(--ink-soft); opacity:.75;
     paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
   .parkname{ font-family:'Yusei Magic',sans-serif; fill:#6d8a3c;
@@ -95,6 +115,8 @@
   .rivername{ font-family:'Yusei Magic',sans-serif; fill:#5787a0;
     paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
   .deco{ font-family:'Yusei Magic',sans-serif; fill:var(--ink-soft); }
+  .direction-sign rect{ fill:#fffaf0; stroke:var(--ink-soft); stroke-width:2; }
+  .direction-sign text{ font-family:'Yusei Magic',sans-serif; fill:var(--ink); font-size:15px; font-weight:700; }
   .faraway{ stroke:rgba(122,92,59,.7); stroke-dasharray:4 4; fill:none; }
 
   .popup{ position:absolute; z-index:30; width:224px; max-width:78vw;
@@ -197,12 +219,12 @@
 <body>
 
 <header>
-  <h1>なかやま商店街マップ <small>実測版 β</small></h1>
+  <h1>なかやま商店街マップ <small>実測デジタル版</small></h1>
   <p>道路も星印も実際の位置準拠（OpenStreetMap・国土地理院データ）。星をタップするとお店の紹介が見られます。※密集部の星は見やすさのため通り沿いに間隔を少し広げています</p>
 </header>
 
 <div class="filters" id="filters"></div>
-<div class="searchbar"><input id="q" type="search" placeholder="お店をさがす（例：ケーキ）" aria-label="お店を検索"><span id="nohit" role="status">見つかりませんでした</span></div>
+<div class="searchbar"><input id="q" type="search" placeholder="お店をさがす（例：ケーキ）" aria-label="お店を検索"><span id="searchstatus" role="status" aria-live="polite"></span></div>
 
 <div id="viewport">
   <div id="mapwrap">
@@ -299,13 +321,13 @@ GEO.rivers.forEach(r => el('path', {d:poly(r.pts), class:'river', 'stroke-width'
 const roadsSorted = GEO.roads;
 roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-c', 'stroke-width':9}, gRoads); });
 roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-f', 'stroke-width':5.5}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-c', 'stroke-width':21}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-f', 'stroke-width':13.5}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-c', 'stroke-width':38}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-f', 'stroke-width':27}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-c', 'stroke-width':r.guide_spine?34:21}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-f', 'stroke-width':r.guide_spine?23:13.5}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-c', 'stroke-width':r.guide_spine?50:38}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-f', 'stroke-width':r.guide_spine?36:27}, gRoads); });
 GEO.sando.forEach(s => el('path', {d:poly(s), class:'sando', 'stroke-width':3}, gRoads));
 
-/* 信号機 (OSM実データ・実在の交差点のみ) */
+/* 信号機 (OSM実データ11箇所 + 振興組合の位置把握FB3箇所) */
 (GEO.signals||[]).forEach(p => {
   const g = el('g', {transform:'translate('+p[0]+','+p[1]+')'}, gRoads);
   el('rect', {x:-11, y:-5.5, width:22, height:11, rx:5.5, fill:'#fffdf5', stroke:'var(--ink)', 'stroke-width':1.5}, g);
@@ -379,7 +401,12 @@ GEO.waters.forEach(w => {
 
 /* 方面表記 */
 (GEO.exits||[]).forEach(x => {
-  const t = el('text', {x:x.x, y:x.y, class:'deco', 'font-size':16, 'text-anchor':x.anchor||'middle', 'font-weight':'bold', opacity:.85}, gDeco);
+  const width = Math.max(94, Array.from(x.text).length * 16 + 22);
+  const cx = Math.max(-PAD + width/2 + 6, Math.min(W + PAD - width/2 - 6, x.x));
+  const cy = Math.max(-PAD + 18, Math.min(H + PAD - 18, x.y));
+  const g = el('g', {class:'direction-sign', transform:'translate('+cx+','+cy+')'}, gDeco);
+  el('rect', {x:-width/2, y:-15, width:width, height:30, rx:6}, g);
+  const t = el('text', {x:0, y:5, 'text-anchor':'middle'}, g);
   t.textContent = x.text;
 });
 
@@ -561,26 +588,46 @@ function layoutLabels(){
   }
 }
 
+let selectedIndex = -1;
 function starSize(s){ return s.name.indexOf('公園')>=0 || s.cat==='place' ? 1.15 : 1; }
+function isPrimaryLabel(s){
+  return s.cat === 'place' || /郵便局|中学校|小学校|市民センター|不動尊|ドライブスクール|ヨークベニマル/.test(s.name);
+}
+function updateSelectedMarker(){
+  document.querySelectorAll('.hit').forEach(h => {
+    const idx = +h.dataset.i, on = idx === selectedIndex;
+    const s = GEO.shops[idx], star = h.querySelector('.star');
+    h.classList.toggle('selected', on);
+    h.setAttribute('aria-pressed', on ? 'true' : 'false');
+    if (star) star.setAttribute('transform', 'scale('+(starSize(s) * (on ? 1.18 : 1))+')');
+  });
+  gLead.querySelectorAll('[data-i]').forEach(p => p.classList.toggle('selected-lead', +p.dataset.i === selectedIndex));
+}
+function setSelectedShop(s){
+  selectedIndex = s ? GEO.shops.indexOf(s) : -1;
+  updateSelectedMarker();
+}
 function drawShops(){
   gShops.innerHTML = ''; gLead.innerHTML = '';
   layoutLabels();
   GEO.shops.forEach((s, idx) => {
+    const primary = isPrimaryLabel(s);
     // 引き出し線
     const dxL = s.lx - s.x, dyL = s.ly - s.y;
     const needLeader = Math.abs(dyL) > 15 || Math.abs(dxL) > 62;
     if (needLeader && !s.clamped){
       const tx = s.anchor==='start' ? s.lx-5 : s.lx+5;
-      el('path', {d:'M'+s.x+','+s.y+' L'+tx+','+(s.ly-5), class:'leader'}, gLead);
+      el('path', {d:'M'+s.x+','+s.y+' L'+tx+','+(s.ly-5), class:'leader '+(primary?'primary':'detail'), 'data-i':idx}, gLead);
     }
     if (s.clamped && s.far_m > 0){
       const rad = (s.far_deg||0) * Math.PI/180;
       const ex = s.x + 30*Math.cos(rad), ey = s.y - 30*Math.sin(rad);
-      el('path', {d:'M'+s.x+','+s.y+' L'+ex+','+ey, class:'faraway', 'marker-end':''}, gLead);
-      el('path', {d:'M'+ex+','+ey+' l'+(-7*Math.cos(rad-0.5))+','+(7*Math.sin(rad-0.5))+' M'+ex+','+ey+' l'+(-7*Math.cos(rad+0.5))+','+(7*Math.sin(rad+0.5)), class:'faraway'}, gLead);
+      el('path', {d:'M'+s.x+','+s.y+' L'+ex+','+ey, class:'faraway '+(primary?'primary':'detail'), 'data-i':idx, 'marker-end':''}, gLead);
+      el('path', {d:'M'+ex+','+ey+' l'+(-7*Math.cos(rad-0.5))+','+(7*Math.sin(rad-0.5))+' M'+ex+','+ey+' l'+(-7*Math.cos(rad+0.5))+','+(7*Math.sin(rad+0.5)), class:'faraway '+(primary?'primary':'detail'), 'data-i':idx}, gLead);
     }
     const hasVoices = (s.voices||[]).length > 0;
-    const g = el('g', {class:'hit', tabindex:0, role:'button', 'data-i':idx,
+    const g = el('g', {class:'hit'+(idx===selectedIndex?' selected':''), tabindex:0, role:'button',
+      'aria-pressed':idx===selectedIndex?'true':'false', 'data-i':idx,
       'aria-label':s.name+(hasVoices?'、こどもの声あり':'')}, gShops);
     el('circle', {cx:s.x, cy:s.y, r:s.padr || 22, class:'pad'}, g);  // タップ領域 (隣の星と重ならない半径)
     if (IS_DEBUG && s.tx !== undefined){
@@ -588,8 +635,10 @@ function drawShops(){
       el('path', {d:'M'+(s.tx-5)+','+(s.ty-5)+' L'+(s.tx+5)+','+(s.ty+5)+' M'+(s.tx-5)+','+(s.ty+5)+' L'+(s.tx+5)+','+(s.ty-5), stroke:'#d13030', 'stroke-width':1.6, fill:'none'}, g);
       el('path', {d:'M'+s.tx+','+s.ty+' L'+s.x+','+s.y, stroke:'rgba(209,48,48,.5)', 'stroke-width':1, 'stroke-dasharray':'2 2', fill:'none'}, g);
     }
+    const marker = el('g', {class:'marker', transform:'translate('+s.x+','+s.y+')'}, g);
+    el('circle', {cx:0, cy:0, r:16, class:'selected-ring'}, marker);
     const st = el('use', {href:'#starShape', x:0, y:0, class:'star '+s.cat,
-      transform:'translate('+s.x+','+s.y+') scale('+starSize(s)+')'}, g);
+      transform:'scale('+(starSize(s) * (idx===selectedIndex?1.18:1))+')'}, marker);
     if (hasVoices){
       const bx = s.anchor === 'start' ? s.x - 13 : s.x + 13;
       const by = s.y - 13;
@@ -603,37 +652,54 @@ function drawShops(){
       const c = {'osm:exact':'#2e9e44','osm:partial':'#d1a520','gsi_addr':'#2e6fd1','approx':'#d13030'}[s.src]||'#888';
       el('circle', {cx:s.x, cy:s.y, r:14, fill:'none', stroke:c, 'stroke-width':2, 'stroke-dasharray':'3 3'}, g);
     }
-    const bold = /郵便局|中学校|小学校|市民センター|不動尊/.test(s.name);
-    const t = el('text', {x:s.lx, y:s.ly+FS*0.35, class:'shoplabel'+(bold?' b':''),
+    const t = el('text', {x:s.lx, y:s.ly+FS*0.35, class:'shoplabel '+(primary?'primary b':'detail'),
       'font-size':FS, 'text-anchor':s.anchor}, g);
     t.textContent = s.name;
     if (s.clamped && s.far_m > 0){
-      const ft = el('text', {x:s.lx, y:s.ly+FS*0.35+15, class:'shoplabel', 'font-size':10.5,
+      const ft = el('text', {x:s.lx, y:s.ly+FS*0.35+15, class:'shoplabel '+(primary?'primary':'detail'), 'font-size':10.5,
         'text-anchor':s.anchor, opacity:.8}, g);
       ft.textContent = '実際は約'+(s.far_m>=1000? (s.far_m/1000).toFixed(1)+'km':(s.far_m+'m'))+'先';
     }
   });
   applyFilter();
+  updateSelectedMarker();
 }
 
 /* ---------- フィルタ・検索・ポップアップ ---------- */
 const activeCats = new Set();
-let query = '';
+let query = '', voiceOnly = false, searchOpenedList = false;
 const filtersDiv = document.getElementById('filters');
 Object.keys(CATS).forEach(k => {
   const b = document.createElement('button');
   b.className = 'chip c-'+k; b.setAttribute('aria-pressed','false');
-  b.innerHTML = '<span class="dot"></span><span class="lbl">'+CATS[k].label+'</span>';
+  const dot = document.createElement('span'); dot.className = 'dot';
+  const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = CATS[k].label;
+  b.appendChild(dot); b.appendChild(lbl);
   b.addEventListener('click', () => {
     const on = b.getAttribute('aria-pressed') === 'true';
     b.setAttribute('aria-pressed', on?'false':'true');
     if (on) activeCats.delete(k); else activeCats.add(k);
+    hidePopup();
     applyFilter();
   });
   filtersDiv.appendChild(b);
 });
+const voiceFilter = document.createElement('button');
+voiceFilter.className = 'chip voice-filter'; voiceFilter.setAttribute('aria-pressed','false');
+const voiceIcon = document.createElement('span'); voiceIcon.className = 'voice-chip-icon'; voiceIcon.setAttribute('aria-hidden','true');
+const voiceLabel = document.createElement('span'); voiceLabel.className = 'lbl'; voiceLabel.textContent = 'こどもの声';
+voiceFilter.appendChild(voiceIcon); voiceFilter.appendChild(voiceLabel);
+voiceFilter.addEventListener('click', () => {
+  voiceOnly = !voiceOnly;
+  voiceFilter.setAttribute('aria-pressed', voiceOnly ? 'true' : 'false');
+  hidePopup();
+  applyFilter();
+});
+filtersDiv.appendChild(voiceFilter);
 document.getElementById('q').addEventListener('input', e => {
-  query = e.target.value.trim().toLowerCase(); applyFilter();
+  query = e.target.value.trim().toLowerCase();
+  hidePopup();
+  applyFilter({fromSearch:true});
 });
 function norm(s){ return s.toLowerCase().replace(/[ァ-ン]/g, m=>String.fromCharCode(m.charCodeAt(0)-0x60)); }
 function searchText(s){
@@ -641,22 +707,52 @@ function searchText(s){
 }
 function matchesFilter(s){
   if (activeCats.size && !activeCats.has(s.cat)) return false;
+  if (voiceOnly && !(s.voices||[]).length) return false;
   if (query && searchText(s).indexOf(norm(query)) < 0) return false;
   return true;
 }
-function applyFilter(){
-  let hits = 0;
+function applyFilter({fromSearch=false} = {}){
+  const matched = [];
   document.querySelectorAll('.hit').forEach(h => {
     const s = GEO.shops[+h.dataset.i];
     const ok = matchesFilter(s);
-    const glow = ok && (query.length > 0 || (activeCats.size && activeCats.has(s.cat)));
-    if (ok) hits++;
+    const glow = ok && (query.length > 0 || voiceOnly || (activeCats.size && activeCats.has(s.cat)));
+    if (ok) matched.push(s);
     h.classList.toggle('dim', !ok);
     h.classList.toggle('glowing', !!glow);
     h.setAttribute('tabindex', ok ? 0 : -1);
   });
-  document.getElementById('nohit').classList.toggle('show', query.length > 0 && hits === 0);
-  renderList();
+  const status = document.getElementById('searchstatus');
+  const filtering = query.length > 0 || voiceOnly || activeCats.size > 0;
+  gLead.querySelectorAll('[data-i]').forEach(p => {
+    const s = GEO.shops[+p.dataset.i];
+    p.classList.toggle('emphasis', filtering && matchesFilter(s));
+  });
+  status.textContent = filtering ? (matched.length ? matched.length+'件' : '見つかりません') : '';
+  status.classList.toggle('empty', filtering && matched.length === 0);
+
+  if (query) renderList(null, '検索結果'); else renderList();
+
+  if (fromSearch){
+    const enough = Array.from(query).length >= 2;
+    if (enough && matched.length === 1){
+      listpanel.classList.remove('show');
+      searchOpenedList = false;
+      focusShopOnMap(matched[0], false);
+    } else if (enough && matched.length > 1){
+      setSelectedShop(null);
+      renderList(null, '検索結果');
+      listpanel.classList.add('show');
+      searchOpenedList = true;
+    } else if (enough && matched.length === 0){
+      listpanel.classList.remove('show');
+      searchOpenedList = false;
+      setSelectedShop(null);
+    } else if (searchOpenedList){
+      listpanel.classList.remove('show');
+      searchOpenedList = false;
+    }
+  }
 }
 
 const popup = document.getElementById('popup'), chooser = document.getElementById('chooser');
@@ -681,6 +777,16 @@ function placeBubble(box, px, py){
   box.classList.toggle('below', (py - visT) < 250);
   box.style.left = cx + 'px'; box.style.top = py + 'px';
 }
+function focusShopOnMap(s, openPopup){
+  const fx = (s.x + PAD) / (W + 2*PAD), fy = (s.y + PAD) / (H + 2*PAD);
+  viewport.scrollLeft = fx * wrap.offsetWidth - viewport.clientWidth/2;
+  viewport.scrollTop = fy * wrap.offsetHeight - viewport.clientHeight/2;
+  setSelectedShop(s);
+  if (openPopup){
+    pinned = s;
+    requestAnimationFrame(() => showPopup(s, true));
+  }
+}
 function showPopup(s, focusClose){
   document.getElementById('popupCat').textContent = CATS[s.cat].label;
   document.getElementById('popupCat').style.color = CATS[s.cat].cc;
@@ -698,6 +804,7 @@ function showPopup(s, focusClose){
   placeBubble(popup, px, py);
   popup.setAttribute('aria-labelledby', 'popupName');
   popup.setAttribute('aria-modal', 'false');
+  setSelectedShop(s);
   popup.classList.add('show'); hideChooser();
   if (focusClose) document.getElementById('popupClose').focus();
 }
@@ -705,6 +812,7 @@ function hidePopup(){
   popup.classList.remove('show');
   if (pinned && lastFocusHit){ try{ lastFocusHit.focus(); }catch(e){} }
   pinned = null;
+  setSelectedShop(null);
 }
 function hideChooser(){ chooser.classList.remove('show'); }
 function nearby(s){
@@ -712,6 +820,7 @@ function nearby(s){
 }
 function showChooser(list, s){
   chooser.innerHTML = '';
+  setSelectedShop(null);
   const t = document.createElement('div'); t.className='ctitle'; t.textContent='どのお店？'; chooser.appendChild(t);
   list.forEach(o => {
     const b = document.createElement('button'); b.className='copt';
@@ -743,6 +852,7 @@ if (window.matchMedia && matchMedia('(hover: hover)').matches){
   gShops.addEventListener('mouseleave', e => {
     const h = e.target.closest && e.target.closest('.hit'); if (!h || pinned) return;
     popup.classList.remove('show');
+    setSelectedShop(null);
   }, true);
 }
 gShops.addEventListener('keydown', e => {
@@ -766,6 +876,7 @@ function applyZoom(keepCenter){
   const cx = keepCenter ? (vp.scrollLeft + vp.clientWidth/2) / wrap.offsetWidth : null;
   const cy = keepCenter ? (vp.scrollTop + vp.clientHeight/2) / wrap.offsetHeight : null;
   wrap.style.width = zoom+'%'; wrap.style.maxWidth = 'none';
+  document.body.classList.toggle('detail-labels', zoom >= 200);
   if (keepCenter){
     vp.scrollLeft = cx * wrap.offsetWidth - vp.clientWidth/2;
     vp.scrollTop  = cy * wrap.offsetHeight - vp.clientHeight/2;
@@ -790,7 +901,7 @@ function renderList(memberIdx, title){
   if (Array.isArray(listCtx.members)) src = listCtx.members.map(i => GEO.shops[i]);
   const visible = src.filter(matchesFilter);
   document.getElementById('listtitle').textContent =
-    (listCtx.title ? listCtx.title + '（' + visible.length + '店）' : 'お店一覧');
+    (listCtx.title ? listCtx.title + '（' + visible.length + '件）' : 'お店一覧');
   visible.slice().sort((a,b)=>a.y-b.y).forEach(s => {
     const b = document.createElement('button'); b.className = 'lrow';
     const d = document.createElement('span'); d.className='ldot'; d.style.background = CATS[s.cat].cc;
@@ -805,20 +916,18 @@ function renderList(memberIdx, title){
     b.appendChild(ad);
     b.addEventListener('click', () => {
       listpanel.classList.remove('show');
-      // 星を画面中央へスクロールしてからポップアップ
-      const fx = (s.x + PAD) / (W + 2*PAD), fy = (s.y + PAD) / (H + 2*PAD);
-      viewport.scrollLeft = fx * wrap.offsetWidth - viewport.clientWidth/2;
-      viewport.scrollTop  = fy * wrap.offsetHeight - viewport.clientHeight/2;
-      pinned = s;
-      requestAnimationFrame(() => showPopup(s, true));
+      searchOpenedList = false;
+      focusShopOnMap(s, true);
     });
     listrows.appendChild(b);
   });
 }
-document.getElementById('listbtn').addEventListener('click', e => { e.stopPropagation(); renderList(null); listpanel.classList.add('show'); });
-document.getElementById('listclose').addEventListener('click', () => listpanel.classList.remove('show'));
+document.getElementById('listbtn').addEventListener('click', e => {
+  e.stopPropagation(); renderList(null, query ? '検索結果' : null); listpanel.classList.add('show');
+});
+document.getElementById('listclose').addEventListener('click', () => { listpanel.classList.remove('show'); searchOpenedList = false; });
 listpanel.addEventListener('click', e => e.stopPropagation());
-document.addEventListener('keydown', e => { if (e.key === 'Escape') listpanel.classList.remove('show'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape'){ listpanel.classList.remove('show'); searchOpenedList = false; } });
 
 /* ---------- 編集モード (?edit=1) ---------- */
 if (IS_EDIT){

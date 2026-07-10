@@ -235,6 +235,7 @@ REFERENCE_SIDE_STREET_WAY_IDS = {
 CLASS_MAP = {'primary': 'major', 'secondary': 'major', 'tertiary': 'mid',
              'unclassified': 'mid', 'residential': 'minor', 'living_street': 'minor'}
 BUS_NAMES = ('中山幹線１号線', '中山幹線２号線', '中山幹線1号線', '中山幹線2号線')
+GUIDE_SPINE_NAMES = set(BUS_NAMES + ('中山六丁目１号線', '川平二丁目１号線', '荒巻泉線'))
 roads = []
 for e in raw['elements']:
     t = e.get('tags', {})
@@ -244,12 +245,13 @@ for e in raw['elements']:
     if CLASS_MAP[hw] == 'minor' and e.get('id') not in REFERENCE_SIDE_STREET_WAY_IDS:
         continue
     cls = CLASS_MAP[hw]
-    if t.get('name', '') in BUS_NAMES:
+    road_name = t.get('name', '')
+    if road_name in BUS_NAMES:
         cls = 'major'  # バス通りは商店街の主役なので強調
     pts_ = [project(g['lat'], g['lon']) for g in e['geometry']]
     for seg in clip_line(pts_):
         sp = simplify(seg, eps=3.5)
-        roads.append({'cls': cls, 'name': t.get('name', ''),
+        roads.append({'cls': cls, 'name': road_name, 'guide_spine': road_name in GUIDE_SPINE_NAMES,
                       'pts': [[round(x, 1), round(y, 1)] for x, y in sp]})
 
 rivers = []
@@ -396,7 +398,7 @@ p = edge_exit('荒巻泉線', lambda c: min(c, key=lambda q: q[1]))
 if p: exits.append({'x': min(max(p[0], W + 70), W + 100), 'y': p[1] - 12,
                     'text': '至 泉中央 →', 'anchor': 'end'})
 p = edge_exit('通町中山線', lambda c: max(c, key=lambda q: q[1]))
-if p: exits.append({'x': p[0], 'y': min(p[1] + 28, H + 95), 'text': '↓ 至 北仙台', 'anchor': 'middle'})
+if p: exits.append({'x': p[0], 'y': min(p[1] + 28, H + 95), 'text': '↓ 至 北山', 'anchor': 'middle'})
 meta = {'W': W, 'H': H, 'proj': unproject_expr(), 'minx': round(minx, 2), 'miny': round(miny, 2),
         'scale_m_per_px': 1.0, 'info_as_of': INFO_AS_OF,
         'partner_logos': [{
@@ -471,13 +473,18 @@ for sh in shops:
 ROAD_HALF = {'major': 19.0, 'mid': 10.5, 'minor': 4.5}
 CLEAR_NEED = 14.0  # 星半径10 + 余白4
 
+def _road_half(r):
+    if r.get('guide_spine'):
+        return 25.0 if r['cls'] == 'major' else 17.0
+    return ROAD_HALF[r['cls']]
+
 def _clear_roads_once():
     changed = 0
     for sh in shops:
         if sh.get('clamped'):
             continue
         for r in roads:
-            need = ROAD_HALF[r['cls']] + CLEAR_NEED
+            need = _road_half(r) + CLEAR_NEED
             pts_ = r['pts']
             for k in range(1, len(pts_)):
                 ax, ay = pts_[k - 1]
@@ -512,7 +519,7 @@ for sh in shops:
               for o in shops if o is not sh), default=44)
     sh['padr'] = max(12, min(22, int(nn / 2) - 1))
 
-# ---------------- 信号機 (OSM traffic_signals 実データ・30mクラスタ統合) ----------------
+# ---------------- 信号機 (OSM実データ + 支給マップFB) ----------------
 signals = []
 try:
     _sig_raw = json.load(open(P('signals_raw.json'), encoding='utf-8'))
@@ -530,6 +537,23 @@ try:
     signals = [list(p) for p in signals]
 except FileNotFoundError:
     pass
+
+# 2026-07-10 振興組合FB: 位置把握用に3箇所を補足する。
+# OSMノード由来ではないため、施設の表示位置と道路中心から毎回再計算する。
+_signal_landmarks = [
+    ('東北電力研究開発センター', 'below'),
+    ('ウジエスーパー中山店', 'bus_side'),
+    ('お菜とお酒アイリス', 'bus_side'),
+]
+for _name, _mode in _signal_landmarks:
+    _shop = next(s for s in shops if s['name'] == _name)
+    if _mode == 'below':
+        # 支給図で施設直下にある交差路へ合わせる。
+        _sx, _sy = _shop['x'] + 6, _shop['y'] + 57
+    else:
+        _sx, _sy = _busx(_shop['y']), _shop['y']
+    if all(math.hypot(_sx - gx, _sy - gy) >= 30 for gx, gy in signals):
+        signals.append([round(_sx, 1), round(_sy, 1)])
 print('signals:', len(signals))
 
 # ---------------- 密集区画の自動検出 (チェーン距離36px・5店以上 → タップで区画一覧) ----------------
