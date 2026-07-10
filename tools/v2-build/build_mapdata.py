@@ -235,7 +235,10 @@ REFERENCE_SIDE_STREET_WAY_IDS = {
 CLASS_MAP = {'primary': 'major', 'secondary': 'major', 'tertiary': 'mid',
              'unclassified': 'mid', 'residential': 'minor', 'living_street': 'minor'}
 BUS_NAMES = ('中山幹線１号線', '中山幹線２号線', '中山幹線1号線', '中山幹線2号線')
-GUIDE_SPINE_NAMES = set(BUS_NAMES + ('中山六丁目１号線', '川平二丁目１号線', '荒巻泉線'))
+CORE_BUS_NAMES = {'中山幹線１号線', '中山幹線1号線'}
+SOUTH_BRANCH_NAMES = {'中山幹線２号線', '中山幹線2号線'}
+GUIDE_SPINE_NAMES = CORE_BUS_NAMES
+GUIDE_SPINE_WAY_IDS = {1017367080}  # ヨークベニマル付近の信号から中央幹線まで
 roads = []
 for e in raw['elements']:
     t = e.get('tags', {})
@@ -246,12 +249,15 @@ for e in raw['elements']:
         continue
     cls = CLASS_MAP[hw]
     road_name = t.get('name', '')
-    if road_name in BUS_NAMES:
+    if road_name in CORE_BUS_NAMES:
         cls = 'major'  # バス通りは商店街の主役なので強調
+    elif road_name in SOUTH_BRANCH_NAMES:
+        cls = 'mid'  # 南中山方向はT字の太線対象外
     pts_ = [project(g['lat'], g['lon']) for g in e['geometry']]
     for seg in clip_line(pts_):
         sp = simplify(seg, eps=3.5)
-        roads.append({'cls': cls, 'name': road_name, 'guide_spine': road_name in GUIDE_SPINE_NAMES,
+        roads.append({'cls': cls, 'name': road_name,
+                      'guide_spine': road_name in GUIDE_SPINE_NAMES or e.get('id') in GUIDE_SPINE_WAY_IDS,
                       'pts': [[round(x, 1), round(y, 1)] for x, y in sp]})
 
 rivers = []
@@ -391,6 +397,7 @@ def edge_exit(road_name, pick):
     return pick(cands)
 
 W, H = round(maxx - minx), round(maxy - miny)
+
 exits = []
 p = edge_exit('中山幹線２号線', lambda c: min(c, key=lambda q: q[1]))
 if p: exits.append({'x': p[0], 'y': max(p[1], -60), 'text': '↑ 至 南中山', 'anchor': 'middle'})
@@ -475,7 +482,7 @@ CLEAR_NEED = 14.0  # 星半径10 + 余白4
 
 def _road_half(r):
     if r.get('guide_spine'):
-        return 25.0 if r['cls'] == 'major' else 17.0
+        return 24.0
     return ROAD_HALF[r['cls']]
 
 def _clear_roads_once():
