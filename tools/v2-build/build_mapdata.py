@@ -335,16 +335,17 @@ de4['lng'] = LON0 + _x0 / (111320 * COSF)
 de4['lat'] = LAT0 + (-_y0) / 111320
 de4['src'] = 'approx'
 
-# ラベル配置の個別ヒント (テンプレ側で解釈)
+# ラベルを星の右/左どちらに置くかだけを指定する。上下・斜めオフセットは禁止。
 SHOP_HINTS = {
-    '東北電力研究開発センター': {'anchor': 'middle', 'dy': 27},
-    'ヨークベニマル 仙台中山店': {'anchor': 'end', 'dx': -15},
-    '商店街モニュメント': {'anchor': 'end', 'dx': -30, 'dy': -4},  # 右端が横断道路帯に触れるため左へ
-    'みなみ歯科クリニック': {'anchor': 'end', 'dx': -15, 'dy': 0},  # 右側は上下2本の道路に挟まれ幅不足
-    'カーブス アクロスガーデン中山': {'anchor': 'start', 'dx': 15, 'dy': 12},  # 道路間の空きレーンへ
-    '認定こども園 TOBINOKO': {'anchor': 'end', 'dx': -15, 'dy': 18},  # 右側はNOBU列と衝突するため左に出す
-    '多夢多夢舎中山工房': {'anchor': 'end', 'dx': -15, 'dy': 10},
-    '中山ドライブスクール': {'anchor': 'start', 'dx': 15, 'dy': -14},
+    '東北電力研究開発センター': {'anchor': 'end'},
+    'ヨークベニマル 仙台中山店': {'anchor': 'end'},
+    '商店街モニュメント': {'anchor': 'end'},
+    'みなみ歯科クリニック': {'anchor': 'start'},
+    'カーブス アクロスガーデン中山': {'anchor': 'start'},
+    '認定こども園 TOBINOKO': {'anchor': 'end'},
+    '多夢多夢舎中山工房': {'anchor': 'end'},
+    '中山ドライブスクール': {'anchor': 'end'},
+    'サトー商会': {'anchor': 'start'},
 }
 for sh in shops:
     if sh['name'] in SHOP_HINTS:
@@ -433,7 +434,7 @@ def _busx(y):
             return lo[0] + t * (hi[0] - lo[0])
     return _bus_shifted[-1][0]
 
-MINGAP_STAR = 24  # 並び順を守るための最小補助間隔。最終表示ずれは下で上限固定する
+MINGAP_STAR = 40  # 店名を星の真横へ置いても上下で重ならない表示間隔
 # 帯幅160px: 通り近傍の店(ドライブスクール等)も同じ順序保存スプレッドに含め、
 # 列だけ動いて近傍店と表示順が逆転する事故を防ぐ
 for _side in (-1, 1):
@@ -519,18 +520,6 @@ def _clear_roads_once():
 for _it in range(4):
     if _clear_roads_once() == 0:
         break
-
-# 密集解消と道路回避で星だけが実位置から大きく離れると、店名との対応と地理の信頼性を損なう。
-# 真位置(tx/ty)からの表示移動を最大32m相当に制限し、残る密集はタップ時の店舗選択UIで解く。
-MAX_DISPLAY_SHIFT = 32.0
-for sh in shops:
-    if 'tx' not in sh:
-        continue
-    dx, dy = sh['x'] - sh['tx'], sh['y'] - sh['ty']
-    dist = math.hypot(dx, dy)
-    if dist > MAX_DISPLAY_SHIFT:
-        sh['x'] = round(sh['tx'] + dx / dist * MAX_DISPLAY_SHIFT, 1)
-        sh['y'] = round(sh['ty'] + dy / dist * MAX_DISPLAY_SHIFT, 1)
 
 # タップ領域は隣の星と重ならない半径に (最小12・最大22)
 for sh in shops:

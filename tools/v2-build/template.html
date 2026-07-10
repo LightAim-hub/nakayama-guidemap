@@ -115,8 +115,7 @@
   .shoplabel.b{ font-weight:700; }
   .shoplabel.detail{ opacity:1; }
   .hit.selected .shoplabel{ fill:#9a4f28; stroke:#fffaf0; stroke-width:9px; }
-  .leader{ stroke:rgba(122,92,59,.55); stroke-width:1.1; fill:none; }
-  .leader.detail, .faraway.detail{ opacity:1; }
+  .faraway.detail{ opacity:1; }
   .roadname{ font-family:'Yusei Magic',sans-serif; fill:var(--ink-soft); opacity:.75;
     paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
   .parkname{ font-family:'Yusei Magic',sans-serif; fill:#6d8a3c;
@@ -516,151 +515,109 @@ function busXAtY(y){
 }
 function distToBus(s){ return Math.abs(s.x - busXAtY(s.y)); }
 
-const FS = 16.5, GAP = 27, COLOFF = 48;
+const FS = 16.5, LABEL_GAP = 20;
 function estW(name){
   let w = 0;
   for (const ch of name) w += ch.charCodeAt(0) < 256 ? 0.56 : 1.02;
   return w * FS;
 }
-function labelBox(s){
-  const w = estW(s.name);
-  const x0 = s.anchor==='start' ? s.lx : s.anchor==='end' ? s.lx - w : s.lx - w/2;
-  return {x0, x1: x0 + w, y0: s.ly - FS*0.62, y1: s.ly + FS*0.62};
+function preferredLabelSide(s){
+  const h = s.hint || {};
+  if (h.anchor === 'start') return 1;
+  if (h.anchor === 'end') return -1;
+  return s.x >= busXAtY(s.y) ? 1 : -1;
 }
-function clampToCanvas(s){
+function labelCandidate(s, side){
   const w = estW(s.name);
-  if (s.anchor === 'start' && s.lx + w > W + PAD - 12){
-    s.anchor = 'end'; s.lx = s.x - 15;
-  } else if (s.anchor === 'end' && s.lx - w < -PAD + 12){
-    s.anchor = 'start'; s.lx = s.x + 15;
-  }
-  if (s.anchor === 'middle'){
-    s.lx = Math.max(-PAD + 12 + w/2, Math.min(W + PAD - 12 - w/2, s.lx));
+  const lx = s.x + side * LABEL_GAP;
+  const x0 = side > 0 ? lx : lx - w;
+  return {s, side, lx, x0, x1:x0+w, y0:s.y-FS*.62, y1:s.y+FS*.62};
+}
+function resolveHorizontalOverlaps(boxes){
+  for (let pass=0; pass<12; pass++){
+    let moved = false;
+    for (let a=0; a<boxes.length; a++) for (let b=a+1; b<boxes.length; b++){
+      const A=boxes[a], B=boxes[b];
+      const ox = Math.min(A.x1, B.x1) - Math.max(A.x0, B.x0);
+      const oy = Math.min(A.y1, B.y1) - Math.max(A.y0, B.y0);
+      if (ox <= 0 || oy <= 0) continue;
+      const delta = ox + 8;
+      if (A.side === B.side){
+        const target = A.side > 0
+          ? (A.s.x >= B.s.x ? A : B)
+          : (A.s.x <= B.s.x ? A : B);
+        const shift = target.side * delta;
+        target.lx += shift; target.x0 += shift; target.x1 += shift;
+      } else {
+        const shift = delta / 2;
+        [A, B].forEach(box => {
+          box.lx += box.side * shift;
+          box.x0 += box.side * shift;
+          box.x1 += box.side * shift;
+        });
+      }
+      moved = true;
+    }
+    boxes.forEach(box => {
+      GEO.shops.forEach(other => {
+        if (other === box.s) return;
+        const hitsX = other.x > box.x0-10 && other.x < box.x1+10;
+        const hitsY = other.y > box.y0-10 && other.y < box.y1+10;
+        if (!hitsX || !hitsY) return;
+        const shift = box.side > 0
+          ? Math.max(0, other.x + 12 - box.x0)
+          : -Math.max(0, box.x1 - (other.x - 12));
+        if (!shift) return;
+        box.lx += shift; box.x0 += shift; box.x1 += shift;
+        moved = true;
+      });
+    });
+    if (!moved) break;
   }
 }
 function layoutLabels(){
-  GEO.shops.forEach(s => { delete s.lx; delete s.ly; delete s.anchor; });
-  const colL = [], colR = [], free = [];
-  GEO.shops.forEach(s => {
-    if (s.clamped || s.hint){ free.push(s); return; }
-    const bx = busXAtY(s.y);
-    if (Math.abs(s.x - bx) < 95 && s.y > 240 && s.y < 1460){
-      (s.x <= bx ? colL : colR).push(s);
-    } else free.push(s);
-  });
-  // ラベル列のx帯を横切る「水平寄り道路」の帯 (ラベル行の禁止区間)
-  function roadBands(xmin, xmax){
-    const bands = [];
-    GEO.roads.forEach(r => {
-      const half = (r.cls === 'major' ? 19 : 10.5) + FS * 0.62 + 2;
-      for (let k = 1; k < r.pts.length; k++){
-        const [x1, y1] = r.pts[k-1], [x2, y2] = r.pts[k];
-        if (Math.max(x1, x2) < xmin || Math.min(x1, x2) > xmax) continue;
-        const dx = x2 - x1, dy = y2 - y1;
-        if (Math.abs(dx) < 20 || Math.abs(dy / dx) > 0.6) continue;  // 縦寄りの道は対象外
-        const ymid = (y1 + y2) / 2;
-        bands.push([ymid - half, ymid + half]);
-      }
-    });
-    return bands;
+  const parent = GEO.shops.map((_, i) => i);
+  const find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
+  const unite = (a, b) => { a=find(a); b=find(b); if (a!==b) parent[a]=b; };
+  for (let i=0; i<GEO.shops.length; i++) for (let j=i+1; j<GEO.shops.length; j++){
+    if (Math.abs(GEO.shops[i].y - GEO.shops[j].y) < FS * 1.24) unite(i, j);
   }
-  [ [colL,-1], [colR,1] ].forEach(([col, side]) => {
-    col.sort((a,b)=>a.y-b.y);
-    const ys = col.map(s=>s.y);
-    const bx0 = busXAtY(H/2);
-    const bands = side > 0 ? roadBands(bx0 + COLOFF, bx0 + COLOFF + 200)
-                           : roadBands(bx0 - COLOFF - 200, bx0 - COLOFF);
-    const relax = () => {
-      for (let i=1;i<ys.length;i++) if (ys[i] < ys[i-1]+GAP) ys[i] = ys[i-1]+GAP;
-      for (let i=ys.length-2;i>=0;i--) if (ys[i] > ys[i+1]-GAP) ys[i] = ys[i+1]-GAP;
-      for (let it=0; it<3; it++){
-        for (let i=0;i<ys.length;i++){
-          let lo = i? ys[i-1]+GAP : -1e9, hi = i<ys.length-1? ys[i+1]-GAP : 1e9;
-          ys[i] = Math.max(lo, Math.min(hi, col[i].y));
-        }
+  const groups = new Map();
+  GEO.shops.forEach((_, i) => {
+    const root = find(i);
+    if (!groups.has(root)) groups.set(root, []);
+    groups.get(root).push(i);
+  });
+  groups.forEach(indices => {
+    let best = null;
+    for (let mask=0; mask<(1<<indices.length); mask++){
+      const boxes = indices.map((idx, bit) => labelCandidate(GEO.shops[idx], (mask & (1<<bit)) ? 1 : -1));
+      resolveHorizontalOverlaps(boxes);
+      let score = 0;
+      boxes.forEach((box, bit) => {
+        if (box.x0 < -PAD+12) score += (-PAD+12-box.x0) * 10000;
+        if (box.x1 > W+PAD-12) score += (box.x1-(W+PAD-12)) * 10000;
+        if (box.side !== preferredLabelSide(GEO.shops[indices[bit]])) score += 1;
+        score += Math.max(0, Math.abs(box.lx-box.s.x)-LABEL_GAP) * .1;
+        GEO.shops.forEach((other, oi) => {
+          if (oi === indices[bit]) return;
+          if (other.x > box.x0-10 && other.x < box.x1+10 && other.y > box.y0-10 && other.y < box.y1+10) score += 1000;
+        });
+      });
+      for (let a=0; a<boxes.length; a++) for (let b=a+1; b<boxes.length; b++){
+        const ox = Math.min(boxes[a].x1, boxes[b].x1) - Math.max(boxes[a].x0, boxes[b].x0);
+        const oy = Math.min(boxes[a].y1, boxes[b].y1) - Math.max(boxes[a].y0, boxes[b].y0);
+        if (ox > 0 && oy > 0) score += 100000 + ox * oy;
       }
-    };
-    relax();
-    // 横断道路の帯からラベル行を押し出し→間隔を再解決 (2周)
-    for (let pass = 0; pass < 2; pass++){
-      let hit = false;
-      for (let i = 0; i < ys.length; i++){
-        const b = bands.find(bd => ys[i] > bd[0] && ys[i] < bd[1]);
-        if (b){ ys[i] = (ys[i] - b[0] < b[1] - ys[i]) ? b[0] - 5 : b[1] + 5; hit = true; }
-      }
-      if (!hit) break;
-      for (let i=1;i<ys.length;i++) if (ys[i] < ys[i-1]+GAP) ys[i] = ys[i-1]+GAP;
-      for (let i=ys.length-2;i>=0;i--) if (ys[i] > ys[i+1]-GAP) ys[i] = ys[i+1]-GAP;
+      if (!best || score < best.score) best = {score, boxes};
     }
-    col.forEach((s,i) => {
-      s.ly = ys[i];
-      const cx = busXAtY(s.ly) + side * COLOFF;
-      // 星がラベル側に張り出す場合は星のすぐ隣へ (文字が星を覆わないように)
-      s.lx = side > 0 ? Math.max(cx, s.x + 15) : Math.min(cx, s.x - 15);
-      s.anchor = side > 0 ? 'start' : 'end';
-      clampToCanvas(s);
+    indices.forEach((idx, i) => {
+      const s = GEO.shops[idx], box = best.boxes[i];
+      s.anchor = box.side > 0 ? 'start' : 'end';
+      s.lx = box.lx;
+      s.ly = s.y;
     });
   });
-  free.forEach(s => {
-    const h = s.hint || {};
-    const bx = busXAtY(s.y);
-    const side = h.anchor === 'end' ? -1 : h.anchor === 'middle' ? 0 : (h.anchor === 'start' ? 1 : (s.x > bx ? 1 : (s.x > W*0.62 ? -1 : 1)));
-    s.anchor = h.anchor || (side > 0 ? 'start' : 'end');
-    s.lx = s.x + (h.dx !== undefined ? h.dx : side * 16);
-    s.ly = s.y + (h.dy !== undefined ? h.dy : 5);
-    clampToCanvas(s);
-    // 水平寄り道路の帯からラベルを縦に逃がす (最大3帯連鎖)
-    const w = estW(s.name);
-    const fx0 = s.anchor === 'start' ? s.lx : s.anchor === 'end' ? s.lx - w : s.lx - w / 2;
-    const myBands = roadBands(fx0, fx0 + w);
-    for (let it = 0; it < 3; it++){
-      const bd = myBands.find(b => s.ly > b[0] && s.ly < b[1]);
-      if (!bd) break;
-      s.ly = (s.ly - bd[0] < bd[1] - s.ly) ? bd[0] - 5 : bd[1] + 5;
-    }
-  });
-  // 衝突回避: ①freeラベル×列ラベル (列は固定・freeを縦に逃がす) ②freeラベル同士
-  const colBoxes = [...colL, ...colR].map(s => labelBox(s));
-  for (let outer = 0; outer < 5; outer++){
-    free.forEach(f => {
-      let dir = 0;  // 逃げる方向は最初に決めて固定 (2行に挟まれた時の振動防止)
-      for (let it = 0; it < 10; it++){
-        const fb = labelBox(f);
-        const hitBox = colBoxes.find(cb => fb.x0 < cb.x1 && cb.x0 < fb.x1 && fb.y0 < cb.y1 && cb.y0 < fb.y1);
-        if (!hitBox) break;
-        if (!dir) dir = (f.y <= (hitBox.y0 + hitBox.y1) / 2) ? -1 : 1;
-        f.ly = dir < 0 ? hitBox.y0 - FS * 0.62 - 3 : hitBox.y1 + FS * 0.62 + 3;
-      }
-    });
-    let moved = false;
-    for (let it = 0; it < 8; it++){
-      let m2 = false;
-      for (let a = 0; a < free.length; a++) for (let b = a + 1; b < free.length; b++){
-        const A = free[a], B = free[b];
-        const ba = labelBox(A), bb = labelBox(B);
-        if (ba.x0 < bb.x1 && bb.x0 < ba.x1 && ba.y0 < bb.y1 && bb.y0 < ba.y1){
-          const push = (ba.y1 - bb.y0) / 2 + 2;
-          if (A.ly <= B.ly){ A.ly -= push; B.ly += push; } else { A.ly += push; B.ly -= push; }
-          m2 = moved = true;
-        }
-      }
-      if (!m2) break;
-    }
-    // solverが道路帯内へ動かした分を再エスケープ (安定するまでouterを回す)
-    let bandMoved = false;
-    free.forEach(f => {
-      const w2 = estW(f.name);
-      const fx0 = f.anchor === 'start' ? f.lx : f.anchor === 'end' ? f.lx - w2 : f.lx - w2 / 2;
-      const mb = roadBands(fx0, fx0 + w2);
-      for (let it = 0; it < 3; it++){
-        const bd = mb.find(b => f.ly > b[0] && f.ly < b[1]);
-        if (!bd) break;
-        f.ly = (f.ly - bd[0] < bd[1] - f.ly) ? bd[0] - 5 : bd[1] + 5;
-        bandMoved = true;
-      }
-    });
-    if (!moved && !bandMoved) break;
-  }
 }
 
 let selectedIndex = -1;
@@ -686,13 +643,6 @@ function drawShops(){
   layoutLabels();
   GEO.shops.forEach((s, idx) => {
     const primary = isPrimaryLabel(s);
-    // 引き出し線
-    const dxL = s.lx - s.x, dyL = s.ly - s.y;
-    const needLeader = Math.abs(dyL) > 10 || Math.abs(dxL) > 30;
-    if (needLeader && !s.clamped){
-      const tx = s.anchor==='start' ? s.lx-5 : s.lx+5;
-      el('path', {d:'M'+s.x+','+s.y+' L'+tx+','+(s.ly-5), class:'leader '+(primary?'primary':'detail')}, gLead);
-    }
     if (s.clamped && s.far_m > 0){
       const rad = (s.far_deg||0) * Math.PI/180;
       const ex = s.x + 30*Math.cos(rad), ey = s.y - 30*Math.sin(rad);
