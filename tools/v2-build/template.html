@@ -76,6 +76,8 @@
   .road-major-f{ stroke:#fdf7e7; fill:none; stroke-linecap:round; stroke-linejoin:round; }
   .road-mid-c{ stroke:#8a6a44; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.7; }
   .road-mid-f{ stroke:#faf1da; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .road-main-c{ stroke:#8a6a44; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.88; }
+  .road-main-f{ stroke:#fdf7e7; fill:none; stroke-linecap:round; stroke-linejoin:round; }
   .road-minor-c{ stroke:#a98c66; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.55; }
   .road-minor-f{ stroke:#faf1da; fill:none; stroke-linecap:round; stroke-linejoin:round; }
   .sando{ stroke:#a98c66; stroke-dasharray:7 6; fill:none; opacity:.65; }
@@ -102,12 +104,9 @@
   .shoplabel{ font-family:'Yusei Magic',sans-serif; fill:var(--ink);
     paint-order:stroke; stroke:var(--paper); stroke-width:6px; stroke-linejoin:round; }
   .shoplabel.b{ font-weight:700; }
-  .shoplabel.detail{ opacity:0; }
-  body.detail-labels .shoplabel.detail, .hit.glowing .shoplabel.detail, .hit.selected .shoplabel.detail{ opacity:1; }
+  .shoplabel.detail{ opacity:1; }
   .leader{ stroke:rgba(122,92,59,.55); stroke-width:1.1; fill:none; }
-  .leader.detail, .faraway.detail{ opacity:0; }
-  body.detail-labels .leader.detail, body.detail-labels .faraway.detail,
-  .leader.detail.emphasis, .faraway.detail.emphasis, .leader.detail.selected-lead, .faraway.detail.selected-lead{ opacity:1; }
+  .leader.detail, .faraway.detail{ opacity:1; }
   .roadname{ font-family:'Yusei Magic',sans-serif; fill:var(--ink-soft); opacity:.75;
     paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
   .parkname{ font-family:'Yusei Magic',sans-serif; fill:#6d8a3c;
@@ -321,10 +320,13 @@ GEO.rivers.forEach(r => el('path', {d:poly(r.pts), class:'river', 'stroke-width'
 const roadsSorted = GEO.roads;
 roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-c', 'stroke-width':9}, gRoads); });
 roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-f', 'stroke-width':5.5}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-c', 'stroke-width':r.guide_spine?34:21}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-f', 'stroke-width':r.guide_spine?23:13.5}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-c', 'stroke-width':r.guide_spine?50:38}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-f', 'stroke-width':r.guide_spine?36:27}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-c', 'stroke-width':21}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-f', 'stroke-width':13.5}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-c', 'stroke-width':38}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-f', 'stroke-width':27}, gRoads); });
+const mainStreet = roadsSorted.filter(r => r.guide_spine);
+mainStreet.forEach(r => el('path', {d:poly(r.pts), class:'road-main-c', 'stroke-width':48}, gRoads));
+mainStreet.forEach(r => el('path', {d:poly(r.pts), class:'road-main-f', 'stroke-width':34}, gRoads));
 GEO.sando.forEach(s => el('path', {d:poly(s), class:'sando', 'stroke-width':3}, gRoads));
 
 /* 信号機 (OSM実データ11箇所 + 振興組合の位置把握FB3箇所) */
@@ -601,7 +603,6 @@ function updateSelectedMarker(){
     h.setAttribute('aria-pressed', on ? 'true' : 'false');
     if (star) star.setAttribute('transform', 'scale('+(starSize(s) * (on ? 1.18 : 1))+')');
   });
-  gLead.querySelectorAll('[data-i]').forEach(p => p.classList.toggle('selected-lead', +p.dataset.i === selectedIndex));
 }
 function setSelectedShop(s){
   selectedIndex = s ? GEO.shops.indexOf(s) : -1;
@@ -617,13 +618,13 @@ function drawShops(){
     const needLeader = Math.abs(dyL) > 15 || Math.abs(dxL) > 62;
     if (needLeader && !s.clamped){
       const tx = s.anchor==='start' ? s.lx-5 : s.lx+5;
-      el('path', {d:'M'+s.x+','+s.y+' L'+tx+','+(s.ly-5), class:'leader '+(primary?'primary':'detail'), 'data-i':idx}, gLead);
+      el('path', {d:'M'+s.x+','+s.y+' L'+tx+','+(s.ly-5), class:'leader '+(primary?'primary':'detail')}, gLead);
     }
     if (s.clamped && s.far_m > 0){
       const rad = (s.far_deg||0) * Math.PI/180;
       const ex = s.x + 30*Math.cos(rad), ey = s.y - 30*Math.sin(rad);
-      el('path', {d:'M'+s.x+','+s.y+' L'+ex+','+ey, class:'faraway '+(primary?'primary':'detail'), 'data-i':idx, 'marker-end':''}, gLead);
-      el('path', {d:'M'+ex+','+ey+' l'+(-7*Math.cos(rad-0.5))+','+(7*Math.sin(rad-0.5))+' M'+ex+','+ey+' l'+(-7*Math.cos(rad+0.5))+','+(7*Math.sin(rad+0.5)), class:'faraway '+(primary?'primary':'detail'), 'data-i':idx}, gLead);
+      el('path', {d:'M'+s.x+','+s.y+' L'+ex+','+ey, class:'faraway '+(primary?'primary':'detail'), 'marker-end':''}, gLead);
+      el('path', {d:'M'+ex+','+ey+' l'+(-7*Math.cos(rad-0.5))+','+(7*Math.sin(rad-0.5))+' M'+ex+','+ey+' l'+(-7*Math.cos(rad+0.5))+','+(7*Math.sin(rad+0.5)), class:'faraway '+(primary?'primary':'detail')}, gLead);
     }
     const hasVoices = (s.voices||[]).length > 0;
     const g = el('g', {class:'hit'+(idx===selectedIndex?' selected':''), tabindex:0, role:'button',
@@ -724,10 +725,6 @@ function applyFilter({fromSearch=false} = {}){
   });
   const status = document.getElementById('searchstatus');
   const filtering = query.length > 0 || voiceOnly || activeCats.size > 0;
-  gLead.querySelectorAll('[data-i]').forEach(p => {
-    const s = GEO.shops[+p.dataset.i];
-    p.classList.toggle('emphasis', filtering && matchesFilter(s));
-  });
   status.textContent = filtering ? (matched.length ? matched.length+'件' : '見つかりません') : '';
   status.classList.toggle('empty', filtering && matched.length === 0);
 
@@ -876,7 +873,6 @@ function applyZoom(keepCenter){
   const cx = keepCenter ? (vp.scrollLeft + vp.clientWidth/2) / wrap.offsetWidth : null;
   const cy = keepCenter ? (vp.scrollTop + vp.clientHeight/2) / wrap.offsetHeight : null;
   wrap.style.width = zoom+'%'; wrap.style.maxWidth = 'none';
-  document.body.classList.toggle('detail-labels', zoom >= 200);
   if (keepCenter){
     vp.scrollLeft = cx * wrap.offsetWidth - vp.clientWidth/2;
     vp.scrollTop  = cy * wrap.offsetHeight - vp.clientHeight/2;
