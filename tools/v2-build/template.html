@@ -10,7 +10,7 @@
 <style>
   :root{
     --paper:#FBF4E2; --paper-deep:#F1E5C8; --ink:#5C4327; --ink-soft:#7A5C3B;
-    --accent:#C97B3D;
+    --accent:#C97B3D; --voice:#26747B;
     --c-medical:#a8875f; --c-life:#4a9d3f; --c-food:#e8902f; --c-edu:#3f7ec7; --c-place:#2fa3a0;
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -22,11 +22,11 @@
   }
   header{ padding:10px 14px 6px; border-bottom:2px dashed rgba(92,67,39,.35); z-index:20; background:var(--paper); }
   header h1{
-    font-family:'Yusei Magic',sans-serif; font-size:1.2rem; letter-spacing:.05em;
+    font-family:'Yusei Magic',sans-serif; font-size:1.2rem; letter-spacing:0;
     display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
   }
   header h1 small{
-    font-size:.6rem; color:var(--ink-soft); letter-spacing:.12em;
+    font-size:.6rem; color:var(--ink-soft); letter-spacing:0;
     border:1.5px solid var(--ink-soft); border-radius:999px; padding:2px 9px; white-space:nowrap;
   }
   header p{ font-size:.75rem; color:var(--ink-soft); margin-top:3px; }
@@ -63,7 +63,8 @@
   .road-major-f{ stroke:#fdf7e7; fill:none; stroke-linecap:round; stroke-linejoin:round; }
   .road-mid-c{ stroke:#8a6a44; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.7; }
   .road-mid-f{ stroke:#faf1da; fill:none; stroke-linecap:round; stroke-linejoin:round; }
-  .road-minor{ stroke:#a98c66; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.42; }
+  .road-minor-c{ stroke:#a98c66; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.55; }
+  .road-minor-f{ stroke:#faf1da; fill:none; stroke-linecap:round; stroke-linejoin:round; }
   .sando{ stroke:#a98c66; stroke-dasharray:7 6; fill:none; opacity:.65; }
   .river{ stroke:#8fbdd2; fill:none; stroke-linecap:round; opacity:.85; }
   .water{ fill:#bcd9e6; stroke:#8fbdd2; stroke-width:2; opacity:.9; }
@@ -79,6 +80,10 @@
   .hit:focus .star, .hit:hover .star{ stroke-width:2.8; }
   .hit.dim{ opacity:.25; pointer-events:none; }
   .hit.glowing .star{ filter:drop-shadow(0 0 5px rgba(233,150,60,.95)); stroke-width:2.8; }
+  .voice-badge{ pointer-events:none; }
+  .voice-badge .bubble{ fill:#fffaf0; stroke:var(--voice); stroke-width:1.7; }
+  .voice-badge .tail{ fill:#fffaf0; stroke:var(--voice); stroke-width:1.7; stroke-linejoin:round; }
+  .voice-badge .dot{ fill:var(--voice); }
   .shoplabel{ font-family:'Yusei Magic',sans-serif; fill:var(--ink);
     paint-order:stroke; stroke:var(--paper); stroke-width:6px; stroke-linejoin:round; }
   .shoplabel.b{ font-weight:700; }
@@ -102,11 +107,21 @@
     filter:drop-shadow(0 -2px 1px rgba(80,60,30,.18)); }
   .popup.below{ transform:translate(-50%,15px); }
   .popup.show{ opacity:1; pointer-events:auto; }
-  .popup .cat{ font-size:.62rem; font-weight:700; letter-spacing:.05em; margin-bottom:2px; }
+  .popup .cat{ font-size:.62rem; font-weight:700; letter-spacing:0; margin-bottom:2px; }
   .popup h3{ font-size:.92rem; line-height:1.3; margin-bottom:4px; }
   .popup .addr{ font-size:.66rem; color:var(--ink-soft); margin-bottom:5px; }
-  .popup .voice{ font-size:.7rem; background:#f6ecd4; border-radius:9px; padding:5px 8px; margin:4px 0; line-height:1.45; }
-  .popup .voice::before{ content:"🗣 "; }
+  .popup .voice-block{ margin-top:7px; }
+  .popup .voice-block[hidden]{ display:none; }
+  .popup .voice-title{ display:flex; align-items:center; gap:7px; margin-bottom:4px; color:var(--voice);
+    font-size:.7rem; font-weight:700; }
+  .voice-title-icon, .lvoice{ position:relative; display:inline-flex; align-items:center; justify-content:center;
+    flex:0 0 auto; border:1.7px solid var(--voice); background:#fffaf0; color:var(--voice); }
+  .voice-title-icon{ width:20px; height:15px; border-radius:6px; font-size:8px; line-height:1; }
+  .voice-title-icon::after, .lvoice::after{ content:""; position:absolute; left:3px; bottom:-4px; width:6px; height:6px;
+    background:#fffaf0; border-left:1.7px solid var(--voice); border-bottom:1.7px solid var(--voice); transform:skewY(-35deg); }
+  .popup .voice{ position:relative; font-size:.7rem; background:#edf6f3; border-left:3px solid var(--voice);
+    border-radius:6px; padding:6px 8px 6px 20px; margin:4px 0; line-height:1.5; }
+  .popup .voice::before{ content:"“"; position:absolute; left:7px; top:2px; color:var(--voice); font-size:1rem; font-weight:700; }
   .popup .note{ font-size:.7rem; line-height:1.5; margin:4px 0; }
   .popup a.go{ display:inline-block; margin-top:5px; font-size:.74rem; font-weight:700; color:#fff;
     background:var(--accent); border-radius:999px; padding:5px 13px; text-decoration:none; }
@@ -125,26 +140,38 @@
   .chooser .copt:active{ background:#f3e7cc; }
   .chooser .cdot{ width:12px; height:12px; border-radius:50%; flex:0 0 auto; border:1.5px solid rgba(92,67,39,.4); }
 
-  .zoomctl{ position:fixed; right:12px; bottom:18px; z-index:25; display:flex; flex-direction:column; gap:8px; }
+  .zoomctl{ position:fixed; right:12px; bottom:62px; z-index:25; display:flex; flex-direction:column; gap:8px; }
   .zoomctl button{ width:44px; height:44px; font-size:1.25rem; font-weight:700; color:var(--ink);
     background:var(--paper); border:2px solid var(--ink-soft);
     border-radius:50% 45% 52% 48% / 48% 52% 45% 50%;
     box-shadow:2px 3px 0 rgba(92,67,39,.25); cursor:pointer; }
   .zoomctl button:active{ transform:translateY(2px); box-shadow:none; }
 
-  #editbar{ display:none; position:fixed; left:10px; bottom:14px; z-index:40; gap:8px; }
+  #editbar{ display:none; position:fixed; left:10px; bottom:62px; z-index:40; gap:8px; }
   body.edit #editbar{ display:flex; }
   body.edit #listbtn{ display:none; }
   #editbar button{ font:inherit; font-size:.72rem; font-weight:700; color:#fff; background:#b3562e;
     border:0; border-radius:999px; padding:8px 14px; cursor:pointer; box-shadow:0 3px 8px rgba(0,0,0,.25); }
   body.edit .hit{ cursor:grab; }
-  #srcinfo{ display:none; position:fixed; left:10px; bottom:64px; z-index:40; font-size:.62rem;
+  #srcinfo{ display:none; position:fixed; left:10px; bottom:112px; z-index:40; font-size:.62rem;
     background:rgba(255,250,240,.95); border:1px solid #d8c4a0; border-radius:8px; padding:6px 9px; max-width:75vw; }
   body.debug #srcinfo{ display:block; }
-  footer.credit{ padding:6px 12px 8px; font-size:.68rem; color:rgba(92,67,39,.72); background:var(--paper); }
+  footer.credit{ padding:6px 12px 8px; font-size:.68rem; color:rgba(92,67,39,.72); background:var(--paper);
+    display:flex; align-items:center; flex-wrap:wrap; gap:3px 12px; }
+  .credit .asof{ color:var(--ink); font-weight:700; }
+  .credit .sources{ font-size:.62rem; }
+  .credit .partner{ margin-left:auto; display:flex; align-items:center; gap:6px; color:var(--ink-soft); font-weight:700; }
+  .credit .partner[hidden]{ display:none; }
+  .credit .partner img{ display:block; width:auto; height:28px; max-width:150px; object-fit:contain; }
+  @media(max-width:600px){
+    .credit .partner{ margin-left:0; }
+    .zoomctl, #listbtn{ bottom:84px; }
+    #editbar{ bottom:84px; }
+    #srcinfo{ bottom:134px; }
+  }
 
   /* お店一覧パネル */
-  #listbtn{ position:fixed; left:12px; bottom:18px; z-index:26; min-height:44px;
+  #listbtn{ position:fixed; left:12px; bottom:62px; z-index:26; min-height:44px;
     font:inherit; font-size:.85rem; font-weight:700; color:var(--ink);
     background:var(--paper); border:2px solid var(--ink-soft); border-radius:999px; padding:9px 18px;
     box-shadow:2px 3px 0 rgba(92,67,39,.25); cursor:pointer; }
@@ -162,6 +189,8 @@
   .lrow:active{ background:#f3e7cc; }
   .lrow .ldot{ width:13px; height:13px; border-radius:50%; flex:0 0 auto; border:1.5px solid rgba(92,67,39,.45); }
   .lrow .lname{ font-size:.88rem; font-weight:700; }
+  .lrow .lvoice{ width:18px; height:13px; border-radius:5px; margin-left:-3px; }
+  .lrow .lvoice::before{ content:"···"; position:relative; top:-2px; font-size:8px; font-weight:700; }
   .lrow .laddr{ font-size:.68rem; color:var(--ink-soft); margin-left:auto; text-align:right; }
 </style>
 </head>
@@ -182,7 +211,11 @@
       <button class="close" id="popupClose" aria-label="閉じる">✕</button>
       <div class="cat" id="popupCat"></div><h3 id="popupName"></h3>
       <div class="addr" id="popupAddr"></div>
-      <div id="popupNote" class="note"></div><div id="popupVoices"></div>
+      <div id="popupNote" class="note"></div>
+      <div class="voice-block" id="popupVoiceBlock" hidden>
+        <div class="voice-title"><span class="voice-title-icon" aria-hidden="true">···</span><span>こどもの声</span></div>
+        <div id="popupVoices"></div>
+      </div>
       <a class="go" id="popupGo" target="_blank" rel="noopener">くわしく見る →</a>
     </div>
     <div class="chooser" id="chooser" role="dialog" aria-label="どのお店か選ぶ"></div>
@@ -201,10 +234,24 @@
 <div id="editbar"><button id="exportBtn">座標をエクスポート</button></div>
 <div id="srcinfo">debug: 緑=OSM実測 / 黄=OSM近似 / 青=住所ジオコーディング / 赤=概算</div>
 
-<footer class="credit">地図データ © OpenStreetMap contributors（ODbL）／位置参照: 国土地理院 地名検索API／店舗情報: なかやま商店街振興組合・nakayaman.com</footer>
+<footer class="credit">
+  <span class="asof" id="infoAsOf"></span>
+  <span class="sources">地図データ © OpenStreetMap contributors（ODbL）／位置参照: 国土地理院 地名検索API／店舗情報: なかやま商店街振興組合・nakayaman.com</span>
+  <span class="partner" id="partnerLogo" hidden><span>協力</span><img id="partnerLogoImage" alt=""></span>
+</footer>
 
 <script>
 const GEO = __MAPDATA_JSON__;
+document.getElementById('infoAsOf').textContent = 'このマップの情報は' + GEO.meta.info_as_of + '時点の情報です。';
+const partner = (GEO.meta.partner_logos || []).find(x => x.name === '宮城大学' && x.status === 'approved' && x.src);
+if (partner) {
+  const partnerWrap = document.getElementById('partnerLogo');
+  const partnerImage = document.getElementById('partnerLogoImage');
+  partnerImage.onload = () => { partnerWrap.hidden = false; };
+  partnerImage.onerror = () => { partnerWrap.hidden = true; };
+  partnerImage.alt = partner.alt || partner.name;
+  partnerImage.src = partner.src;
+}
 const CATS = {
   medical:{ label:'健康・美容・医療', color:'var(--c-medical)', cc:'#a8875f' },
   life:   { label:'生活・日用・企業', color:'var(--c-life)',    cc:'#4a9d3f' },
@@ -250,7 +297,8 @@ GEO.waters.forEach(w => el('path', {d:polyClosed(w.pts), class:'water'}, gWater)
 GEO.rivers.forEach(r => el('path', {d:poly(r.pts), class:'river', 'stroke-width':9}, gWater));
 
 const roadsSorted = GEO.roads;
-roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor', 'stroke-width':3.4}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-c', 'stroke-width':9}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-f', 'stroke-width':5.5}, gRoads); });
 roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-c', 'stroke-width':21}, gRoads); });
 roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-f', 'stroke-width':13.5}, gRoads); });
 roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-c', 'stroke-width':38}, gRoads); });
@@ -531,7 +579,9 @@ function drawShops(){
       el('path', {d:'M'+s.x+','+s.y+' L'+ex+','+ey, class:'faraway', 'marker-end':''}, gLead);
       el('path', {d:'M'+ex+','+ey+' l'+(-7*Math.cos(rad-0.5))+','+(7*Math.sin(rad-0.5))+' M'+ex+','+ey+' l'+(-7*Math.cos(rad+0.5))+','+(7*Math.sin(rad+0.5)), class:'faraway'}, gLead);
     }
-    const g = el('g', {class:'hit', tabindex:0, role:'button', 'data-i':idx, 'aria-label':s.name}, gShops);
+    const hasVoices = (s.voices||[]).length > 0;
+    const g = el('g', {class:'hit', tabindex:0, role:'button', 'data-i':idx,
+      'aria-label':s.name+(hasVoices?'、こどもの声あり':'')}, gShops);
     el('circle', {cx:s.x, cy:s.y, r:s.padr || 22, class:'pad'}, g);  // タップ領域 (隣の星と重ならない半径)
     if (IS_DEBUG && s.tx !== undefined){
       // スプレッド表示された星の真の位置を可視化
@@ -540,6 +590,15 @@ function drawShops(){
     }
     const st = el('use', {href:'#starShape', x:0, y:0, class:'star '+s.cat,
       transform:'translate('+s.x+','+s.y+') scale('+starSize(s)+')'}, g);
+    if (hasVoices){
+      const bx = s.anchor === 'start' ? s.x - 13 : s.x + 13;
+      const by = s.y - 13;
+      const vg = el('g', {class:'voice-badge', transform:'translate('+bx+','+by+')'}, g);
+      const vt = el('title', {}, vg); vt.textContent = 'こどもの声あり';
+      el('path', {d:'M-4,5 L-7,9 L-6,4', class:'tail'}, vg);
+      el('rect', {x:-9, y:-7, width:18, height:13, rx:4.5, class:'bubble'}, vg);
+      [-4,0,4].forEach(x => el('circle', {cx:x, cy:0, r:1.15, class:'dot'}, vg));
+    }
     if (IS_DEBUG){
       const c = {'osm:exact':'#2e9e44','osm:partial':'#d1a520','gsi_addr':'#2e6fd1','approx':'#d13030'}[s.src]||'#888';
       el('circle', {cx:s.x, cy:s.y, r:14, fill:'none', stroke:c, 'stroke-width':2, 'stroke-dasharray':'3 3'}, g);
@@ -628,8 +687,10 @@ function showPopup(s, focusClose){
   document.getElementById('popupName').textContent = s.name;
   document.getElementById('popupAddr').textContent = s.addr || '';
   document.getElementById('popupNote').textContent = s.note || '';
+  const voices = s.voices||[];
   const pv = document.getElementById('popupVoices'); pv.innerHTML = '';
-  (s.voices||[]).forEach(v => { const d = document.createElement('div'); d.className='voice'; d.textContent = v.text; pv.appendChild(d); });
+  document.getElementById('popupVoiceBlock').hidden = voices.length === 0;
+  voices.forEach(v => { const d = document.createElement('div'); d.className='voice'; d.textContent = v.text; pv.appendChild(d); });
   const go = document.getElementById('popupGo');
   if (s.url && /^https:\/\//.test(s.url)){ go.style.display='inline-block'; go.href = s.url; } else go.style.display='none';
   if (IS_DEBUG){ document.getElementById('popupAddr').textContent += '  ['+s.src+'] ('+s.lat.toFixed(6)+','+s.lng.toFixed(6)+')'; }
@@ -735,7 +796,13 @@ function renderList(memberIdx, title){
     const d = document.createElement('span'); d.className='ldot'; d.style.background = CATS[s.cat].cc;
     const nm = document.createElement('span'); nm.className='lname'; nm.textContent = s.name;
     const ad = document.createElement('span'); ad.className='laddr'; ad.textContent = (s.addr||'').replace('仙台市青葉区','').replace('仙台市泉区','泉区 ');
-    b.appendChild(d); b.appendChild(nm); b.appendChild(ad);
+    b.setAttribute('aria-label', s.name + ((s.voices||[]).length ? '、こどもの声あり' : ''));
+    b.appendChild(d); b.appendChild(nm);
+    if ((s.voices||[]).length){
+      const vi = document.createElement('span'); vi.className='lvoice'; vi.title='こどもの声あり'; vi.setAttribute('aria-hidden','true');
+      b.appendChild(vi);
+    }
+    b.appendChild(ad);
     b.addEventListener('click', () => {
       listpanel.classList.remove('show');
       // 星を画面中央へスクロールしてからポップアップ

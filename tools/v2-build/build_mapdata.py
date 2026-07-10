@@ -2,7 +2,7 @@
 """なかやま商店街マップ v2 — 実座標データセット生成 + HTML生成
 入力 (スクリプトと同じフォルダ): osm_raw2.json / oq3.json / verified_shops.json /
       shops_geo_osm.json / store_addresses_geo.json / new_shops_geo.json / template.html
-出力: mapdata.json (中間) と リポジトリ直下の v2.html
+出力: mapdata.json (中間) と リポジトリ直下の index.html / v2.html
 実行: python tools/v2-build/build_mapdata.py (どこから実行してもよい)
 """
 import json, math, os
@@ -10,13 +10,21 @@ import json, math, os
 HERE = os.path.dirname(os.path.abspath(__file__))
 def P(name):
     return os.path.join(HERE, name)
-# リポジトリ直下 (tools/v2-build/ の2つ上)。無ければスクリプト隣に出力
+# リポジトリ直下 (tools/v2-build/ の2つ上)。無ければスクリプト隣に確認用HTMLを出力
 _repo = os.path.abspath(os.path.join(HERE, '..', '..'))
-OUT_HTML = os.path.join(_repo, 'v2.html') if os.path.isdir(os.path.join(_repo, '.git')) else P('v2_index.html')
+if os.path.isdir(os.path.join(_repo, '.git')):
+    OUT_HTMLS = [os.path.join(_repo, 'index.html'), os.path.join(_repo, 'v2.html')]
+else:
+    OUT_HTMLS = [P('v2_index.html')]
 
 LAT0, LON0 = 38.2935, 140.8435
 COSF = math.cos(math.radians(LAT0))
 ROT = math.radians(46.4)  # バス通り(方位133.6°)を画面下向きにする時計回り回転
+INFO_AS_OF = '2026年6月12日'  # 振興組合支給マップの明記日 (2026-07-10受領)
+
+# 校章等の使用許可と正式画像の受領後にだけパスを設定する。
+# 空文字の間はテンプレート側の協力ロゴ欄を表示しない。
+MIYAGI_UNIVERSITY_LOGO_SRC = ''
 
 def to_m(lat, lng):
     return ((lng - LON0) * 111320 * COSF, (lat - LAT0) * 111320)
@@ -212,15 +220,28 @@ def clip_line(points):
         segs.append(cur)
     return [s for s in segs if len(s) >= 2]
 
-# residential/living_street(路地)は描かない: 視覚ノイズの主因 (紙マップも主要道路のみ・ボスFB 2026-07-04)
+# 支給マップと同じ目印になる接続路だけを残す。住宅路の全表示は視覚ノイズになるため行わない。
+# OSM way id は2026-07-10受領図の交差位置を、店舗の実測座標と照合して固定したもの。
+REFERENCE_SIDE_STREET_WAY_IDS = {
+    104236630, 998965378,                    # 北側の導入路
+    104542851, 104236575,                   # 7丁目・6丁目境
+    104236593, 104236598,                   # 中山中学校・鳥瀧不動尊側
+    103842633, 103846535,                   # 4丁目・5丁目北側
+    103842635, 103846544,                   # 4丁目・5丁目中央
+    103842207, 104236852,                   # 2丁目・5丁目南側
+    103842201, 104236843,                   # とびのこ公園・小学校側
+    103842204, 104236847,                   # 坂の登り口側
+}
 CLASS_MAP = {'primary': 'major', 'secondary': 'major', 'tertiary': 'mid',
-             'unclassified': 'mid'}
+             'unclassified': 'mid', 'residential': 'minor', 'living_street': 'minor'}
 BUS_NAMES = ('中山幹線１号線', '中山幹線２号線', '中山幹線1号線', '中山幹線2号線')
 roads = []
 for e in raw['elements']:
     t = e.get('tags', {})
     hw = t.get('highway')
     if e['type'] != 'way' or 'geometry' not in e or hw not in CLASS_MAP:
+        continue
+    if CLASS_MAP[hw] == 'minor' and e.get('id') not in REFERENCE_SIDE_STREET_WAY_IDS:
         continue
     cls = CLASS_MAP[hw]
     if t.get('name', '') in BUS_NAMES:
@@ -370,13 +391,20 @@ def edge_exit(road_name, pick):
 W, H = round(maxx - minx), round(maxy - miny)
 exits = []
 p = edge_exit('中山幹線２号線', lambda c: min(c, key=lambda q: q[1]))
-if p: exits.append({'x': p[0], 'y': max(p[1], -60), 'text': '↑ 至 南中山・泉中央', 'anchor': 'middle'})
+if p: exits.append({'x': p[0], 'y': max(p[1], -60), 'text': '↑ 至 南中山', 'anchor': 'middle'})
+p = edge_exit('荒巻泉線', lambda c: min(c, key=lambda q: q[1]))
+if p: exits.append({'x': min(max(p[0], W + 70), W + 100), 'y': p[1] - 12,
+                    'text': '至 泉中央 →', 'anchor': 'end'})
 p = edge_exit('通町中山線', lambda c: max(c, key=lambda q: q[1]))
-if p: exits.append({'x': p[0], 'y': min(p[1] + 28, H + 95), 'text': '↓ 至 北山', 'anchor': 'middle'})
-p = edge_exit('貝ケ森中山幹線', lambda c: min(c, key=lambda q: q[0]))
-if p: exits.append({'x': max(p[0], -70), 'y': p[1] - 12, 'text': '← 至 貝ヶ森', 'anchor': 'start'})
+if p: exits.append({'x': p[0], 'y': min(p[1] + 28, H + 95), 'text': '↓ 至 北仙台', 'anchor': 'middle'})
 meta = {'W': W, 'H': H, 'proj': unproject_expr(), 'minx': round(minx, 2), 'miny': round(miny, 2),
-        'scale_m_per_px': 1.0}
+        'scale_m_per_px': 1.0, 'info_as_of': INFO_AS_OF,
+        'partner_logos': [{
+            'name': '宮城大学',
+            'src': MIYAGI_UNIVERSITY_LOGO_SRC,
+            'alt': '宮城大学',
+            'status': 'approved' if MIYAGI_UNIVERSITY_LOGO_SRC else 'permission_pending',
+        }]}
 
 # ---------------- 密集部の星間隔スプレッド ----------------
 # 位置関係(並び順・通りの側)は不変のまま、通り沿い方向に最小26px間隔を確保する。
@@ -440,7 +468,7 @@ for sh in shops:
 
 # 全道路クリアランス: 路面店の星が「どの道路とも」被らない位置へ押し出す
 # (OSM座標は店頭=道路縁に載りがち・ボスFB 2026-07-04)
-ROAD_HALF = {'major': 19.0, 'mid': 10.5}
+ROAD_HALF = {'major': 19.0, 'mid': 10.5, 'minor': 4.5}
 CLEAR_NEED = 14.0  # 星半径10 + 余白4
 
 def _clear_roads_once():
@@ -553,9 +581,11 @@ with open(P('template.html'), encoding='utf-8') as f:
     tpl = f.read()
 with open(P('mapdata.json'), encoding='utf-8') as f:
     blob = f.read().replace('</', '<\\/')
-with open(OUT_HTML, 'w', encoding='utf-8') as f:
-    f.write(tpl.replace('__MAPDATA_JSON__', blob))
-print('HTML generated (escaped):', OUT_HTML)
+rendered = tpl.replace('__MAPDATA_JSON__', blob)
+for out_html in OUT_HTMLS:
+    with open(out_html, 'w', encoding='utf-8') as f:
+        f.write(rendered)
+    print('HTML generated (escaped):', out_html)
 
 print('shops:', len(shops), ' roads:', len(roads), ' rivers:', len(rivers),
       ' parks:', len(parks), ' waters:', len(waters), ' sando:', len(sando))
