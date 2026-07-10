@@ -10,7 +10,6 @@
 |---|---|
 | `index.html` | GitHub Pagesの本番入口 |
 | `v2.html` | 既存共有URLとの互換用。本番入口と同じ生成物 |
-| `walk.html` | 既存の中山地域360°ツアーを埋め込むバーチャル散歩ページ |
 | `tools/v2-build/template.html` | HTML/CSS/JavaScriptの編集元 |
 | `tools/v2-build/build_mapdata.py` | 位置データとHTMLの生成スクリプト |
 | `tools/v2-build/mapdata.json` | 生成された中間データ |
@@ -38,7 +37,5 @@ python tools/v2-build/build_mapdata.py
 - `?edit=1`: 店舗位置のドラッグ調整と座標JSONの書き出し
 
 宮城大学ロゴは使用許可と正式画像の受領後に、`MIYAGI_UNIVERSITY_LOGO_SRC`へ配置パスを設定して表示します。許可待ちの間は画面に表示しません。
-
-`walk.html`は、`nakayaman.com`で公開中のTourmakeツアー `https://tourmake.it/nakayaman` を埋め込みます。外部ツアーが表示できない場合に備え、同URLを全画面で開く導線も常時表示します。
 
 詳細な出典と要確認事項は`handoff/v2_data_provenance.md`を参照してください。

@@ -21,7 +21,6 @@
     display:flex; flex-direction:column; overflow:hidden;
   }
   header{ padding:10px 14px 6px; border-bottom:2px dashed rgba(92,67,39,.35); z-index:20; background:var(--paper); }
-  .header-row{ display:flex; align-items:center; justify-content:space-between; gap:14px; }
   header h1{
     font-family:'Yusei Magic',sans-serif; font-size:1.2rem; letter-spacing:0;
     display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
@@ -31,12 +30,7 @@
     border:1.5px solid var(--ink-soft); border-radius:999px; padding:2px 9px; white-space:nowrap;
   }
   header p{ font-size:.75rem; color:var(--ink-soft); margin-top:3px; }
-  .view-switch{ display:inline-flex; align-items:center; flex:0 0 auto; padding:3px; border:1.5px solid rgba(122,92,59,.42);
-    border-radius:999px; background:#fffaf0; }
-  .view-switch a{ display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:6px 11px;
-    border-radius:999px; color:var(--ink-soft); font-size:.72rem; font-weight:700; text-decoration:none; white-space:nowrap; }
-  .view-switch a[aria-current="page"]{ background:var(--ink); color:#fffaf0; }
-  .view-switch a:focus-visible, .chip:focus-visible, .searchbar input:focus-visible{
+  .chip:focus-visible, .searchbar input:focus-visible{
     outline:3px solid rgba(201,123,61,.45); outline-offset:2px; }
 
   .filters{ display:flex; flex-wrap:wrap; gap:8px; padding:8px 12px 5px; background:var(--paper); z-index:20; }
@@ -53,6 +47,10 @@
   .chip.c-life{ color:var(--c-life); }
   .chip.c-food{ color:var(--c-food); } .chip.c-edu{ color:var(--c-edu); } .chip.c-place{ color:var(--c-place); }
   .chip.voice-filter{ color:var(--voice); }
+  .chip.voice-filter[aria-pressed="true"]{ background:var(--voice); color:#fff; box-shadow:inset 0 0 0 1.5px var(--voice); }
+  .chip.voice-filter[aria-pressed="true"] .lbl{ color:#fff; }
+  .chip.voice-filter[aria-pressed="true"] .voice-chip-icon,
+  .chip.voice-filter[aria-pressed="true"] .voice-chip-icon::after{ background:var(--voice); border-color:#fff; }
   .voice-chip-icon{ position:relative; width:18px; height:13px; flex:0 0 auto; border:1.7px solid currentColor;
     border-radius:5px; background:#fffaf0; }
   .voice-chip-icon::before{ content:"···"; position:absolute; inset:-3px 0 0; text-align:center; font-size:8px; font-weight:700; }
@@ -72,12 +70,9 @@
     .filters{ flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:none; padding-bottom:7px; }
     .filters::-webkit-scrollbar{ display:none; }
     .chip{ flex:0 0 auto; min-height:44px; padding:8px 12px; }
-    .view-switch a{ min-height:44px; padding:6px 10px; }
   }
   @media(max-width:480px){
     header h1 small{ display:none; }
-    .header-row{ gap:8px; }
-    .view-switch a{ padding-inline:8px; font-size:.68rem; }
   }
 
   #viewport{ flex:1; overflow:auto; position:relative; background:var(--paper); -webkit-overflow-scrolling:touch; }
@@ -135,13 +130,10 @@
 
   .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
     clip:rect(0,0,0,0); white-space:nowrap; border:0; }
-  .detail-backdrop{ position:fixed; inset:0; z-index:36; background:rgba(60,43,25,.1);
-    opacity:0; visibility:hidden; transition:opacity .24s ease, visibility .24s ease; }
   .detail-panel{ position:fixed; inset:0 0 0 auto; z-index:37; width:min(400px,calc(100vw - 24px)); height:100dvh;
     display:flex; flex-direction:column; overflow:hidden; background:#fffaf0; border-left:3px solid #d8c4a0;
     box-shadow:-18px 0 42px rgba(80,60,30,.28); transform:translateX(104%);
     transition:transform .28s cubic-bezier(.22,.78,.28,1); }
-  body.detail-open .detail-backdrop{ opacity:1; visibility:visible; }
   body.detail-open .detail-panel{ transform:translateX(0); }
   .detail-handle{ display:none; }
   .detail-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 16px 8px;
@@ -172,6 +164,8 @@
   button.detail-status{ min-height:44px; padding:7px 12px; border:2px solid rgba(38,116,123,.35); cursor:pointer; }
   .detail-status.voice{ background:#e4f2ef; color:var(--voice); }
   button.detail-status.voice::after{ content:' ↓'; margin-left:5px; }
+  button.detail-status.voice[aria-expanded="true"]{ background:var(--voice); border-color:var(--voice); color:#fff; }
+  button.detail-status.voice[aria-expanded="true"]::after{ content:' ↑'; }
   button.detail-status:focus-visible{ outline:3px solid rgba(38,116,123,.28); outline-offset:2px; }
   .detail-note{ margin-top:18px; padding:14px 15px; border-radius:14px; background:var(--paper);
     border:1.5px solid rgba(122,92,59,.24); font-size:.88rem; line-height:1.75; }
@@ -262,7 +256,6 @@
   .lrow .lvoice::before{ content:"···"; position:relative; top:-2px; font-size:8px; font-weight:700; }
   .lrow .laddr{ grid-column:2 / 4; font-size:.7rem; line-height:1.4; color:var(--ink-soft); text-align:left; }
   @media(max-width:759px){
-    .detail-backdrop{ background:rgba(60,43,25,.22); }
     .detail-panel{ inset:auto 0 0; width:100%; height:min(52dvh,520px); min-height:min(330px,calc(100dvh - 120px));
       border:3px solid #d8c4a0; border-bottom:0;
       border-radius:22px 22px 0 0; box-shadow:0 -18px 42px rgba(80,60,30,.28); transform:translateY(104%); }
@@ -284,7 +277,7 @@
     body.detail-open .zoomctl, body.detail-open #listbtn{ opacity:0; pointer-events:none; }
   }
   @media(prefers-reduced-motion:reduce){
-    .detail-backdrop, .detail-panel{ transition:none; }
+    .detail-panel{ transition:none; }
     .detail-rail{ scroll-behavior:auto; }
   }
 </style>
@@ -292,13 +285,7 @@
 <body>
 
 <header>
-  <div class="header-row">
-    <h1>なかやま商店街マップ <small>実測デジタル版</small></h1>
-    <nav class="view-switch" aria-label="表示を切り替える">
-      <a href="./" aria-current="page">地図</a>
-      <a href="walk.html">360°散歩</a>
-    </nav>
-  </div>
+  <h1>なかやま商店街マップ <small>実測デジタル版</small></h1>
   <p>道路も星印も実際の位置準拠（OpenStreetMap・国土地理院データ）。星をタップすると画面内でお店の詳細を確認でき、左右スライドで次のお店へ移れます。※密集部の星は見やすさのため通り沿いに間隔を少し広げています</p>
 </header>
 
@@ -321,7 +308,6 @@
   <div class="lhead"><h2 id="listtitle">お店一覧</h2><button class="lclose" id="listclose" aria-label="閉じる">✕</button></div>
   <div id="listrows"></div>
 </div>
-<div class="detail-backdrop" id="detailBackdrop" aria-hidden="true"></div>
 <aside class="detail-panel" id="detailPanel" role="dialog" aria-modal="false" aria-labelledby="detailTitle" aria-hidden="true" inert>
   <span class="detail-handle" aria-hidden="true"></span>
   <div class="detail-head">
@@ -702,7 +688,7 @@ function drawShops(){
     const primary = isPrimaryLabel(s);
     // 引き出し線
     const dxL = s.lx - s.x, dyL = s.ly - s.y;
-    const needLeader = Math.abs(dyL) > 15 || Math.abs(dxL) > 62;
+    const needLeader = Math.abs(dyL) > 10 || Math.abs(dxL) > 30;
     if (needLeader && !s.clamped){
       const tx = s.anchor==='start' ? s.lx-5 : s.lx+5;
       el('path', {d:'M'+s.x+','+s.y+' L'+tx+','+(s.ly-5), class:'leader '+(primary?'primary':'detail')}, gLead);
@@ -728,7 +714,7 @@ function drawShops(){
     const st = el('use', {href:'#starShape', x:0, y:0, class:'star '+s.cat,
       transform:'scale('+(starSize(s) * (idx===selectedIndex?1.18:1))+')'}, marker);
     if (hasVoices){
-      const bx = s.anchor === 'start' ? s.x - 13 : s.x + 13;
+      const bx = s.x + 13;
       const by = s.y - 13;
       const vg = el('g', {class:'voice-badge', transform:'translate('+bx+','+by+')'}, g);
       const vt = el('title', {}, vg); vt.textContent = 'こどもの声あり';
@@ -774,8 +760,10 @@ Object.keys(CATS).forEach(k => {
 });
 const voiceFilter = document.createElement('button');
 voiceFilter.className = 'chip voice-filter'; voiceFilter.setAttribute('aria-pressed','false');
+voiceFilter.type = 'button';
 const voiceIcon = document.createElement('span'); voiceIcon.className = 'voice-chip-icon'; voiceIcon.setAttribute('aria-hidden','true');
-const voiceLabel = document.createElement('span'); voiceLabel.className = 'lbl'; voiceLabel.textContent = 'こどもの声';
+const voiceCount = GEO.shops.filter(s => (s.voices||[]).length > 0).length;
+const voiceLabel = document.createElement('span'); voiceLabel.className = 'lbl'; voiceLabel.textContent = 'こどもの声（'+voiceCount+'店）';
 voiceFilter.appendChild(voiceIcon); voiceFilter.appendChild(voiceLabel);
 voiceFilter.addEventListener('click', () => {
   voiceOnly = !voiceOnly;
@@ -844,7 +832,6 @@ const mapwrap = document.getElementById('mapwrap');
 const viewport = document.getElementById('viewport');
 const detailPanel = document.getElementById('detailPanel');
 const detailRail = document.getElementById('detailRail');
-const detailBackdrop = document.getElementById('detailBackdrop');
 const detailPrev = document.getElementById('detailPrev');
 const detailNext = document.getElementById('detailNext');
 const detailCount = document.getElementById('detailCount');
@@ -905,12 +892,20 @@ function buildDetailCard(s){
     const voiceButton = detailText('button', 'detail-status voice', 'こどもの声 ' + voices.length + '件を見る');
     voiceButton.type = 'button';
     voiceButton.setAttribute('aria-label', s.name + 'のこどもの声' + voices.length + '件を見る');
+    voiceButton.setAttribute('aria-expanded', 'false');
     voiceButton.addEventListener('click', () => {
       const block = card.querySelector('.detail-voice-block');
       if (!block) return;
+      const expanded = voiceButton.getAttribute('aria-expanded') !== 'true';
+      voiceButton.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      voiceButton.textContent = expanded ? 'こどもの声を閉じる' : 'こどもの声 ' + voices.length + '件を見る';
+      block.hidden = !expanded;
+      if (!expanded) return;
       const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      block.scrollIntoView({behavior:reduceMotion ? 'auto' : 'smooth', block:'start'});
-      block.focus({preventScroll:true});
+      requestAnimationFrame(() => {
+        block.scrollIntoView({behavior:reduceMotion ? 'auto' : 'smooth', block:'start'});
+        block.focus({preventScroll:true});
+      });
     });
     statuses.appendChild(voiceButton);
   }
@@ -922,6 +917,7 @@ function buildDetailCard(s){
   if (voices.length){
     const block = detailText('section', 'detail-voice-block');
     block.tabIndex = -1;
+    block.hidden = true;
     const title = detailText('h3', 'detail-voice-title');
     title.appendChild(detailText('span', 'voice-title-icon', '···'));
     title.appendChild(detailText('span', '', 'こどもの声'));
@@ -968,7 +964,6 @@ function showDetail(s, focusClose){
   document.body.classList.add('detail-open');
   detailPanel.inert = false;
   detailPanel.setAttribute('aria-hidden', 'false');
-  detailBackdrop.setAttribute('aria-hidden', 'false');
   updateDetailIndex(detailIndex, false);
   requestAnimationFrame(() => detailRail.scrollTo({left: detailIndex * detailRail.clientWidth, behavior:'auto'}));
   if (focusClose) document.getElementById('detailClose').focus();
@@ -978,7 +973,6 @@ function hideDetail(restoreFocus){
   document.body.classList.remove('detail-open');
   detailPanel.inert = true;
   detailPanel.setAttribute('aria-hidden', 'true');
-  detailBackdrop.setAttribute('aria-hidden', 'true');
   if (restoreFocus && wasOpen && lastFocusHit){ try{ lastFocusHit.focus(); }catch(e){} }
   pinned = null;
   detailIndex = -1;
@@ -1020,7 +1014,6 @@ gShops.addEventListener('keydown', e => {
   pinned = GEO.shops[+h.dataset.i]; showDetail(pinned, true);
 });
 document.getElementById('detailClose').addEventListener('click', e => { e.stopPropagation(); hideDetail(true); });
-detailBackdrop.addEventListener('click', () => hideDetail(true));
 detailPanel.addEventListener('click', e => e.stopPropagation());
 detailPrev.addEventListener('click', () => moveDetailTo(detailIndex - 1, true));
 detailNext.addEventListener('click', () => moveDetailTo(detailIndex + 1, true));

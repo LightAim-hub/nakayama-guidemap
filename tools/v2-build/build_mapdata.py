@@ -433,7 +433,7 @@ def _busx(y):
             return lo[0] + t * (hi[0] - lo[0])
     return _bus_shifted[-1][0]
 
-MINGAP_STAR = 40  # 密集店舗の余白 (ボスFB段階拡大: 26→33→40)
+MINGAP_STAR = 24  # 並び順を守るための最小補助間隔。最終表示ずれは下で上限固定する
 # 帯幅160px: 通り近傍の店(ドライブスクール等)も同じ順序保存スプレッドに含め、
 # 列だけ動いて近傍店と表示順が逆転する事故を防ぐ
 for _side in (-1, 1):
@@ -520,6 +520,18 @@ for _it in range(4):
     if _clear_roads_once() == 0:
         break
 
+# 密集解消と道路回避で星だけが実位置から大きく離れると、店名との対応と地理の信頼性を損なう。
+# 真位置(tx/ty)からの表示移動を最大32m相当に制限し、残る密集はタップ時の店舗選択UIで解く。
+MAX_DISPLAY_SHIFT = 32.0
+for sh in shops:
+    if 'tx' not in sh:
+        continue
+    dx, dy = sh['x'] - sh['tx'], sh['y'] - sh['ty']
+    dist = math.hypot(dx, dy)
+    if dist > MAX_DISPLAY_SHIFT:
+        sh['x'] = round(sh['tx'] + dx / dist * MAX_DISPLAY_SHIFT, 1)
+        sh['y'] = round(sh['ty'] + dy / dist * MAX_DISPLAY_SHIFT, 1)
+
 # タップ領域は隣の星と重ならない半径に (最小12・最大22)
 for sh in shops:
     nn = min((math.hypot(sh['x'] - o['x'], sh['y'] - o['y'])
@@ -554,11 +566,13 @@ _signal_landmarks = [
 ]
 for _name, _mode in _signal_landmarks:
     _shop = next(s for s in shops if s['name'] == _name)
+    _shop_x = _shop.get('tx', _shop['x'])
+    _shop_y = _shop.get('ty', _shop['y'])
     if _mode == 'below':
         # 支給図で施設直下にある交差路へ合わせる。
-        _sx, _sy = _shop['x'] + 6, _shop['y'] + 57
+        _sx, _sy = _shop_x + 6, _shop_y + 57
     else:
-        _sx, _sy = _busx(_shop['y']), _shop['y']
+        _sx, _sy = _busx(_shop_y), _shop_y
     if all(math.hypot(_sx - gx, _sy - gy) >= 30 for gx, gy in signals):
         signals.append([round(_sx, 1), round(_sy, 1)])
 print('signals:', len(signals))
