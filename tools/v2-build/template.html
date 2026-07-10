@@ -21,6 +21,7 @@
     display:flex; flex-direction:column; overflow:hidden;
   }
   header{ padding:10px 14px 6px; border-bottom:2px dashed rgba(92,67,39,.35); z-index:20; background:var(--paper); }
+  .header-row{ display:flex; align-items:center; justify-content:space-between; gap:14px; }
   header h1{
     font-family:'Yusei Magic',sans-serif; font-size:1.2rem; letter-spacing:0;
     display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
@@ -30,12 +31,19 @@
     border:1.5px solid var(--ink-soft); border-radius:999px; padding:2px 9px; white-space:nowrap;
   }
   header p{ font-size:.75rem; color:var(--ink-soft); margin-top:3px; }
+  .view-switch{ display:inline-flex; align-items:center; flex:0 0 auto; padding:3px; border:1.5px solid rgba(122,92,59,.42);
+    border-radius:999px; background:#fffaf0; }
+  .view-switch a{ display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:6px 11px;
+    border-radius:999px; color:var(--ink-soft); font-size:.72rem; font-weight:700; text-decoration:none; white-space:nowrap; }
+  .view-switch a[aria-current="page"]{ background:var(--ink); color:#fffaf0; }
+  .view-switch a:focus-visible, .chip:focus-visible, .searchbar input:focus-visible{
+    outline:3px solid rgba(201,123,61,.45); outline-offset:2px; }
 
-  .filters{ display:flex; flex-wrap:wrap; gap:6px; padding:8px 12px 4px; background:var(--paper); z-index:20; }
+  .filters{ display:flex; flex-wrap:wrap; gap:8px; padding:8px 12px 5px; background:var(--paper); z-index:20; }
   .chip{ border:2px solid currentColor; background:#fffaf0; color:var(--ink);
     border-radius:999px; padding:6px 12px; font-size:.78rem; font-weight:700; cursor:pointer;
     display:inline-flex; align-items:center; gap:6px; user-select:none; transition:transform .08s, background .15s;
-    min-height:36px; }
+    min-height:40px; }
   .chip:active{ transform:scale(.94); }
   .chip .lbl{ color:var(--ink); }
   .chip .dot{ width:12px; height:12px; border-radius:50%; background:currentColor; border:1.5px solid rgba(92,67,39,.45); flex:0 0 auto; }
@@ -53,7 +61,7 @@
   .searchbar{ padding:0 12px 6px; background:var(--paper); z-index:20; display:flex; gap:6px; align-items:center; }
   .searchbar input{
     flex:1; min-width:0; max-width:340px; font:inherit; font-size:16px; color:var(--ink);
-    padding:6px 14px; border:2px solid rgba(122,92,59,.5); border-radius:999px; background:#fffaf0; outline:none;
+    min-height:44px; padding:8px 14px; border:2px solid rgba(122,92,59,.5); border-radius:999px; background:#fffaf0; outline:none;
   }
   .searchbar input:focus{ border-color:var(--accent); }
   #searchstatus{ min-width:5.5em; font-size:.78rem; font-weight:700; color:var(--voice); white-space:nowrap; }
@@ -63,7 +71,13 @@
     header p{ display:none; }
     .filters{ flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:none; padding-bottom:7px; }
     .filters::-webkit-scrollbar{ display:none; }
-    .chip{ flex:0 0 auto; }
+    .chip{ flex:0 0 auto; min-height:44px; padding:8px 12px; }
+    .view-switch a{ min-height:44px; padding:6px 10px; }
+  }
+  @media(max-width:480px){
+    header h1 small{ display:none; }
+    .header-row{ gap:8px; }
+    .view-switch a{ padding-inline:8px; font-size:.68rem; }
   }
 
   #viewport{ flex:1; overflow:auto; position:relative; background:var(--paper); -webkit-overflow-scrolling:touch; }
@@ -96,15 +110,16 @@
   .hit.dim{ opacity:.25; pointer-events:none; }
   .hit.glowing .star{ filter:drop-shadow(0 0 5px rgba(233,150,60,.95)); stroke-width:2.8; }
   .selected-ring{ fill:#fffaf0; fill-opacity:.8; stroke:var(--accent); stroke-width:3; opacity:0; }
-  .hit.selected .selected-ring{ opacity:1; }
+  .hit.selected .selected-ring, .hit:focus-visible .selected-ring{ opacity:1; }
   .voice-badge{ pointer-events:none; }
   .voice-badge .bubble{ fill:#fffaf0; stroke:var(--voice); stroke-width:1.7; }
   .voice-badge .tail{ fill:#fffaf0; stroke:var(--voice); stroke-width:1.7; stroke-linejoin:round; }
   .voice-badge .dot{ fill:var(--voice); }
-  .shoplabel{ font-family:'Yusei Magic',sans-serif; fill:var(--ink);
-    paint-order:stroke; stroke:var(--paper); stroke-width:6px; stroke-linejoin:round; }
+  .shoplabel{ font-family:'Yusei Magic',sans-serif; fill:var(--ink); font-weight:700;
+    paint-order:stroke; stroke:var(--paper); stroke-width:7px; stroke-linejoin:round; }
   .shoplabel.b{ font-weight:700; }
   .shoplabel.detail{ opacity:1; }
+  .hit.selected .shoplabel{ fill:#9a4f28; stroke:#fffaf0; stroke-width:9px; }
   .leader{ stroke:rgba(122,92,59,.55); stroke-width:1.1; fill:none; }
   .leader.detail, .faraway.detail{ opacity:1; }
   .roadname{ font-family:'Yusei Magic',sans-serif; fill:var(--ink-soft); opacity:.75;
@@ -152,13 +167,16 @@
     font-size:.82rem; line-height:1.55; }
   .detail-address::before{ content:'⌖'; flex:0 0 auto; color:var(--accent); font-weight:700; }
   .detail-statuses{ display:flex; flex-wrap:wrap; gap:7px; margin-top:14px; }
-  .detail-status{ display:inline-flex; align-items:center; min-height:30px; padding:5px 9px; border-radius:999px;
-    background:var(--paper-deep); color:var(--ink-soft); font-size:.7rem; font-weight:700; }
+  .detail-status{ display:inline-flex; align-items:center; min-height:30px; padding:5px 9px; border:0; border-radius:999px;
+    background:var(--paper-deep); color:var(--ink-soft); font:inherit; font-size:.7rem; font-weight:700; }
+  button.detail-status{ min-height:44px; padding:7px 12px; border:2px solid rgba(38,116,123,.35); cursor:pointer; }
   .detail-status.voice{ background:#e4f2ef; color:var(--voice); }
+  button.detail-status.voice::after{ content:' ↓'; margin-left:5px; }
+  button.detail-status:focus-visible{ outline:3px solid rgba(38,116,123,.28); outline-offset:2px; }
   .detail-note{ margin-top:18px; padding:14px 15px; border-radius:14px; background:var(--paper);
     border:1.5px solid rgba(122,92,59,.24); font-size:.88rem; line-height:1.75; }
   .detail-empty{ margin-top:18px; color:var(--ink-soft); font-size:.8rem; line-height:1.65; }
-  .detail-voice-block{ margin-top:20px; }
+  .detail-voice-block{ margin-top:20px; scroll-margin-top:10px; outline:none; }
   .detail-voice-title{ display:flex; align-items:center; gap:8px; margin-bottom:9px; color:var(--voice);
     font-size:.8rem; font-weight:700; }
   .voice-title-icon, .lvoice{ position:relative; display:inline-flex; align-items:center; justify-content:center;
@@ -234,14 +252,15 @@
   #listpanel .lhead h2{ font-size:.95rem; font-family:'Yusei Magic',sans-serif; }
   #listpanel .lclose{ width:44px; height:44px; border:0; background:transparent; font-size:1.1rem; color:var(--ink-soft); cursor:pointer; }
   #listrows{ overflow:auto; -webkit-overflow-scrolling:touch; padding:0 8px 14px; }
-  .lrow{ display:flex; align-items:center; gap:10px; width:100%; min-height:48px; border:0; border-bottom:1.5px dashed rgba(122,92,59,.25);
-    background:transparent; padding:6px 10px; font:inherit; color:var(--ink); cursor:pointer; text-align:left; }
+  .lrow{ display:grid; grid-template-columns:14px minmax(0,1fr) auto; align-items:center; gap:4px 10px; width:100%; min-height:60px;
+    border:0; border-bottom:1.5px dashed rgba(122,92,59,.25); background:transparent; padding:9px 10px;
+    font:inherit; color:var(--ink); cursor:pointer; text-align:left; }
   .lrow:active{ background:#f3e7cc; }
   .lrow .ldot{ width:13px; height:13px; border-radius:50%; flex:0 0 auto; border:1.5px solid rgba(92,67,39,.45); }
-  .lrow .lname{ font-size:.88rem; font-weight:700; }
-  .lrow .lvoice{ width:18px; height:13px; border-radius:5px; margin-left:-3px; }
+  .lrow .lname{ min-width:0; font-size:.9rem; font-weight:700; line-height:1.35; }
+  .lrow .lvoice{ grid-column:3; grid-row:1; width:18px; height:13px; border-radius:5px; }
   .lrow .lvoice::before{ content:"···"; position:relative; top:-2px; font-size:8px; font-weight:700; }
-  .lrow .laddr{ font-size:.68rem; color:var(--ink-soft); margin-left:auto; text-align:right; }
+  .lrow .laddr{ grid-column:2 / 4; font-size:.7rem; line-height:1.4; color:var(--ink-soft); text-align:left; }
   @media(max-width:759px){
     .detail-backdrop{ background:rgba(60,43,25,.22); }
     .detail-panel{ inset:auto 0 0; width:100%; height:min(52dvh,520px); min-height:min(330px,calc(100dvh - 120px));
@@ -255,7 +274,8 @@
     .detail-card h2{ font-size:1.18rem; margin-top:9px; }
     .detail-address{ margin-top:7px; font-size:.76rem; }
     .detail-statuses{ margin-top:9px; }
-    .detail-status{ min-height:28px; padding:4px 8px; font-size:.66rem; }
+    .detail-status{ min-height:30px; padding:5px 9px; font-size:.68rem; }
+    button.detail-status{ min-height:44px; }
     .detail-note{ margin-top:12px; padding:10px 12px; font-size:.8rem; line-height:1.65; }
     .detail-voice-block{ margin-top:14px; }
     .detail-voice{ padding:8px 10px 8px 26px; font-size:.76rem; }
@@ -272,7 +292,13 @@
 <body>
 
 <header>
-  <h1>なかやま商店街マップ <small>実測デジタル版</small></h1>
+  <div class="header-row">
+    <h1>なかやま商店街マップ <small>実測デジタル版</small></h1>
+    <nav class="view-switch" aria-label="表示を切り替える">
+      <a href="./" aria-current="page">地図</a>
+      <a href="walk.html">360°散歩</a>
+    </nav>
+  </div>
   <p>道路も星印も実際の位置準拠（OpenStreetMap・国土地理院データ）。星をタップすると画面内でお店の詳細を確認でき、左右スライドで次のお店へ移れます。※密集部の星は見やすさのため通り沿いに間隔を少し広げています</p>
 </header>
 
@@ -875,7 +901,19 @@ function buildDetailCard(s){
   }
   const statuses = detailText('div', 'detail-statuses');
   const voices = s.voices || [];
-  if (voices.length) statuses.appendChild(detailText('span', 'detail-status voice', 'こどもの声 ' + voices.length + '件'));
+  if (voices.length){
+    const voiceButton = detailText('button', 'detail-status voice', 'こどもの声 ' + voices.length + '件を見る');
+    voiceButton.type = 'button';
+    voiceButton.setAttribute('aria-label', s.name + 'のこどもの声' + voices.length + '件を見る');
+    voiceButton.addEventListener('click', () => {
+      const block = card.querySelector('.detail-voice-block');
+      if (!block) return;
+      const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      block.scrollIntoView({behavior:reduceMotion ? 'auto' : 'smooth', block:'start'});
+      block.focus({preventScroll:true});
+    });
+    statuses.appendChild(voiceButton);
+  }
   if (s.note) statuses.appendChild(detailText('span', 'detail-status', '紹介あり'));
   if (s.url && /^https:\/\//.test(s.url)) statuses.appendChild(detailText('span', 'detail-status', '公式ページあり'));
   if (statuses.children.length) card.appendChild(statuses);
@@ -883,7 +921,8 @@ function buildDetailCard(s){
 
   if (voices.length){
     const block = detailText('section', 'detail-voice-block');
-    const title = detailText('div', 'detail-voice-title');
+    block.tabIndex = -1;
+    const title = detailText('h3', 'detail-voice-title');
     title.appendChild(detailText('span', 'voice-title-icon', '···'));
     title.appendChild(detailText('span', '', 'こどもの声'));
     block.appendChild(title);
