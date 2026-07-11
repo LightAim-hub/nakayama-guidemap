@@ -335,16 +335,17 @@ de4['lng'] = LON0 + _x0 / (111320 * COSF)
 de4['lat'] = LAT0 + (-_y0) / 111320
 de4['src'] = 'approx'
 
-# ラベル配置の個別ヒント (テンプレ側で解釈)
+# ラベルを星の右/左どちらに置くかだけを指定する。上下・斜めオフセットは禁止。
 SHOP_HINTS = {
-    '東北電力研究開発センター': {'anchor': 'middle', 'dy': 27},
-    'ヨークベニマル 仙台中山店': {'anchor': 'end', 'dx': -15},
-    '商店街モニュメント': {'anchor': 'end', 'dx': -30, 'dy': -4},  # 右端が横断道路帯に触れるため左へ
-    'みなみ歯科クリニック': {'anchor': 'end', 'dx': -15, 'dy': 0},  # 右側は上下2本の道路に挟まれ幅不足
-    'カーブス アクロスガーデン中山': {'anchor': 'start', 'dx': 15, 'dy': 12},  # 道路間の空きレーンへ
-    '認定こども園 TOBINOKO': {'anchor': 'end', 'dx': -15, 'dy': 18},  # 右側はNOBU列と衝突するため左に出す
-    '多夢多夢舎中山工房': {'anchor': 'end', 'dx': -15, 'dy': 10},
-    '中山ドライブスクール': {'anchor': 'start', 'dx': 15, 'dy': -14},
+    '東北電力研究開発センター': {'anchor': 'end'},
+    'ヨークベニマル 仙台中山店': {'anchor': 'end'},
+    '商店街モニュメント': {'anchor': 'end'},
+    'みなみ歯科クリニック': {'anchor': 'start'},
+    'カーブス アクロスガーデン中山': {'anchor': 'start'},
+    '認定こども園 TOBINOKO': {'anchor': 'end'},
+    '多夢多夢舎中山工房': {'anchor': 'end'},
+    '中山ドライブスクール': {'anchor': 'end'},
+    'サトー商会': {'anchor': 'start'},
 }
 for sh in shops:
     if sh['name'] in SHOP_HINTS:
@@ -433,7 +434,7 @@ def _busx(y):
             return lo[0] + t * (hi[0] - lo[0])
     return _bus_shifted[-1][0]
 
-MINGAP_STAR = 40  # 密集店舗の余白 (ボスFB段階拡大: 26→33→40)
+MINGAP_STAR = 40  # 店名を星の真横へ置いても上下で重ならない表示間隔
 # 帯幅160px: 通り近傍の店(ドライブスクール等)も同じ順序保存スプレッドに含め、
 # 列だけ動いて近傍店と表示順が逆転する事故を防ぐ
 for _side in (-1, 1):
@@ -554,11 +555,13 @@ _signal_landmarks = [
 ]
 for _name, _mode in _signal_landmarks:
     _shop = next(s for s in shops if s['name'] == _name)
+    _shop_x = _shop.get('tx', _shop['x'])
+    _shop_y = _shop.get('ty', _shop['y'])
     if _mode == 'below':
         # 支給図で施設直下にある交差路へ合わせる。
-        _sx, _sy = _shop['x'] + 6, _shop['y'] + 57
+        _sx, _sy = _shop_x + 6, _shop_y + 57
     else:
-        _sx, _sy = _busx(_shop['y']), _shop['y']
+        _sx, _sy = _busx(_shop_y), _shop_y
     if all(math.hypot(_sx - gx, _sy - gy) >= 30 for gx, gy in signals):
         signals.append([round(_sx, 1), round(_sy, 1)])
 print('signals:', len(signals))
