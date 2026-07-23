@@ -24,7 +24,7 @@ INFO_AS_OF = '2026年6月12日'  # 振興組合支給マップの明記日 (2026
 
 # 校章等の使用許可と正式画像の受領後にだけパスを設定する。
 # 空文字の間はテンプレート側の協力ロゴ欄を表示しない。
-MIYAGI_UNIVERSITY_LOGO_SRC = ''
+MIYAGI_UNIVERSITY_LOGO_SRC = 'assets/myu_logo.png'
 
 def to_m(lat, lng):
     return ((lng - LON0) * 111320 * COSF, (lat - LAT0) * 111320)

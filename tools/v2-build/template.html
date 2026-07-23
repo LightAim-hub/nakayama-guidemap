@@ -221,7 +221,7 @@
     display:flex; align-items:center; flex-wrap:wrap; gap:3px 12px; }
   .credit .asof{ color:var(--ink); font-weight:700; }
   .credit .sources{ font-size:.62rem; }
-  .credit .partner{ margin-left:auto; display:flex; align-items:center; gap:6px; color:var(--ink-soft); font-weight:700; }
+  .credit .partner{ margin-left:auto; display:flex; align-items:center; flex-wrap:wrap; gap:6px; color:var(--ink-soft); font-weight:700; }
   .credit .partner[hidden]{ display:none; }
   .credit .partner img{ display:block; width:auto; height:28px; max-width:150px; object-fit:contain; }
   @media(max-width:600px){
@@ -330,7 +330,7 @@
 <footer class="credit">
   <span class="asof" id="infoAsOf"></span>
   <span class="sources">地図データ © OpenStreetMap contributors（ODbL）／位置参照: 国土地理院 地名検索API／店舗情報: なかやま商店街振興組合・nakayaman.com</span>
-  <span class="partner" id="partnerLogo" hidden><span>協力</span><img id="partnerLogoImage" alt=""></span>
+  <span class="partner" id="partnerLogo" hidden><span>協力：</span><img id="partnerLogoImage" alt=""><span>宮城大学 事業構想学群 宮﨑ゼミ</span></span>
 </footer>
 
 <script>
