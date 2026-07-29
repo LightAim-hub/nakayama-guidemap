@@ -2,20 +2,31 @@
 """なかやま商店街マップ v2 — 実座標データセット生成 + HTML生成
 入力 (スクリプトと同じフォルダ): osm_raw2.json / oq3.json / verified_shops.json /
       shops_geo_osm.json / store_addresses_geo.json / new_shops_geo.json / template.html
-出力: mapdata.json (中間) と リポジトリ直下の index.html / v2.html
-実行: python tools/v2-build/build_mapdata.py (どこから実行してもよい)
+通常出力: mapdata.json (中間) と リポジトリ直下の index.html / v2.html
+preview出力: リポジトリ直下の preview.html (本番2ファイルは非変更)
+実行: python tools/v2-build/build_mapdata.py [--preview] (どこから実行してもよい)
 """
-import json, math, os
+import argparse, json, math, os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 def P(name):
     return os.path.join(HERE, name)
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--preview', action='store_true', help='preview専用データとテンプレートでpreview.htmlだけを生成')
+ARGS = parser.parse_args()
+
 # リポジトリ直下 (tools/v2-build/ の2つ上)。無ければスクリプト隣に確認用HTMLを出力
 _repo = os.path.abspath(os.path.join(HERE, '..', '..'))
-if os.path.isdir(os.path.join(_repo, '.git')):
+if ARGS.preview and os.path.isdir(os.path.join(_repo, '.git')):
+    OUT_HTMLS = [os.path.join(_repo, 'preview.html')]
+    TEMPLATE_HTML = P('preview.template.html')
+elif os.path.isdir(os.path.join(_repo, '.git')):
     OUT_HTMLS = [os.path.join(_repo, 'index.html'), os.path.join(_repo, 'v2.html')]
+    TEMPLATE_HTML = P('template.html')
 else:
     OUT_HTMLS = [P('v2_index.html')]
+    TEMPLATE_HTML = P('preview.template.html' if ARGS.preview else 'template.html')
 
 LAT0, LON0 = 38.2935, 140.8435
 COSF = math.cos(math.radians(LAT0))
@@ -167,6 +178,41 @@ shops.append({'name': '商店街モニュメント', 'cat': 'place', 'url': '#',
 # たきみち公園 (紙マップ右下・OSM公園ポリゴン実在) — タップ可能スポットとして追加
 shops.append({'name': 'たきみち公園', 'cat': 'place', 'url': '#', 'voices': [],
               'note': '', 'addr': '', 'lat': 38.291917, 'lng': 140.85282, 'src': 'osm:exact'})
+
+# あみさんFBテスト版: 本番生成は変えず、--preview の時だけ写真と坂の上を加える。
+PREVIEW_PHOTOS = {
+    'なかやまとびのこ公園': [
+        {'src': 'assets/photos/tobinoko_1', 'alt': 'なかやまとびのこ公園の東屋とすべり台'},
+        {'src': 'assets/photos/tobinoko_2', 'alt': 'なかやまとびのこ公園の石組みの小川'},
+    ],
+    '中山山の神公園': [
+        {'src': 'assets/photos/yamanokami_1', 'alt': '中山山の神公園のブランコとすべり台と芝生'},
+        {'src': 'assets/photos/yamanokami_2', 'alt': '中山山の神公園の大きな木と芝生広場'},
+    ],
+    'たきみち公園': [
+        {'src': 'assets/photos/takimichi_1', 'alt': 'たきみち公園の桜とすべり台と石碑'},
+        {'src': 'assets/photos/takimichi_2', 'alt': 'たきみち公園の桜の木'},
+    ],
+}
+if ARGS.preview:
+    for sh in shops:
+        photos = PREVIEW_PHOTOS.get(sh['name'])
+        if not photos:
+            continue
+        # JSON上でもvoicesの直後にphotosを置く。
+        ordered = {}
+        for key, value in sh.items():
+            ordered[key] = value
+            if key == 'voices':
+                ordered['photos'] = photos
+        sh.clear()
+        sh.update(ordered)
+    shops.append({
+        'name': '中山の坂の上', 'cat': 'place', 'url': '#', 'voices': [],
+        'photos': [{'src': 'assets/photos/sakanoue_1', 'alt': '中山の坂の上から見た市街地の眺め'}],
+        'note': 'バス通りでいちばん高いところ（標高155m）。ここから南へ下る坂が「中山の坂」で、坂の上からは市街地が見渡せます。',
+        'addr': '', 'lat': 38.294850, 'lng': 140.836401, 'src': 'gsi_dem',
+    })
 
 # ---------------- 道路・河川・公園 ----------------
 raw = json.load(open(P('osm_raw2.json'), encoding='utf-8'))
@@ -527,6 +573,14 @@ for sh in shops:
               for o in shops if o is not sh), default=44)
     sh['padr'] = max(12, min(22, int(nn / 2) - 1))
 
+# 指示書で確定済みのDEM地点は、既存店向けの自動スプレッド対象にしない。
+# 投影直後の座標へ戻し、指定されたタップ領域もそのまま保持する。
+if ARGS.preview:
+    slope_top = next(sh for sh in shops if sh['name'] == '中山の坂の上')
+    slope_top['x'], slope_top['y'], slope_top['padr'] = 427.8, 270.0, 22
+    slope_top.pop('tx', None)
+    slope_top.pop('ty', None)
+
 # ---------------- 信号機 (OSM実データ + 支給マップFB) ----------------
 signals = []
 try:
@@ -607,19 +661,25 @@ print('zones:', [(len(z['members']), z['gap']) for z in zones])
 data = {'meta': meta, 'shops': shops, 'roads': roads, 'rivers': rivers,
         'parks': parks, 'waters': waters, 'sando': sando, 'busway': busway, 'exits': exits,
         'zones': zones, 'signals': signals}
-with open(P('mapdata.json'), 'w', encoding='utf-8') as f:
-    json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
+serialized = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
+if not ARGS.preview:
+    with open(P('mapdata.json'), 'w', encoding='utf-8') as f:
+        f.write(serialized)
 
 # ---------------- HTML生成 (テンプレート注入・script破り対策の"</"エスケープ込み) ----------------
-with open(P('template.html'), encoding='utf-8') as f:
+with open(TEMPLATE_HTML, encoding='utf-8') as f:
     tpl = f.read()
-with open(P('mapdata.json'), encoding='utf-8') as f:
-    blob = f.read().replace('</', '<\\/')
+blob = serialized.replace('</', '<\\/')
 rendered = tpl.replace('__MAPDATA_JSON__', blob)
 for out_html in OUT_HTMLS:
     with open(out_html, 'w', encoding='utf-8') as f:
         f.write(rendered)
     print('HTML generated (escaped):', out_html)
+
+if ARGS.preview:
+    for i, sh in enumerate(shops):
+        if sh.get('photos'):
+            print('preview photo shop: index=%d name=%s photos=%d' % (i, sh['name'], len(sh['photos'])))
 
 print('shops:', len(shops), ' roads:', len(roads), ' rivers:', len(rivers),
       ' parks:', len(parks), ' waters:', len(waters), ' sando:', len(sando))

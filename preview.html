@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>なかやま商店街マップ（実測版）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Yusei+Magic&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Hallmark · component: photo viewer/lightbox · genre: playful · theme: existing warm-paper
+   * states: default · hover · focus · active · disabled · loading · error · success
+   * contrast: existing warm-paper tokens preserved
+   */
+  /* Hallmark · pre-emit critique: P4 H5 E4 S5 R5 V4 */
+  :root{
+    --paper:#FBF4E2; --paper-deep:#F1E5C8; --ink:#5C4327; --ink-soft:#7A5C3B;
+    --accent:#C97B3D; --voice:#26747B;
+    --c-medical:#a8875f; --c-life:#4a9d3f; --c-food:#e8902f; --c-edu:#3f7ec7; --c-place:#2fa3a0;
+    --photo-backdrop:rgba(35,25,15,.9); --photo-surface:#fffaf0; --photo-rule:#d8c4a0;
+    --photo-focus:rgba(201,123,61,.72); --ease-photo:cubic-bezier(.16,1,.3,1); --dur-photo:140ms;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    font-family:'Zen Maru Gothic','Hiragino Maru Gothic ProN','Yu Gothic',sans-serif;
+    background:var(--paper); color:var(--ink);
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  header{ padding:10px 14px 6px; border-bottom:2px dashed rgba(92,67,39,.35); z-index:20; background:var(--paper); }
+  header h1{
+    font-family:'Yusei Magic',sans-serif; font-size:1.2rem; letter-spacing:0;
+    display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
+  }
+  header h1 small{
+    font-size:.6rem; color:var(--ink-soft); letter-spacing:0;
+    border:1.5px solid var(--ink-soft); border-radius:999px; padding:2px 9px; white-space:nowrap;
+  }
+  header p{ font-size:.75rem; color:var(--ink-soft); margin-top:3px; }
+  .chip:focus-visible, .searchbar input:focus-visible{
+    outline:3px solid rgba(201,123,61,.45); outline-offset:2px; }
+
+  .filters{ display:flex; flex-wrap:wrap; gap:8px; padding:8px 12px 5px; background:var(--paper); z-index:20; }
+  .chip{ border:2px solid currentColor; background:#fffaf0; color:var(--ink);
+    border-radius:999px; padding:6px 12px; font-size:.78rem; font-weight:700; cursor:pointer;
+    display:inline-flex; align-items:center; gap:6px; user-select:none; transition:transform .08s, background .15s;
+    min-height:40px; }
+  .chip:active{ transform:scale(.94); }
+  .chip .lbl{ color:var(--ink); }
+  .chip .dot{ width:12px; height:12px; border-radius:50%; background:currentColor; border:1.5px solid rgba(92,67,39,.45); flex:0 0 auto; }
+  .chip[aria-pressed="true"]{ background:#f3e7cc; background:color-mix(in srgb, currentColor 22%, #fffaf0); box-shadow:inset 0 0 0 1.5px currentColor; }
+  .chip[aria-pressed="true"] .lbl{ color:var(--ink); }
+  .chip.c-medical{ color:var(--c-medical); } .chip.c-medical .dot{ background:#fffdf5; }
+  .chip.c-life{ color:var(--c-life); }
+  .chip.c-food{ color:var(--c-food); } .chip.c-edu{ color:var(--c-edu); } .chip.c-place{ color:var(--c-place); }
+  .chip.voice-filter{ color:var(--voice); }
+  .chip.voice-filter[aria-pressed="true"]{ background:var(--voice); color:#fff; box-shadow:inset 0 0 0 1.5px var(--voice); }
+  .chip.voice-filter[aria-pressed="true"] .lbl{ color:#fff; }
+  .chip.voice-filter[aria-pressed="true"] .voice-chip-icon,
+  .chip.voice-filter[aria-pressed="true"] .voice-chip-icon::after{ background:var(--voice); border-color:#fff; }
+  .voice-chip-icon{ position:relative; width:18px; height:13px; flex:0 0 auto; border:1.7px solid currentColor;
+    border-radius:5px; background:#fffaf0; }
+  .voice-chip-icon::before{ content:"···"; position:absolute; inset:-3px 0 0; text-align:center; font-size:8px; font-weight:700; }
+  .voice-chip-icon::after{ content:""; position:absolute; left:3px; bottom:-4px; width:6px; height:6px;
+    background:#fffaf0; border-left:1.7px solid currentColor; border-bottom:1.7px solid currentColor; transform:skewY(-35deg); }
+  .searchbar{ padding:0 12px 6px; background:var(--paper); z-index:20; display:flex; gap:6px; align-items:center; }
+  .searchbar input{
+    flex:1; min-width:0; max-width:340px; font:inherit; font-size:16px; color:var(--ink);
+    min-height:44px; padding:8px 14px; border:2px solid rgba(122,92,59,.5); border-radius:999px; background:#fffaf0; outline:none;
+  }
+  .searchbar input:focus{ border-color:var(--accent); }
+  #searchstatus{ min-width:5.5em; font-size:.78rem; font-weight:700; color:var(--voice); white-space:nowrap; }
+  #searchstatus.empty{ color:#b3562e; }
+  @media(max-width:759px){
+    header{ padding-bottom:7px; }
+    header p{ display:none; }
+    .filters{ flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:none; padding-bottom:7px; }
+    .filters::-webkit-scrollbar{ display:none; }
+    .chip{ flex:0 0 auto; min-height:44px; padding:8px 12px; }
+  }
+  @media(max-width:480px){
+    header h1 small{ display:none; }
+  }
+
+  #viewport{ flex:1; overflow:auto; position:relative; background:var(--paper); -webkit-overflow-scrolling:touch; }
+  #mapwrap{ width:175%; max-width:none; margin:0 auto; position:relative; }
+  @media(min-width:760px){ #mapwrap{ width:108%; max-width:1000px; } }
+  svg{ display:block; width:100%; height:auto; }
+  text{ user-select:none; }
+
+  .road-major-c{ stroke:#8a6a44; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.85; }
+  .road-major-f{ stroke:#fdf7e7; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .road-mid-c{ stroke:#8a6a44; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.7; }
+  .road-mid-f{ stroke:#faf1da; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .road-main-c{ stroke:#8a6a44; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.88; }
+  .road-main-f{ stroke:#fdf7e7; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .road-minor-c{ stroke:#a98c66; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.55; }
+  .road-minor-f{ stroke:#faf1da; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .sando{ stroke:#a98c66; stroke-dasharray:7 6; fill:none; opacity:.65; }
+  .river{ stroke:#8fbdd2; fill:none; stroke-linecap:round; opacity:.85; }
+  .water{ fill:#bcd9e6; stroke:#8fbdd2; stroke-width:2; opacity:.9; }
+  .park{ fill:#d9e7bd; stroke:#a9c37e; stroke-width:2; opacity:.85; }
+
+  .star{ stroke:var(--ink); stroke-width:1.6; cursor:pointer; }
+  .star.medical{ fill:#fffdf5; stroke-width:2.1; } .star.life{ fill:#5cae4a; } .star.food{ fill:#eda03e; }
+  .star.edu{ fill:#5a95d6; } .star.place{ fill:#46b3ae; }
+  .hit{ cursor:pointer; }
+  .hit .pad{ fill:transparent; }
+  .hit:focus{ outline:none; }
+  .hit:focus-visible .star{ filter:drop-shadow(0 0 4px rgba(201,123,61,.95)); }
+  .hit:focus .star, .hit:hover .star{ stroke-width:2.8; }
+  .hit.dim{ opacity:.25; pointer-events:none; }
+  .hit.glowing .star{ filter:drop-shadow(0 0 5px rgba(233,150,60,.95)); stroke-width:2.8; }
+  .selected-ring{ fill:#fffaf0; fill-opacity:.8; stroke:var(--accent); stroke-width:3; opacity:0; }
+  .hit.selected .selected-ring, .hit:focus-visible .selected-ring{ opacity:1; }
+  .voice-badge{ pointer-events:none; }
+  .voice-badge .bubble{ fill:#fffaf0; stroke:var(--voice); stroke-width:1.7; }
+  .voice-badge .tail{ fill:#fffaf0; stroke:var(--voice); stroke-width:1.7; stroke-linejoin:round; }
+  .voice-badge .dot{ fill:var(--voice); }
+  .shoplabel{ font-family:'Yusei Magic',sans-serif; fill:var(--ink); font-weight:700;
+    paint-order:stroke; stroke:var(--paper); stroke-width:7px; stroke-linejoin:round; }
+  .shoplabel.b{ font-weight:700; }
+  .shoplabel.detail{ opacity:1; }
+  .hit.selected .shoplabel{ fill:#9a4f28; stroke:#fffaf0; stroke-width:9px; }
+  .faraway.detail{ opacity:1; }
+  .roadname{ font-family:'Yusei Magic',sans-serif; fill:var(--ink-soft); opacity:.75;
+    paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
+  .parkname{ font-family:'Yusei Magic',sans-serif; fill:#6d8a3c;
+    paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
+  .rivername{ font-family:'Yusei Magic',sans-serif; fill:#5787a0;
+    paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
+  .deco{ font-family:'Yusei Magic',sans-serif; fill:var(--ink-soft); }
+  .direction-sign rect{ fill:#fffaf0; stroke:var(--ink-soft); stroke-width:2; }
+  .direction-sign text{ font-family:'Yusei Magic',sans-serif; fill:var(--ink); font-size:15px; font-weight:700; }
+  .faraway{ stroke:rgba(122,92,59,.7); stroke-dasharray:4 4; fill:none; }
+
+  .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  .detail-panel{ position:fixed; inset:0 0 0 auto; z-index:37; width:min(400px,calc(100vw - 24px)); height:100dvh;
+    display:flex; flex-direction:column; overflow:hidden; background:#fffaf0; border-left:3px solid #d8c4a0;
+    box-shadow:-18px 0 42px rgba(80,60,30,.28); transform:translateX(104%);
+    transition:transform .28s cubic-bezier(.22,.78,.28,1); }
+  body.detail-open .detail-panel{ transform:translateX(0); }
+  .detail-handle{ display:none; }
+  .detail-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 16px 8px;
+    border-bottom:1.5px dashed rgba(122,92,59,.28); }
+  .detail-head-copy{ min-width:0; }
+  .detail-eyebrow{ display:block; color:var(--voice); font-size:.68rem; font-weight:700; letter-spacing:.04em; }
+  .detail-guide{ display:block; color:var(--ink-soft); font-size:.72rem; margin-top:2px; }
+  .detail-close{ flex:0 0 auto; width:44px; height:44px; border:0; border-radius:50%; background:var(--paper-deep);
+    color:var(--ink); font:inherit; font-size:1rem; cursor:pointer; }
+  .detail-close:focus-visible, .detail-nav button:focus-visible, .detail-link:focus-visible{
+    outline:3px solid rgba(201,123,61,.45); outline-offset:2px; }
+  .detail-rail{ flex:1; min-height:0; display:flex; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory;
+    overscroll-behavior-x:contain; scrollbar-width:none; }
+  .detail-rail::-webkit-scrollbar{ display:none; }
+  .detail-card{ flex:0 0 100%; min-width:0; overflow-y:auto; scroll-snap-align:start; scroll-snap-stop:always;
+    padding:24px 24px 18px; -webkit-overflow-scrolling:touch; }
+  .detail-cat{ display:inline-flex; align-items:center; gap:7px; padding:5px 10px; border:1.5px solid currentColor;
+    border-radius:999px; font-size:.72rem; font-weight:700; }
+  .detail-cat-dot{ width:10px; height:10px; border-radius:50%; background:currentColor; border:1px solid rgba(92,67,39,.35); }
+  .detail-card h2{ margin-top:13px; padding-right:6px; font-family:'Yusei Magic',sans-serif; font-size:1.42rem;
+    line-height:1.35; letter-spacing:.01em; }
+  .detail-gallery{ display:grid; gap:8px; margin-top:14px; }
+  .detail-photo-main{ position:relative; display:block; width:100%; aspect-ratio:16/9; overflow:hidden; padding:0;
+    border:2px solid var(--photo-rule); border-radius:14px; background:var(--paper-deep); cursor:zoom-in;
+    transition:transform var(--dur-photo) var(--ease-photo); }
+  .detail-photo-main picture, .detail-photo-main img{ display:block; width:100%; height:100%; }
+  .detail-photo-main img{ object-fit:cover; opacity:1; }
+  .detail-photo-thumbs{ display:flex; flex-wrap:wrap; gap:8px; }
+  .detail-photo-thumb{ position:relative; flex:0 0 68px; width:68px; height:52px; min-width:44px; min-height:44px;
+    overflow:hidden; padding:0; border:2px solid transparent; border-radius:9px; background:var(--paper-deep); cursor:pointer;
+    transition:transform var(--dur-photo) var(--ease-photo), opacity var(--dur-photo) var(--ease-photo); }
+  .detail-photo-thumb picture, .detail-photo-thumb img{ display:block; width:100%; height:100%; }
+  .detail-photo-thumb img{ object-fit:cover; opacity:.72; }
+  .detail-photo-thumb[aria-pressed="true"]{ border-color:var(--voice); }
+  .detail-photo-thumb[aria-pressed="true"] img{ opacity:1; }
+  .detail-photo-main:focus-visible, .detail-photo-thumb:focus-visible, .photo-lightbox-close:focus-visible{
+    outline:3px solid var(--photo-focus); outline-offset:2px; }
+  .detail-photo-main:active, .detail-photo-thumb:active, .photo-lightbox-close:active{ transform:translateY(1px); }
+  .detail-photo-main:disabled, .detail-photo-thumb:disabled, .photo-lightbox-close:disabled{
+    opacity:.5; cursor:not-allowed; }
+  .detail-photo-main.is-loading img, .detail-photo-thumb.is-loading img, .photo-lightbox-frame.is-loading img{ opacity:.38; }
+  .detail-photo-main.is-success img, .detail-photo-thumb.is-success img, .photo-lightbox-frame.is-success img{ opacity:1; }
+  .detail-photo-main.is-error::after, .photo-lightbox-frame.is-error::after{
+    content:'写真を読み込めませんでした'; position:absolute; inset:0; display:grid; place-items:center; padding:12px;
+    background:var(--paper-deep); color:var(--ink-soft); font-size:.78rem; font-weight:700; text-align:center; }
+  .detail-photo-thumb.is-error::after{ content:'×'; position:absolute; inset:0; display:grid; place-items:center;
+    background:var(--paper-deep); color:var(--ink-soft); font-weight:700; }
+  @media(hover:hover) and (pointer:fine){
+    .detail-photo-main:hover, .detail-photo-thumb:hover, .photo-lightbox-close:hover{ transform:translateY(-1px); }
+  }
+  .photo-lightbox{ position:fixed; inset:0; z-index:60; display:grid; place-items:center; padding:clamp(16px,4vw,40px);
+    background:var(--photo-backdrop); }
+  .photo-lightbox[hidden]{ display:none; }
+  .photo-lightbox-shell{ position:relative; width:min(100%,960px); max-height:calc(100dvh - 32px); display:grid; gap:10px;
+    justify-items:center; color:var(--photo-surface); }
+  .photo-lightbox-frame{ position:relative; display:grid; place-items:center; width:100%; min-height:160px; }
+  .photo-lightbox-frame picture{ display:grid; place-items:center; width:100%; }
+  .photo-lightbox-frame img{ display:block; max-width:100%; max-height:calc(100dvh - 120px); width:auto; height:auto;
+    object-fit:contain; border-radius:12px; }
+  .photo-lightbox-close{ position:absolute; z-index:1; top:8px; right:8px; width:44px; height:44px; border:2px solid var(--photo-rule);
+    border-radius:50%; background:var(--photo-surface); color:var(--ink); font:inherit; font-size:1rem; cursor:pointer;
+    transition:transform var(--dur-photo) var(--ease-photo); }
+  .photo-lightbox-caption{ max-width:70ch; padding-inline:52px; color:var(--photo-surface); font-size:.82rem;
+    line-height:1.5; text-align:center; }
+  .detail-address{ display:flex; gap:8px; align-items:flex-start; margin-top:10px; color:var(--ink-soft);
+    font-size:.82rem; line-height:1.55; }
+  .detail-address::before{ content:'⌖'; flex:0 0 auto; color:var(--accent); font-weight:700; }
+  .detail-statuses{ display:flex; flex-wrap:wrap; gap:7px; margin-top:14px; }
+  .detail-status{ display:inline-flex; align-items:center; min-height:30px; padding:5px 9px; border:0; border-radius:999px;
+    background:var(--paper-deep); color:var(--ink-soft); font:inherit; font-size:.7rem; font-weight:700; }
+  button.detail-status{ min-height:44px; padding:7px 12px; border:2px solid rgba(38,116,123,.35); cursor:pointer; }
+  .detail-status.voice{ background:#e4f2ef; color:var(--voice); }
+  button.detail-status.voice::after{ content:' ↓'; margin-left:5px; }
+  button.detail-status.voice[aria-expanded="true"]{ background:var(--voice); border-color:var(--voice); color:#fff; }
+  button.detail-status.voice[aria-expanded="true"]::after{ content:' ↑'; }
+  button.detail-status:focus-visible{ outline:3px solid rgba(38,116,123,.28); outline-offset:2px; }
+  .detail-note{ margin-top:18px; padding:14px 15px; border-radius:14px; background:var(--paper);
+    border:1.5px solid rgba(122,92,59,.24); font-size:.88rem; line-height:1.75; }
+  .detail-empty{ margin-top:18px; color:var(--ink-soft); font-size:.8rem; line-height:1.65; }
+  .detail-voice-block{ margin-top:20px; scroll-margin-top:10px; outline:none; }
+  .detail-voice-title{ display:flex; align-items:center; gap:8px; margin-bottom:9px; color:var(--voice);
+    font-size:.8rem; font-weight:700; }
+  .voice-title-icon, .lvoice{ position:relative; display:inline-flex; align-items:center; justify-content:center;
+    flex:0 0 auto; border:1.7px solid var(--voice); background:#fffaf0; color:var(--voice); }
+  .voice-title-icon{ width:20px; height:15px; border-radius:6px; font-size:8px; line-height:1; }
+  .voice-title-icon::after, .lvoice::after{ content:""; position:absolute; left:3px; bottom:-4px; width:6px; height:6px;
+    background:#fffaf0; border-left:1.7px solid var(--voice); border-bottom:1.7px solid var(--voice); transform:skewY(-35deg); }
+  .detail-voice{ position:relative; margin:7px 0; padding:10px 12px 10px 28px; border-radius:10px;
+    border-left:4px solid var(--voice); background:#edf6f3; font-size:.82rem; line-height:1.65; }
+  .detail-voice::before{ content:"“"; position:absolute; left:10px; top:5px; color:var(--voice); font-size:1.2rem; font-weight:700; }
+  .detail-link{ display:flex; align-items:center; justify-content:center; min-height:46px; margin-top:22px; padding:10px 16px;
+    border:2px solid var(--accent); border-radius:999px; color:var(--accent); font-size:.82rem; font-weight:700; text-decoration:none; }
+  .detail-nav{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px; padding:10px 16px 16px;
+    border-top:1.5px dashed rgba(122,92,59,.28); background:#fffaf0; }
+  .detail-nav button{ min-height:44px; border:1.5px solid rgba(122,92,59,.36); border-radius:999px; background:var(--paper);
+    color:var(--ink); font:inherit; font-size:.78rem; font-weight:700; cursor:pointer; }
+  .detail-nav button:disabled{ opacity:.35; cursor:default; }
+  .detail-count{ min-width:64px; color:var(--ink-soft); font-size:.76rem; font-weight:700; text-align:center; }
+  .chooser{ position:absolute; z-index:31; width:216px; max-width:80vw;
+    background:#fffaf0; border:2px solid #d8c4a0; border-radius:14px;
+    box-shadow:0 12px 28px rgba(80,60,30,.34); padding:9px;
+    opacity:0; pointer-events:none; transition:opacity .13s; transform:translate(-50%,calc(-100% - 15px)); }
+  .chooser.below{ transform:translate(-50%,15px); }
+  .chooser.show{ opacity:1; pointer-events:auto; }
+  .chooser .ctitle{ font-size:.66rem; color:#9a8763; font-weight:700; text-align:center; margin:1px 0 6px; }
+  .chooser .copt{ display:flex; align-items:center; gap:8px; width:100%; min-height:44px; border:0;
+    background:#fff; border-radius:9px; margin-bottom:5px; padding:5px 9px; font:inherit; font-size:.78rem;
+    color:var(--ink); cursor:pointer; text-align:left; }
+  .chooser .copt:active{ background:#f3e7cc; }
+  .chooser .cdot{ width:12px; height:12px; border-radius:50%; flex:0 0 auto; border:1.5px solid rgba(92,67,39,.4); }
+
+  .zoomctl{ position:fixed; right:12px; bottom:62px; z-index:25; display:flex; flex-direction:column; gap:8px; }
+  .zoomctl button{ width:44px; height:44px; font-size:1.25rem; font-weight:700; color:var(--ink);
+    background:var(--paper); border:2px solid var(--ink-soft);
+    border-radius:50% 45% 52% 48% / 48% 52% 45% 50%;
+    box-shadow:2px 3px 0 rgba(92,67,39,.25); cursor:pointer; }
+  .zoomctl button:active{ transform:translateY(2px); box-shadow:none; }
+
+  #editbar{ display:none; position:fixed; left:10px; bottom:62px; z-index:40; gap:8px; }
+  body.edit #editbar{ display:flex; }
+  body.edit #listbtn{ display:none; }
+  #editbar button{ font:inherit; font-size:.72rem; font-weight:700; color:#fff; background:#b3562e;
+    border:0; border-radius:999px; padding:8px 14px; cursor:pointer; box-shadow:0 3px 8px rgba(0,0,0,.25); }
+  body.edit .hit{ cursor:grab; }
+  #srcinfo{ display:none; position:fixed; left:10px; bottom:112px; z-index:40; font-size:.62rem;
+    background:rgba(255,250,240,.95); border:1px solid #d8c4a0; border-radius:8px; padding:6px 9px; max-width:75vw; }
+  body.debug #srcinfo{ display:block; }
+  footer.credit{ padding:6px 12px 8px; font-size:.68rem; color:rgba(92,67,39,.72); background:var(--paper);
+    display:flex; align-items:center; flex-wrap:wrap; gap:3px 12px; }
+  .credit .asof{ color:var(--ink); font-weight:700; }
+  .credit .sources{ font-size:.62rem; }
+  .credit .partner{ margin-left:auto; display:flex; align-items:center; flex-wrap:wrap; gap:6px; color:var(--ink-soft); font-weight:700; }
+  .credit .partner[hidden]{ display:none; }
+  .credit .partner img{ display:block; width:auto; height:28px; max-width:150px; object-fit:contain; }
+  @media(max-width:600px){
+    .credit .partner{ margin-left:0; }
+    .zoomctl, #listbtn{ bottom:84px; }
+    #editbar{ bottom:84px; }
+    #srcinfo{ bottom:134px; }
+  }
+
+  /* お店一覧パネル */
+  #listbtn{ position:fixed; left:12px; bottom:62px; z-index:26; min-height:44px;
+    font:inherit; font-size:.85rem; font-weight:700; color:var(--ink);
+    background:var(--paper); border:2px solid var(--ink-soft); border-radius:999px; padding:9px 18px;
+    box-shadow:2px 3px 0 rgba(92,67,39,.25); cursor:pointer; }
+  #listbtn:active{ transform:translateY(2px); box-shadow:none; }
+  #listpanel{ position:fixed; left:0; right:0; bottom:0; z-index:35; background:#fffaf0;
+    border-top:3px solid #d8c4a0; border-radius:18px 18px 0 0; box-shadow:0 -10px 30px rgba(80,60,30,.3);
+    max-height:62vh; display:none; flex-direction:column; }
+  #listpanel.show{ display:flex; }
+  #listpanel .lhead{ display:flex; align-items:center; justify-content:space-between; padding:10px 14px 6px; }
+  #listpanel .lhead h2{ font-size:.95rem; font-family:'Yusei Magic',sans-serif; }
+  #listpanel .lclose{ width:44px; height:44px; border:0; background:transparent; font-size:1.1rem; color:var(--ink-soft); cursor:pointer; }
+  #listrows{ overflow:auto; -webkit-overflow-scrolling:touch; padding:0 8px 14px; }
+  .lrow{ display:grid; grid-template-columns:14px minmax(0,1fr) auto; align-items:center; gap:4px 10px; width:100%; min-height:60px;
+    border:0; border-bottom:1.5px dashed rgba(122,92,59,.25); background:transparent; padding:9px 10px;
+    font:inherit; color:var(--ink); cursor:pointer; text-align:left; }
+  .lrow:active{ background:#f3e7cc; }
+  .lrow .ldot{ width:13px; height:13px; border-radius:50%; flex:0 0 auto; border:1.5px solid rgba(92,67,39,.45); }
+  .lrow .lname{ min-width:0; font-size:.9rem; font-weight:700; line-height:1.35; }
+  .lrow .lvoice{ grid-column:3; grid-row:1; width:18px; height:13px; border-radius:5px; }
+  .lrow .lvoice::before{ content:"···"; position:relative; top:-2px; font-size:8px; font-weight:700; }
+  .lrow .laddr{ grid-column:2 / 4; font-size:.7rem; line-height:1.4; color:var(--ink-soft); text-align:left; }
+  @media(max-width:759px){
+    .detail-panel{ inset:auto 0 0; width:100%; height:min(52dvh,520px); min-height:min(330px,calc(100dvh - 120px));
+      border:3px solid #d8c4a0; border-bottom:0;
+      border-radius:22px 22px 0 0; box-shadow:0 -18px 42px rgba(80,60,30,.28); transform:translateY(104%); }
+    body.detail-open .detail-panel{ transform:translateY(0); }
+    .detail-handle{ display:block; width:44px; height:4px; margin:8px auto 0; border-radius:999px; background:#d8c4a0; }
+    .detail-head{ padding:6px 14px 5px; }
+    .detail-guide{ font-size:.68rem; }
+    .detail-card{ padding:16px 18px 14px; }
+    .detail-card h2{ font-size:1.18rem; margin-top:9px; }
+    .detail-address{ margin-top:7px; font-size:.76rem; }
+    .detail-statuses{ margin-top:9px; }
+    .detail-status{ min-height:30px; padding:5px 9px; font-size:.68rem; }
+    button.detail-status{ min-height:44px; }
+    .detail-note{ margin-top:12px; padding:10px 12px; font-size:.8rem; line-height:1.65; }
+    .detail-voice-block{ margin-top:14px; }
+    .detail-voice{ padding:8px 10px 8px 26px; font-size:.76rem; }
+    .detail-link{ min-height:44px; margin-top:14px; }
+    .detail-nav{ padding:8px 12px calc(9px + env(safe-area-inset-bottom)); }
+    body.detail-open .zoomctl, body.detail-open #listbtn{ opacity:0; pointer-events:none; }
+  }
+  @media(prefers-reduced-motion:reduce){
+    .detail-panel{ transition:none; }
+    .detail-rail{ scroll-behavior:auto; }
+    .detail-photo-main, .detail-photo-thumb, .photo-lightbox-close{ transition:none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>なかやま商店街マップ <small>実測デジタル版</small></h1>
+  <p>道路も星印も実際の位置準拠（OpenStreetMap・国土地理院データ）。星をタップすると画面内でお店の詳細を確認でき、左右スライドで次のお店へ移れます。※密集部の星は見やすさのため通り沿いに間隔を少し広げています</p>
+</header>
+
+<div class="filters" id="filters"></div>
+<div class="searchbar"><input id="q" type="search" placeholder="お店をさがす（例：ケーキ）" aria-label="お店を検索"><span id="searchstatus" role="status" aria-live="polite"></span></div>
+
+<div id="viewport">
+  <div id="mapwrap">
+    <svg id="map" xmlns="http://www.w3.org/2000/svg" aria-label="なかやま商店街 実測マップ"></svg>
+    <div class="chooser" id="chooser" role="dialog" aria-label="どのお店か選ぶ"></div>
+  </div>
+</div>
+
+<div class="zoomctl">
+  <button id="zin" aria-label="拡大">＋</button>
+  <button id="zout" aria-label="縮小">－</button>
+</div>
+<button id="listbtn" aria-haspopup="dialog">📋 お店一覧</button>
+<div id="listpanel" role="dialog" aria-label="お店一覧">
+  <div class="lhead"><h2 id="listtitle">お店一覧</h2><button class="lclose" id="listclose" aria-label="閉じる">✕</button></div>
+  <div id="listrows"></div>
+</div>
+<aside class="detail-panel" id="detailPanel" role="dialog" aria-modal="false" aria-labelledby="detailTitle" aria-hidden="true" inert>
+  <span class="detail-handle" aria-hidden="true"></span>
+  <div class="detail-head">
+    <div class="detail-head-copy">
+      <span class="detail-eyebrow">お店の詳細</span>
+      <span class="detail-guide">左右にスワイプして次のお店へ</span>
+    </div>
+    <h2 class="sr-only" id="detailTitle">お店の詳細</h2>
+    <button class="detail-close" id="detailClose" aria-label="お店の詳細を閉じる">✕</button>
+  </div>
+  <div class="detail-rail" id="detailRail" tabindex="0" aria-label="店舗詳細"></div>
+  <div class="detail-nav">
+    <button id="detailPrev" type="button" aria-label="前のお店">← 前のお店</button>
+    <span class="detail-count" id="detailCount" role="status" aria-live="polite"></span>
+    <button id="detailNext" type="button" aria-label="次のお店">次のお店 →</button>
+  </div>
+</aside>
+<div id="editbar"><button id="exportBtn">座標をエクスポート</button></div>
+<div id="srcinfo">debug: 緑=OSM実測 / 深緑=国土地理院DEM / 黄=OSM近似 / 青=住所ジオコーディング / 赤=概算</div>
+
+<footer class="credit">
+  <span class="asof" id="infoAsOf"></span>
+  <span class="sources">地図データ © OpenStreetMap contributors（ODbL）／位置参照: 国土地理院 地名検索API／店舗情報: なかやま商店街振興組合・nakayaman.com</span>
+  <span class="partner" id="partnerLogo" hidden><span>協力：</span><img id="partnerLogoImage" alt=""><span>宮城大学 事業構想学群 宮﨑ゼミ</span></span>
+</footer>
+
+<script>
+const GEO = {"meta":{"W":1291,"H":1738,"proj":{"lat0":38.2935,"lon0":140.8435,"cosf":0.7848466771836701,"rot_deg":46.4},"minx":-746.69,"miny":-822.83,"scale_m_per_px":1.0,"info_as_of":"2026年6月12日","partner_logos":[{"name":"宮城大学","src":"assets/myu_logo.png","alt":"宮城大学","status":"approved"}]},"shops":[{"name":"工房しらかば","cat":"life","url":"https://www.nakayaman.com/post/kobo-shirakaba","voices":[],"note":"","addr":"仙台市青葉区中山3-20-15","lat":38.294327,"lng":140.833237,"src":"gsi_addr","x":177.0,"y":112.4,"tx":195.0,"ty":110.0,"padr":22},{"name":"ヨークベニマル 仙台中山店","cat":"life","url":"https://www.nakayaman.com/post/yorkbenimaru-nakayama-store","voices":[],"note":"","addr":"宮城県仙台市青葉区中山7丁目1-1番60号","lat":38.293734,"lng":140.8351282,"src":"osm:exact","hint":{"anchor":"end"},"x":261.1,"y":275.1,"tx":261.1,"ty":275.2,"padr":22},{"name":"東北電力研究開発センター","cat":"life","url":"#","voices":[],"note":"","addr":"","lat":38.2949933,"lng":140.8357089,"src":"osm:exact","hint":{"anchor":"end"},"x":397.6,"y":215.2,"padr":22},{"name":"みなみ歯科クリニック","cat":"medical","url":"https://www.nakayaman.com/post/%E3%81%BF%E3%81%AA%E3%81%BF%E6%AD%AF%E7%A7%91%E3%82%AF%E3%83%AA%E3%83%8B%E3%83%83%E3%82%AF","voices":[],"note":"","addr":"仙台市青葉区中山7-2-31","lat":38.2957069,"lng":140.8366632,"src":"osm:exact","hint":{"anchor":"start"},"x":506.9,"y":204.7,"tx":512.7,"ty":220.8,"padr":22},{"name":"カーブス アクロスガーデン中山","cat":"medical","url":"https://www.nakayaman.com/post/%E3%82%AB%E3%83%BC%E3%83%96%E3%82%B9%E3%82%A2%E3%82%AF%E3%83%AD%E3%82%B9%E3%82%AC%E3%83%BC%E3%83%87%E3%83%B3%E4%B8%AD%E5%B1%B1","voices":[],"note":"","addr":"仙台市青葉区中山7-2-31","lat":38.296197,"lng":140.8370282,"src":"osm:partial","hint":{"anchor":"start"},"x":560.7,"y":191.3,"tx":574.2,"ty":206.3,"padr":22},{"name":"ダイシン長命ヶ丘店","cat":"life","url":"https://www.nakayaman.com/post/%E3%83%80%E3%82%A4%E3%82%B7%E3%83%B3%E9%95%B7%E5%91%BD%E3%83%B6%E4%B8%98","voices":[],"note":"","addr":"仙台市泉区南中山1-32-1","lat":38.3009387,"lng":140.830393,"src":"osm:partial","clamped":true,"far_m":650,"far_deg":90,"x":556.6,"y":55.0,"padr":22},{"name":"Friend vividhair","cat":"medical","url":"https://www.nakayaman.com/post/friend-vividhair","voices":[],"note":"","addr":"仙台市泉区南中山2-17-4 南中山中学校隣","lat":38.308353,"lng":140.826447,"src":"gsi_addr","clamped":true,"far_m":1450,"far_deg":90,"x":916.6,"y":55.0,"padr":22},{"name":"七十七銀行中山支店","cat":"life","url":"https://www.nakayaman.com/post/%E4%B8%83%E5%8D%81%E4%B8%83%E4%B8%AD%E5%B1%B1%E6%94%AF%E5%BA%97","voices":[],"note":"","addr":"仙台市青葉区中山4-23-28","lat":38.2942968,"lng":140.8373124,"src":"osm:exact","x":418.7,"y":380.3,"tx":438.1,"ty":370.2,"padr":22},{"name":"ウジエスーパー中山店","cat":"food","url":"https://www.nakayaman.com/post/%E3%82%A6%E3%82%B8%E3%82%A8%E3%82%B9%E3%83%BC%E3%83%91%E3%83%BC%E4%B8%AD%E5%B1%B1","voices":[],"note":"","addr":"仙台市青葉区中山4-22-2","lat":38.2936956,"lng":140.8383588,"src":"osm:partial","x":448.9,"y":482.5,"tx":452.7,"ty":482.5,"padr":22},{"name":"リハビリステーション中山","cat":"medical","url":"https://www.nakayaman.com/post/%E3%83%AA%E3%83%8F%E3%83%93%E3%83%AA%E3%82%B9%E3%83%86%E3%83%BC%E3%82%B7%E3%83%A7%E3%83%B3%E4%B8%AD%E5%B1%B1","voices":[],"note":"","addr":"仙台市青葉区中山6-11-3","lat":38.2949957,"lng":140.8366807,"src":"osm:exact","x":481.6,"y":310.0,"tx":456.4,"ty":276.5,"padr":12},{"name":"志摩整骨院","cat":"medical","url":"https://www.nakayaman.com/post/%E5%BF%97%E6%91%A9%E6%95%B4%E9%AA%A8%E9%99%A2","voices":[],"note":"","addr":"仙台市青葉区中山6-9-3","lat":38.294483,"lng":140.837509,"src":"gsi_addr","x":498.9,"y":368.3,"tx":465.0,"ty":368.3,"padr":22},{"name":"BURB usedclothing","cat":"life","url":"https://www.nakayaman.com/post/burb-used-clothing","voices":[],"note":"","addr":"仙台市青葉区中山6-8-1","lat":38.294231,"lng":140.83812,"src":"gsi_addr","x":516.1,"y":426.3,"tx":481.5,"ty":426.3,"padr":19},{"name":"レストラン KAYA","cat":"food","url":"https://www.nakayaman.com/post/%E3%83%AC%E3%82%B9%E3%83%88%E3%83%A9%E3%83%B3kaya","voices":[{"text":"何回も食べに行ったことがあって、おいしい"}],"note":"","addr":"仙台市青葉区中山6-7-3","lat":38.2942005,"lng":140.8382831,"src":"osm:exact","x":528.1,"y":466.3,"tx":488.8,"ty":439.0,"padr":19},{"name":"中山郵便局","cat":"life","url":"#","voices":[],"note":"","addr":"仙台市青葉区中山6-6-3","lat":38.2940947,"lng":140.8386373,"src":"osm:partial","x":539.8,"y":506.3,"tx":501.6,"ty":469.5,"padr":19},{"name":"中山歯科","cat":"medical","url":"https://www.nakayaman.com/post/_%E4%B8%AD%E5%B1%B1%E6%AD%AF%E7%A7%91","voices":[],"note":"","addr":"仙台市青葉区中山6-6-45","lat":38.2940516,"lng":140.8388235,"src":"osm:exact","x":551.3,"y":546.3,"tx":509.4,"ty":484.6,"padr":19},{"name":"中山中学校","cat":"edu","url":"https://www.nakayaman.com/post/%E4%BB%99%E5%8F%B0%E5%B8%82%E7%AB%8B%E4%B8%AD%E5%B1%B1%E4%B8%AD%E5%AD%A6%E6%A0%A1","voices":[],"note":"","addr":"仙台市青葉区中山6-16-1","lat":38.2963809,"lng":140.8393772,"src":"osm:partial","x":730.5,"y":340.8,"padr":22},{"name":"佐藤次夫税理士事務所","cat":"life","url":"https://www.nakayaman.com/post/%E4%BD%90%E8%97%A4%E7%B4%80%E5%A4%AB%E7%A8%8E%E7%90%86%E5%A3%AB%E4%BA%8B%E5%8B%99%E6%89%80","voices":[],"note":"","addr":"仙台市青葉区中山5-19-5","lat":38.292782,"lng":140.841629,"src":"gsi_addr","x":615.1,"y":962.8,"tx":576.1,"ty":752.6,"padr":19},{"name":"Dogsalon Blanche","cat":"medical","url":"https://www.nakayaman.com/post/dogsalon-blanche","voices":[],"note":"","addr":"仙台市青葉区中山5丁目19-15 4号室","lat":38.293217,"lng":140.840607,"src":"gsi_addr","x":590.0,"y":682.8,"tx":549.6,"ty":661.5,"padr":19},{"name":"中華レストラン とらの子","cat":"food","url":"https://www.nakayaman.com/post/%E4%B8%AD%E8%8F%AF%E3%83%AC%E3%82%B9%E3%83%88%E3%83%A9%E3%83%B3-%E3%81%A8%E3%82%89%E3%81%AE%E5%AD%90","voices":[{"text":"街道市の肉まんがおいしい"},{"text":"チャーハンが大好きでよく行く"},{"text":"ラーメンがおいしい"}],"note":"","addr":"仙台市青葉区中山5-19-13","lat":38.2932002,"lng":140.8408145,"src":"osm:exact","x":601.3,"y":722.8,"tx":560.7,"ty":675.9,"padr":19},{"name":"中山不動産","cat":"life","url":"https://www.nakayaman.com/post/%E4%B8%AD%E5%B1%B1%E4%B8%8D%E5%8B%95%E7%94%A3","voices":[],"note":"","addr":"仙台市青葉区中山5-19-10","lat":38.293124,"lng":140.8409825,"src":"osm:exact","x":609.8,"y":762.8,"tx":564.7,"ty":692.4,"padr":19},{"name":"ダイニングバー 祭","cat":"food","url":"https://www.nakayaman.com/post/dinig-ba-%E7%A5%AD","voices":[],"note":"","addr":"仙台市青葉区中山5-19-9","lat":38.292969,"lng":140.841217,"src":"gsi_addr","x":613.5,"y":882.8,"tx":566.3,"ty":719.1,"padr":14},{"name":"Double Egg5丁目","cat":"food","url":"https://www.nakayaman.com/post/double-egg","voices":[{"text":"オムライスがふわふわでおいしい"},{"text":"オムライスの種類が多くて、ごはんの量もちょうどいい"},{"text":"街道市の日はポテトもあって、全部好き"}],"note":"","addr":"仙台市青葉区中山5-19-5","lat":38.292782,"lng":140.841629,"src":"gsi_addr","x":615.8,"y":1002.8,"tx":576.1,"ty":766.6,"padr":17},{"name":"中山鍼灸接骨院","cat":"medical","url":"https://www.nakayaman.com/post/%E4%B8%AD%E5%B1%B1%E9%8D%BC%E7%81%B8%E6%8E%A5%E9%AA%A8%E9%99%A2","voices":[],"note":"","addr":"仙台市青葉区中山5-7-1","lat":38.291767,"lng":140.843033,"src":"gsi_addr","x":619.5,"y":1162.8,"tx":578.8,"ty":926.3,"padr":15},{"name":"フラワー中山","cat":"life","url":"https://www.nakayaman.com/post/%E3%83%95%E3%83%A9%E3%83%AF%E3%83%BC%E4%B8%AD%E5%B1%B1","voices":[{"text":"きれいなお花がたくさんで、見ているだけで満足"},{"text":"街道市のとき100円くじがひける（あたるとお花のプレゼント）"}],"note":"","addr":"仙台市青葉区中山5-6-3","lat":38.2917065,"lng":140.8431656,"src":"osm:partial","x":620.6,"y":1195.9,"tx":582.0,"ty":939.4,"padr":15},{"name":"河村内科外科クリニック","cat":"medical","url":"https://www.nakayaman.com/post/%E6%B2%B3%E6%9D%91%E5%86%85%E7%A7%91%E5%A4%96%E7%A7%91%E3%82%AF%E3%83%AA%E3%83%8B%E3%83%83%E3%82%AF","voices":[],"note":"","addr":"仙台市青葉区中山5-6-1","lat":38.291568,"lng":140.84336,"src":"osm:exact","x":621.7,"y":1238.9,"tx":582.5,"ty":962.3,"padr":20},{"name":"ウエルシア薬局","cat":"life","url":"https://www.nakayaman.com/post/welcia-najkayama-store","voices":[{"text":"商品が安い"},{"text":"飲み物やお菓子をたくさん買う"}],"note":"","addr":"仙台市青葉区中山5-2-3","lat":38.291111,"lng":140.843948,"src":"gsi_addr","x":623.2,"y":1282.8,"tx":581.1,"ty":1034.6,"padr":17},{"name":"左官職人早坂組","cat":"life","url":"https://www.nakayaman.com/post/plastererhayasakagroupco-ltd","voices":[],"note":"","addr":"宮城県仙台市青葉区中山5丁目1-6","lat":38.291031,"lng":140.844315,"src":"gsi_addr","x":619.9,"y":1319.9,"tx":596.8,"ty":1063.9,"padr":17},{"name":"河北仙販 中山支店","cat":"life","url":"https://www.nakayaman.com/post/%E6%B2%B3%E5%8C%97%E4%BB%99%E8%B2%A9%E4%B8%AD%E5%B1%B1%E5%BA%97","voices":[],"note":"","addr":"仙台市青葉区中山1-19-3","lat":38.2902072,"lng":140.8452632,"src":"osm:exact","x":613.4,"y":1369.2,"tx":587.5,"ty":1187.2,"padr":15},{"name":"カットショップ NOBU","cat":"medical","url":"https://www.nakayaman.com/post/%E3%82%AB%E3%83%83%E3%83%88%E3%82%B7%E3%83%A7%E3%83%83%E3%83%97nobu","voices":[],"note":"","addr":"仙台市青葉区中山1-12-3","lat":38.2897068,"lng":140.8459678,"src":"osm:exact","x":608.7,"y":1402.8,"tx":589.6,"ty":1270.2,"padr":15},{"name":"梅原表具店","cat":"life","url":"https://www.nakayaman.com/post/%E6%A2%85%E5%8E%9F%E8%A1%A8%E5%85%B7%E5%BA%97","voices":[],"note":"","addr":"仙台市青葉区中山1-12-2","lat":38.289597,"lng":140.846054,"src":"gsi_addr","x":605.8,"y":1442.8,"tx":585.9,"ty":1284.0,"padr":19},{"name":"cake NAO","cat":"food","url":"https://www.nakayaman.com/post/cafe-nao","voices":[{"text":"いろんな種類のケーキがある"},{"text":"ホイップがふわふわ"},{"text":"ケーキ以外も売っていて、お土産にもなる"}],"note":"","addr":"仙台市青葉区中山1-11-5","lat":38.289501,"lng":140.846283,"src":"gsi_addr","x":608.0,"y":1489.9,"tx":592.0,"ty":1298.9,"padr":12},{"name":"中山ドライブスクール","cat":"life","url":"#","voices":[],"note":"","addr":"","lat":38.2886513,"lng":140.8484172,"src":"osm:exact","hint":{"anchor":"end"},"x":672.5,"y":1562.8,"tx":652.1,"ty":1506.2,"padr":22},{"name":"ビバホーム荒巻店","cat":"life","url":"https://www.nakayaman.com/post/%E3%83%93%E3%83%90%E3%83%9B%E3%83%BC%E3%83%A0-%E8%8D%92%E5%B7%BB%E5%BA%97","voices":[],"note":"","addr":"仙台市青葉区荒巻本沢2-1-1","lat":38.28764,"lng":140.849121,"src":"gsi_addr","x":613.0,"y":1628.3,"padr":22},{"name":"中山市民センター","cat":"edu","url":"https://www.nakayaman.com/post/%E4%B8%AD%E5%B1%B1%E5%B8%82%E6%B0%91%E3%82%BB%E3%83%B3%E3%82%BF%E3%83%BC","voices":[{"text":"児童館の先生がやさしい"}],"note":"","addr":"仙台市青葉区中山3-13-1","lat":38.291759,"lng":140.8371509,"src":"osm:exact","x":223.8,"y":554.8,"padr":22},{"name":"藤倉設備工業","cat":"life","url":"https://www.nakayaman.com/post/_%E8%97%A4%E5%80%89%E8%A8%AD%E5%82%99","voices":[],"note":"","addr":"仙台市青葉区中山4-13-1","lat":38.2924555,"lng":140.8417797,"src":"osm:partial","x":527.1,"y":807.6,"tx":558.8,"ty":794.2,"padr":20},{"name":"Double Egg4丁目","cat":"food","url":"https://www.nakayaman.com/post/double-egg","voices":[{"text":"オムライスがふわふわでおいしい"},{"text":"オムライスの種類が多くて、ごはんの量もちょうどいい"},{"text":"街道市の日はポテトもあって、全部好き"}],"note":"","addr":"","lat":38.29218839760096,"lng":140.84103519920802,"src":"approx","x":492.8,"y":780.5,"tx":492.4,"ty":767.6,"padr":20},{"name":"柏屋","cat":"life","url":"https://www.nakayaman.com/post/%E6%9F%8F%E5%B1%8B%EF%BC%88%E6%96%87%E5%85%B7%E3%83%BB%E5%8C%96%E7%B2%A7%E5%93%81%EF%BC%89","voices":[{"text":"文房具やお菓子がたくさんある"},{"text":"学校の名札が買える"},{"text":"駄菓子が安く買える"}],"note":"","addr":"仙台市青葉区中山4-5-1","lat":38.2914326,"lng":140.8432048,"src":"osm:exact","x":531.1,"y":962.9,"tx":562.2,"ty":962.9,"padr":22},{"name":"たけむらや","cat":"life","url":"https://www.nakayaman.com/post/%E3%81%9F%E3%81%91%E3%82%80%E3%82%89%E3%82%84","voices":[],"note":"","addr":"仙台市青葉区中山4-2-1","lat":38.2911665,"lng":140.843617,"src":"osm:exact","x":531.9,"y":1009.4,"tx":565.6,"ty":1009.4,"padr":22},{"name":"和泉生花","cat":"life","url":"https://www.nakayaman.com/post/_%E5%92%8C%E6%B3%89%E7%94%9F%E8%8A%B1","voices":[],"note":"","addr":"仙台市青葉区中山2-7-20","lat":38.2897987,"lng":140.8429743,"src":"osm:exact","x":426.2,"y":1082.1,"tx":416.6,"ty":1073.7,"padr":22},{"name":"西原歯科医院","cat":"medical","url":"https://www.nakayaman.com/post/%E8%A5%BF%E5%8E%9F%E6%AD%AF%E7%A7%91%E5%8C%BB%E9%99%A2","voices":[],"note":"","addr":"仙台市青葉区中山2-1-18","lat":38.2891235,"lng":140.8461844,"src":"osm:exact","x":534.8,"y":1328.7,"tx":555.6,"ty":1328.7,"padr":22},{"name":"認定こども園 TOBINOKO","cat":"edu","url":"https://www.nakayaman.com/post/tobinoko","voices":[],"note":"","addr":"仙台市青葉区中山2-17-1","lat":38.2881965,"lng":140.8463918,"src":"osm:exact","hint":{"anchor":"end"},"x":496.4,"y":1401.7,"tx":493.4,"ty":1412.9,"padr":15},{"name":"多夢多夢舎中山工房","cat":"life","url":"https://www.nakayaman.com/post/tamutamushanakayamastudio","voices":[],"note":"","addr":"宮城県仙台市青葉区中山2-18-5","lat":38.2879389,"lng":140.846559,"src":"osm:exact","hint":{"anchor":"end"},"x":493.2,"y":1492.1,"tx":482.7,"ty":1443.3,"padr":18},{"name":"中山小学校","cat":"edu","url":"https://www.nakayaman.com/post/%E4%BB%99%E5%8F%B0%E5%B8%82%E7%AB%8B%E4%B8%AD%E5%B1%B1%E5%B0%8F%E5%AD%A6%E6%A0%A1","voices":[],"note":"","addr":"仙台市青葉区中山1丁目6-1","lat":38.2917789,"lng":140.8503859,"src":"osm:partial","x":1022.8,"y":1390.6,"padr":22},{"name":"サトー商会","cat":"food","url":"https://www.nakayaman.com/post/sato-aramaki","voices":[],"note":"","addr":"仙台市青葉区荒巻本沢1-17-4","lat":38.289295,"lng":140.85054,"src":"gsi_addr","hint":{"anchor":"start"},"x":826.6,"y":1572.0,"tx":831.9,"ty":1584.1,"padr":22},{"name":"みなとや","cat":"food","url":"https://www.nakayaman.com/post/minataya","voices":[],"note":"","addr":"仙台市青葉区荒巻本沢1-17-4","lat":38.289295,"lng":140.85054,"src":"gsi_addr","x":841.0,"y":1619.2,"tx":831.9,"ty":1598.1,"padr":22},{"name":"中山山の神公園","cat":"place","url":"#","voices":[{"text":"桜がきれい"}],"photos":[{"src":"assets/photos/yamanokami_1","alt":"中山山の神公園のブランコとすべり台と芝生"},{"src":"assets/photos/yamanokami_2","alt":"中山山の神公園の大きな木と芝生広場"}],"note":"","addr":"","lat":38.2884963,"lng":140.841611,"src":"osm:exact","x":229.5,"y":1087.4,"padr":22},{"name":"なかやまとびのこ公園","cat":"place","url":"#","voices":[{"text":"広くて、いつでも遊べる"},{"text":"春はさくら、夏は緑、秋は落ち葉がきれい"},{"text":"川みたいなところにおたまじゃくしがいてかわいかった"},{"text":"公園の中の山から、公園全体が見える"}],"photos":[{"src":"assets/photos/tobinoko_1","alt":"なかやまとびのこ公園の東屋とすべり台"},{"src":"assets/photos/tobinoko_2","alt":"なかやまとびのこ公園の石組みの小川"}],"note":"「水の神」","addr":"","lat":38.288639,"lng":140.8458781,"src":"osm:exact","x":495.2,"y":1368.7,"tx":498.1,"ty":1346.5,"padr":15},{"name":"中山鳥瀧不動尊（目の神様）","cat":"place","url":"#","voices":[],"note":"中山のパワースポット。滝の水で目を洗うと目の病が治ると伝わる「目の神様」。","addr":"仙台市青葉区中山6-19-3","lat":38.2956402,"lng":140.8414793,"src":"osm:exact","x":797.5,"y":530.7,"padr":22},{"name":"おたからや","cat":"life","url":"https://www.nakayaman.com/post/otakaraya","voices":[],"note":"","addr":"仙台市青葉区中山5-19-6","lat":38.292839,"lng":140.841537,"src":"gsi_addr","x":614.1,"y":913.3,"tx":575.1,"ty":749.4,"padr":14},{"name":"お菜とお酒アイリス","cat":"food","url":"https://www.nakayaman.com/post/%E3%82%B9%E3%83%8A%E3%83%83%E3%82%AF%E3%82%A2%E3%82%A4%E3%83%AA%E3%82%B9","voices":[],"note":"","addr":"仙台市青葉区中山5-19-1","lat":38.292582,"lng":140.841927,"src":"osm:exact","x":616.6,"y":1040.3,"tx":577.9,"ty":793.8,"padr":17},{"name":"デイサービス はるの風","cat":"medical","url":"https://www.nakayaman.com/post/%E3%83%87%E3%82%A4%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9%E3%81%AF%E3%82%8B%E3%81%AE%E9%A2%A8","voices":[],"note":"","addr":"仙台市青葉区中山5-11-3","lat":38.292133,"lng":140.842529,"src":"gsi_addr","x":617.4,"y":1082.8,"tx":578.0,"ty":859.3,"padr":19},{"name":"遊季ガーデン","cat":"life","url":"https://www.nakayaman.com/post/%E9%81%8A%E5%B8%8C%E3%82%AC%E3%83%BC%E3%83%87%E3%83%B3%E6%A0%AA%E5%BC%8F%E4%BC%9A%E7%A4%BE","voices":[],"note":"","addr":"仙台市青葉区中山5-11-3","lat":38.292133,"lng":140.842529,"src":"gsi_addr","x":618.2,"y":1122.8,"tx":578.0,"ty":873.3,"padr":19},{"name":"中杜建設","cat":"life","url":"https://www.nakayaman.com/post/_%E4%B8%AD%E6%9D%9C%E5%BB%BA%E8%A8%AD","voices":[],"note":"","addr":"仙台市青葉区中山5-19-10","lat":38.293015,"lng":140.841095,"src":"gsi_addr","x":612.1,"y":821.2,"tx":562.7,"ty":700.9,"padr":12},{"name":"ん daccha とこや","cat":"medical","url":"https://www.nakayaman.com/post/%E3%82%93-daccha-%E3%81%A8%E3%81%93%E3%82%84","voices":[],"note":"","addr":"仙台市青葉区中山5-19-10","lat":38.293015,"lng":140.841095,"src":"gsi_addr","x":612.7,"y":842.8,"tx":562.7,"ty":714.9,"padr":12},{"name":"花祭壇","cat":"life","url":"https://www.nakayaman.com/post/%E8%8A%B1%E7%A5%AD%E5%A3%87-%EF%BC%88%E6%9C%AC%E7%A4%BE%EF%BC%89","voices":[],"note":"","addr":"仙台市青葉区中山4-14-35","lat":38.292927,"lng":140.841019,"src":"gsi_addr","x":513.6,"y":709.8,"tx":551.0,"ty":709.8,"padr":22},{"name":"尚絅教会","cat":"life","url":"https://www.nakayaman.com/post/%E6%97%A5%E6%9C%AC%E3%83%91%E3%83%96%E3%83%86%E3%82%B9%E3%83%88%E5%B0%9A%E7%B5%85%E5%8D%94%E4%BC%9A","voices":[],"note":"","addr":"仙台市青葉区中山4-17-25","lat":38.2932675,"lng":140.8395617,"src":"osm:exact","x":480.4,"y":592.1,"tx":490.7,"ty":591.5,"padr":22},{"name":"スクールIE 仙台中山校","cat":"edu","url":"https://www.nakayaman.com/post/ie-school","voices":[],"note":"","addr":"仙台市青葉区中山5-19-17","lat":38.293297,"lng":140.840408,"src":"gsi_addr","x":579.3,"y":642.8,"tx":544.0,"ty":642.8,"padr":19},{"name":"BAKERY&BAKE EndRoll","cat":"food","url":"https://www.nakayaman.com/post/bakery-bake-endroll","voices":[],"note":"","addr":"仙台市青葉区中山1-11-5","lat":38.289501,"lng":140.846283,"src":"gsi_addr","x":615.8,"y":1514.7,"tx":592.0,"ty":1312.9,"padr":12},{"name":"商店街モニュメント","cat":"place","url":"#","voices":[],"note":"中山の坂の登り口にあるモニュメントが商店街への目印です！","addr":"","lat":38.2881,"lng":140.84642,"src":"approx","hint":{"anchor":"end"},"x":488.0,"y":1452.6,"tx":487.3,"ty":1422.1,"padr":18},{"name":"たきみち公園","cat":"place","url":"#","voices":[],"photos":[{"src":"assets/photos/takimichi_1","alt":"たきみち公園の桜とすべり台と石碑"},{"src":"assets/photos/takimichi_2","alt":"たきみち公園の桜の木"}],"note":"","addr":"","lat":38.291917,"lng":140.85282,"src":"osm:exact","x":1180.6,"y":1534.0,"padr":22},{"name":"中山の坂の上","cat":"place","url":"#","voices":[],"photos":[{"src":"assets/photos/sakanoue_1","alt":"中山の坂の上から見た市街地の眺め"}],"note":"バス通りでいちばん高いところ（標高155m）。ここから南へ下る坂が「中山の坂」で、坂の上からは市街地が見渡せます。","addr":"","lat":38.29485,"lng":140.836401,"src":"gsi_dem","x":427.8,"y":270.0,"padr":22}],"roads":[{"cls":"mid","name":"荒巻泉線","guide_spine":false,"pts":[[1345.5,310.9],[1332.6,333.9],[1333.7,419.4],[1334.7,443.5],[1325.0,470.5],[1306.2,499.2],[1181.5,578.5],[1109.1,735.7],[1103.9,787.6],[1114.0,820.9],[1186.4,911.2],[1278.0,1077.3],[1318.4,1161.5],[1329.3,1175.4],[1364.1,1192.8]]},{"cls":"mid","name":"中山幹線２号線","guide_spine":false,"pts":[[735.3,144.3],[576.8,-141.2]]},{"cls":"mid","name":"北山実沢線","guide_spine":false,"pts":[[284.5,939.3],[287.9,933.7],[251.3,489.0],[188.7,13.3],[146.3,-155.1]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[504.4,537.7],[339.1,595.8],[259.3,628.5]]},{"cls":"mid","name":"貝ケ森中央幹線","guide_spine":false,"pts":[[218.0,1446.7],[175.9,1483.2],[-113.6,1636.3]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[-53.0,642.1],[-6.5,638.4],[170.8,603.9]]},{"cls":"major","name":"中山幹線１号線","guide_spine":true,"pts":[[772.7,126.5],[597.7,221.2],[427.4,263.8],[563.4,746.3],[578.9,1303.2],[569.4,1386.8],[564.5,1456.0],[568.3,1490.4],[591.0,1562.5],[592.5,1584.6]]},{"cls":"mid","name":"第三勝山１号線","guide_spine":false,"pts":[[1334.4,9.5],[1296.7,-73.4]]},{"cls":"mid","name":"第三勝山１号線","guide_spine":false,"pts":[[839.0,-43.3],[759.6,-0.9],[755.8,6.5],[755.3,18.9],[790.3,112.5],[772.7,126.5]]},{"cls":"mid","name":"菖蒲沢橋線","guide_spine":false,"pts":[[572.3,1650.3],[558.9,1694.5],[542.6,1715.0],[507.5,1736.2],[472.5,1786.9]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[574.5,1637.0],[572.3,1650.3]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[592.5,1584.6],[692.3,1598.0],[725.3,1603.6],[813.7,1678.6],[1014.3,1766.0],[1035.2,1779.3],[1049.7,1797.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[404.0,1221.2],[582.6,1215.6]]},{"cls":"mid","name":"通町中山線","guide_spine":false,"pts":[[290.4,1067.2],[301.5,1019.8],[330.5,983.8],[337.5,955.6],[328.4,893.6],[321.3,798.2],[303.6,511.3],[275.8,313.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[413.5,1263.7],[581.8,1258.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[576.8,1059.2],[292.9,1067.2],[256.1,1044.4]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[397.4,575.8],[403.0,1234.2],[419.9,1278.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[322.9,771.4],[396.9,764.7],[566.4,760.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[349.5,940.6],[570.4,932.4]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[906.6,1334.3],[570.7,1346.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[742.8,801.3],[570.6,803.2]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[760.3,1343.7],[737.9,580.8],[698.1,478.1],[597.7,221.2],[517.0,-0.6],[471.4,-86.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1007.0,926.4],[570.4,932.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[450.5,351.0],[626.2,299.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[497.1,498.8],[684.4,447.8],[848.3,356.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[737.0,574.8],[523.4,590.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[674.9,289.8],[629.8,205.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[754.2,1210.4],[582.6,1215.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[751.9,1253.0],[581.8,1258.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[576.8,1059.2],[772.8,1057.2]]},{"cls":"mid","name":"第三勝山２号線","guide_spine":false,"pts":[[839.0,-43.3],[1000.2,286.2],[1269.7,126.3],[1372.9,73.5]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[195.1,81.6],[517.0,-0.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[308.2,395.5],[450.5,351.0]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[517.0,-0.6],[622.5,-56.9]]},{"cls":"mid","name":"川平中山１号線","guide_spine":false,"pts":[[836.3,612.2],[902.4,641.3],[958.8,662.9],[1018.1,707.8],[1081.4,748.1],[1103.5,769.9]]},{"cls":"mid","name":"荒巻本沢街道線","guide_spine":false,"pts":[[747.3,1621.2],[805.0,1608.1],[866.2,1581.5],[930.5,1594.1],[945.3,1604.8],[1050.6,1719.9],[1108.2,1791.7],[1147.6,1822.2]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[1309.1,1716.7],[1262.4,1698.8],[1182.0,1705.8]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[1336.7,1725.3],[1357.6,1741.4]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[1309.1,1716.7],[1336.7,1725.3]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[345.9,1544.1],[342.1,1553.1]]},{"cls":"mid","name":"枯木橋","guide_spine":false,"pts":[[349.0,1532.8],[345.9,1544.1]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[334.3,1436.4],[343.9,1451.2],[315.5,1460.3],[315.9,1475.9],[346.1,1520.7],[349.0,1532.8]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[1018.0,1798.0],[992.9,1812.5]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[691.0,1798.3],[590.6,1668.8],[570.5,1659.5]]},{"cls":"mid","name":"貝ケ森１号線","guide_spine":false,"pts":[[-58.3,1215.2],[-28.6,1230.5],[17.4,1263.3],[342.1,1553.1]]},{"cls":"mid","name":"第三勝山３号線","guide_spine":false,"pts":[[1260.1,-55.7],[914.9,113.9]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[419.9,1278.4],[461.3,1417.7],[462.5,1446.4],[471.8,1517.0],[490.8,1572.0],[592.5,1584.6]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[259.3,628.5],[170.8,603.9]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[568.3,1490.4],[541.7,1475.0],[526.4,1451.1],[524.7,1434.7],[461.3,1417.7]]},{"cls":"mid","name":"枯松坂","guide_spine":false,"pts":[[334.3,1436.4],[316.1,1410.7],[314.8,1367.9],[320.9,1349.4]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[1030.9,1790.3],[1018.0,1798.0]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[1039.7,1784.6],[1030.9,1790.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[507.5,148.9],[537.6,237.6]]},{"cls":"mid","name":"菖蒲沢橋線","guide_spine":false,"pts":[[592.5,1584.6],[574.5,1637.0]]},{"cls":"mid","name":"","guide_spine":true,"pts":[[427.4,263.8],[289.2,311.3],[227.1,315.5]]},{"cls":"mid","name":"貝ケ森中山幹線","guide_spine":false,"pts":[[-57.8,908.8],[-19.8,874.1],[22.4,868.2],[121.8,888.3],[274.3,944.6],[284.5,939.3]]},{"cls":"mid","name":"川平二丁目１号線","guide_spine":false,"pts":[[1142.0,656.6],[907.9,419.4]]},{"cls":"mid","name":"通町中山線","guide_spine":false,"pts":[[342.1,1553.1],[348.6,1563.1],[358.7,1604.7],[379.6,1633.5],[399.9,1671.6],[430.0,1689.1],[455.2,1723.1],[472.5,1786.9]]},{"cls":"mid","name":"通町中山線","guide_spine":false,"pts":[[472.5,1786.9],[468.6,1813.4]]},{"cls":"mid","name":"通町中山線","guide_spine":false,"pts":[[320.9,1349.4],[331.2,1293.9],[330.6,1276.3],[290.6,1191.9],[297.6,1111.1]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[772.1,606.1],[779.1,592.0],[785.5,590.9],[836.3,612.2]]},{"cls":"mid","name":"中山六丁目１号線","guide_spine":false,"pts":[[907.9,419.4],[848.3,356.2],[735.3,144.3]]}],"rivers":[{"name":"","pts":[[1176.3,943.8],[1178.2,966.2],[1174.1,996.2],[1176.8,1013.0],[1196.5,1033.0],[1209.0,1053.6],[1252.5,1058.7],[1251.0,1085.3],[1258.7,1099.5],[1279.3,1133.2]]},{"name":"","pts":[[1176.3,943.8],[1164.1,902.2]]},{"name":"","pts":[[1279.3,1133.2],[1301.0,1156.3]]},{"name":"","pts":[[1301.0,1156.3],[1309.7,1171.7],[1299.7,1194.6],[1307.8,1210.5],[1331.7,1235.3],[1377.1,1254.1]]},{"name":"梅田川","pts":[[303.7,1489.4],[337.1,1534.6],[355.6,1542.3],[362.1,1554.5],[375.8,1563.7],[408.8,1623.0],[483.4,1671.6],[494.1,1663.4],[506.7,1661.3],[523.2,1635.4],[561.1,1640.3],[621.1,1672.9],[676.4,1676.4],[704.4,1724.9],[761.6,1754.1],[864.2,1752.7],[921.9,1788.1],[939.1,1790.9],[988.9,1770.0],[1010.2,1775.2],[1021.4,1782.8],[1030.2,1800.0]]},{"name":"梅田川","pts":[[-52.9,963.5],[-13.8,974.2],[75.7,1052.6],[97.3,1124.3],[130.9,1147.3],[135.3,1157.0],[134.7,1183.9],[121.5,1253.6],[141.1,1328.7],[203.0,1343.7],[234.4,1370.9],[261.1,1390.5],[282.5,1398.2],[290.0,1405.9],[303.2,1443.8],[303.7,1489.4]]}],"parks":[{"name":"たきみち公園","pts":[[1134.8,1541.1],[1131.1,1547.4],[1173.7,1550.5],[1183.7,1542.2],[1197.7,1536.0],[1217.8,1533.8],[1228.5,1531.6],[1233.3,1527.7],[1238.4,1526.1],[1189.4,1494.8],[1177.8,1508.2],[1165.8,1501.9],[1157.7,1511.5],[1154.7,1510.4],[1134.8,1541.1]]},{"name":"中山とびのこ公園","pts":[[521.2,1264.9],[527.8,1286.5],[527.5,1313.1],[522.2,1332.9],[521.4,1356.9],[530.3,1374.5],[526.7,1431.2],[468.4,1415.9],[450.8,1362.7],[443.4,1326.1],[436.5,1297.5],[456.0,1292.3],[456.3,1279.9],[475.1,1274.5],[499.8,1273.1],[513.3,1266.9],[521.2,1264.9]]},{"name":"うどう沼公園","pts":[[161.8,44.8],[127.0,57.0],[125.8,64.4],[125.4,77.8],[131.9,89.2],[145.0,119.7],[155.7,135.6],[170.8,138.7],[179.4,141.9],[183.6,147.1],[187.0,147.5],[199.4,154.8],[205.7,193.6],[111.3,226.5],[115.3,252.1],[99.4,255.6],[101.3,267.7],[93.7,270.5],[89.7,256.1],[23.6,180.3],[25.8,92.3],[15.3,81.4],[60.8,19.3],[70.8,25.0],[152.4,2.7],[161.8,44.8]]},{"name":"中山山の神公園","pts":[[187.8,1062.5],[189.6,1095.9],[193.5,1100.5],[263.5,1117.4],[258.2,1068.5],[252.9,1066.8],[217.7,1082.5],[204.8,1082.0],[204.8,1064.3],[187.8,1062.5]]}],"waters":[{"name":"","pts":[[79.9,221.1],[88.1,221.0],[106.0,213.5],[134.4,204.8],[182.3,184.4],[189.0,178.6],[189.0,171.2],[181.4,160.0],[176.2,155.5],[156.9,147.6],[148.0,142.1],[140.6,125.3],[128.0,103.1],[124.6,90.1],[116.8,74.3],[119.1,61.0],[102.1,58.7],[80.0,94.3],[66.5,106.5],[59.0,114.5],[65.3,129.7],[87.6,153.1],[95.1,161.7],[83.0,195.6],[76.0,213.4],[79.9,221.1]]}],"sando":[[[905.5,598.0],[900.5,625.8]],[[900.5,625.8],[896.3,639.1]],[[788.2,429.1],[774.6,396.2]]],"busway":[[[734.2,146.6],[678.3,45.5],[622.5,-55.8],[575.8,-142.7],[532.2,-230.3],[507.8,-275.9],[505.0,-280.9],[494.6,-299.6],[480.0,-325.1],[476.8,-332.1],[474.1,-338.9],[455.2,-384.7],[452.6,-391.4],[422.7,-476.7],[418.8,-487.7],[415.2,-497.1]],[[769.4,127.9],[752.7,136.8],[734.2,146.6],[697.7,167.6],[684.3,174.8],[665.5,184.1],[646.3,194.2],[628.9,203.8],[595.4,219.9],[534.2,236.2],[429.1,264.3],[426.3,265.0],[440.3,312.3],[452.0,351.7],[459.6,377.3],[465.0,393.9],[465.4,397.1],[476.1,432.9],[484.0,459.5],[486.7,468.1],[496.0,500.0],[507.4,540.5],[524.5,591.4],[542.1,661.9],[552.2,697.7],[566.3,747.8],[567.7,762.0],[569.5,779.7],[570.0,805.5],[570.8,848.6],[571.6,890.1],[572.4,930.9],[573.3,974.3],[574.1,1017.7],[574.8,1052.0],[575.0,1060.3],[575.8,1101.7],[576.5,1140.5],[578.0,1174.1],[578.2,1182.0],[579.2,1217.1],[580.1,1253.4],[580.3,1258.7],[580.7,1268.4],[580.9,1273.1],[581.7,1302.2],[580.5,1310.7],[573.6,1344.5],[568.3,1385.1],[563.8,1435.5],[563.7,1456.0],[567.7,1492.2],[571.5,1505.0],[592.7,1563.9],[594.7,1574.9],[591.7,1585.3]]],"exits":[{"x":576.8,"y":-60,"text":"↑ 至 南中山","anchor":"middle"},{"x":1361,"y":298.9,"text":"至 泉中央 →","anchor":"end"},{"x":468.6,"y":1833,"text":"↓ 至 北山","anchor":"middle"}],"zones":[{"name":"5丁目19番かいわい","members":[56,17,54,18,19,34,52,53,20,48,16,21,49],"x0":498,"y0":627,"x1":633,"y1":1056,"gap":40.0}],"signals":[[1143.4,655.1],[197.0,80.3],[227.9,316.1],[261.5,630.3],[-15.2,1587.0],[591.7,1585.3],[734.1,146.7],[580.1,1253.5],[570.0,805.5],[278.0,848.2],[1232.4,543.7],[403.6,272.2],[490.9,482.5]]};
+document.getElementById('infoAsOf').textContent = 'このマップの情報は' + GEO.meta.info_as_of + '時点の情報です。';
+const partner = (GEO.meta.partner_logos || []).find(x => x.name === '宮城大学' && x.status === 'approved' && x.src);
+if (partner) {
+  const partnerWrap = document.getElementById('partnerLogo');
+  const partnerImage = document.getElementById('partnerLogoImage');
+  partnerImage.onload = () => { partnerWrap.hidden = false; };
+  partnerImage.onerror = () => { partnerWrap.hidden = true; };
+  partnerImage.alt = partner.alt || partner.name;
+  partnerImage.src = partner.src;
+}
+const CATS = {
+  medical:{ label:'健康・美容・医療', color:'var(--c-medical)', cc:'#a8875f' },
+  life:   { label:'生活・日用・企業', color:'var(--c-life)',    cc:'#4a9d3f' },
+  food:   { label:'食べる・飲む・食料', color:'var(--c-food)',  cc:'#e8902f' },
+  edu:    { label:'保育・教育',        color:'var(--c-edu)',    cc:'#3f7ec7' },
+  place:  { label:'公園・名所',        color:'var(--c-place)',  cc:'#2fa3a0' },
+};
+const NS = 'http://www.w3.org/2000/svg';
+const W = GEO.meta.W, H = GEO.meta.H, PAD = 115;
+const svg = document.getElementById('map');
+svg.setAttribute('viewBox', (-PAD)+' '+(-PAD)+' '+(W+2*PAD)+' '+(H+2*PAD));
+
+const QS = new URLSearchParams(location.search);
+const IS_EDIT = QS.get('edit') === '1';
+const IS_DEBUG = QS.get('debug') === '1';
+if (IS_EDIT) document.body.classList.add('edit');
+if (IS_DEBUG) document.body.classList.add('debug');
+
+function el(name, attrs, parent){
+  const e = document.createElementNS(NS, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function poly(pts){ return pts.map((p,i)=>(i?'L':'M')+p[0]+','+p[1]).join(''); }
+function polyClosed(pts){ return poly(pts)+'Z'; }
+
+/* ---------- 静的レイヤ (揺らぎはビルド時に座標へ焼き込み済・フィルタ不使用) ---------- */
+const defs = el('defs', {}, svg);
+defs.innerHTML = `
+  <path id="starShape" d="M0,-10 L2.8,-3.3 L10,-3.1 L4.5,1.3 L6.4,8.2 L0,4.2 L-6.4,8.2 L-4.5,1.3 L-10,-3.1 L-2.8,-3.3 Z"/>`;
+
+el('rect', {x:-PAD, y:-PAD, width:W+2*PAD, height:H+2*PAD, fill:'var(--paper)'}, svg);
+const gWater = el('g', {}, svg);
+const gRoads = el('g', {}, svg);
+const gNames = el('g', {}, svg);
+const gLead  = el('g', {}, svg);
+const gShops = el('g', {}, svg);
+const gDeco  = el('g', {}, svg);
+
+GEO.parks.forEach(p => el('path', {d:polyClosed(p.pts), class:'park'}, gWater));
+GEO.waters.forEach(w => el('path', {d:polyClosed(w.pts), class:'water'}, gWater));
+GEO.rivers.forEach(r => el('path', {d:poly(r.pts), class:'river', 'stroke-width':9}, gWater));
+
+const roadsSorted = GEO.roads;
+roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-c', 'stroke-width':9}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-f', 'stroke-width':5.5}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-c', 'stroke-width':21}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-f', 'stroke-width':13.5}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-c', 'stroke-width':38}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-f', 'stroke-width':27}, gRoads); });
+const mainStreet = roadsSorted.filter(r => r.guide_spine);
+mainStreet.forEach(r => el('path', {d:poly(r.pts), class:'road-main-c', 'stroke-width':48}, gRoads));
+mainStreet.forEach(r => el('path', {d:poly(r.pts), class:'road-main-f', 'stroke-width':34}, gRoads));
+GEO.sando.forEach(s => el('path', {d:poly(s), class:'sando', 'stroke-width':3}, gRoads));
+
+/* 信号機 (OSM実データ11箇所 + 振興組合の位置把握FB3箇所) */
+(GEO.signals||[]).forEach(p => {
+  const g = el('g', {transform:'translate('+p[0]+','+p[1]+')'}, gRoads);
+  el('rect', {x:-11, y:-5.5, width:22, height:11, rx:5.5, fill:'#fffdf5', stroke:'var(--ink)', 'stroke-width':1.5}, g);
+  el('circle', {cx:-6, cy:0, r:2.7, fill:'#e4574d'}, g);
+  el('circle', {cx:0,  cy:0, r:2.7, fill:'#f0c93f'}, g);
+  el('circle', {cx:6,  cy:0, r:2.7, fill:'#57b06a'}, g);
+});
+
+/* 道路名 (実名・表示域内に実在する道路のみ) */
+const ROADLBL = [
+  {match:'中山幹線１号線', text:'中山バス通り', dy:-18, targetY:1455},
+  {match:'荒巻本沢街道線', text:'荒巻本沢街道', dy:-11},
+  {match:'通町中山線', text:'通町中山線', dy:-11, targetY:900, size:13},
+  {match:'北山実沢線', text:'北山実沢線', dy:-11, size:13},
+  {match:'荒巻泉線', text:'荒巻泉線', dy:-11, targetY:740, size:13},
+];
+const usedLbl = new Set();
+ROADLBL.forEach((rl, i) => {
+  let best = null;
+  GEO.roads.forEach(r => {
+    if (!r.name || r.name.indexOf(rl.match) < 0) return;
+    const len = r.pts.reduce((a,p,j)=> j? a+Math.hypot(p[0]-r.pts[j-1][0], p[1]-r.pts[j-1][1]) : 0, 0);
+    if (!best || len > best.len) best = {r, len};
+  });
+  if (!best || best.len < 150 || usedLbl.has(rl.text)) return;
+  usedLbl.add(rl.text);
+  let pts = best.r.pts;
+  if (pts[0][1] > pts[pts.length-1][1]) pts = pts.slice().reverse();
+  // targetY指定時: そのy付近を通る位置にラベルを置く (店ラベルとの被り回避)
+  let offsetPct = 42;
+  if (rl.targetY !== undefined){
+    let acc = 0, hit = null;
+    for (let k = 1; k < pts.length; k++){
+      const seg = Math.hypot(pts[k][0]-pts[k-1][0], pts[k][1]-pts[k-1][1]);
+      if (hit === null && ((pts[k-1][1] <= rl.targetY && rl.targetY <= pts[k][1]) || (pts[k][1] <= rl.targetY && rl.targetY <= pts[k-1][1]))){
+        hit = acc + seg / 2;
+      }
+      acc += seg;
+    }
+    if (hit !== null) offsetPct = Math.max(6, Math.min(82, hit / acc * 100));
+  }
+  const p = el('path', {id:'rl'+i, d:poly(pts), fill:'none'}, defs);
+  const t = el('text', {class:'roadname', 'font-size':rl.size || 16.5, dy:rl.dy}, gNames);
+  const tp = el('textPath', {href:'#rl'+i, startOffset:offsetPct+'%'}, t);
+  tp.textContent = rl.text;
+});
+GEO.parks.forEach(p => {
+  // 店舗(SPOTS)として星＋ラベルを持つ公園は二重表示しない
+  const hasShop = GEO.shops.some(s => s.name.replace(/なかやま/,'中山') === p.name || s.name === p.name);
+  if (hasShop || p.name === 'うどう沼公園') return;
+  const cx = p.pts.reduce((a,q)=>a+q[0],0)/p.pts.length, cy = p.pts.reduce((a,q)=>a+q[1],0)/p.pts.length;
+  const t = el('text', {x:cx, y:cy, class:'parkname', 'font-size':13, 'text-anchor':'middle'}, gNames);
+  t.textContent = p.name;
+});
+GEO.waters.forEach(w => {
+  const cx = w.pts.reduce((a,q)=>a+q[0],0)/w.pts.length, cy = w.pts.reduce((a,q)=>a+q[1],0)/w.pts.length;
+  // 「うどう沼」と呼べるのはうどう沼公園の敷地内の池だけ (将来表示域を広げた時の誤ラベル防止)
+  const upark = GEO.parks.find(p => p.name === 'うどう沼公園');
+  if (!upark) return;
+  const kx = upark.pts.reduce((a,q)=>a+q[0],0)/upark.pts.length, ky = upark.pts.reduce((a,q)=>a+q[1],0)/upark.pts.length;
+  if (Math.hypot(cx-kx, cy-ky) > 140) return;
+  const t = el('text', {x:cx, y:cy+4, class:'rivername', 'font-size':13, 'text-anchor':'middle'}, gNames);
+  t.textContent = 'うどう沼';
+});
+(() => { // 梅田川ラベル: 最長の川セグメント沿い
+  let best=null;
+  GEO.rivers.forEach(r=>{ if(r.name==='梅田川'){ const len=r.pts.length; if(!best||len>best.pts.length) best=r; } });
+  if(best){ const mid=best.pts[Math.floor(best.pts.length/2)];
+    const t=el('text',{x:mid[0],y:mid[1]-12,class:'rivername','font-size':15},gNames); t.textContent='梅田川'; }
+})();
+
+/* 方面表記 */
+(GEO.exits||[]).forEach(x => {
+  const width = Math.max(94, Array.from(x.text).length * 16 + 22);
+  const cx = Math.max(-PAD + width/2 + 6, Math.min(W + PAD - width/2 - 6, x.x));
+  const cy = Math.max(-PAD + 18, Math.min(H + PAD - 18, x.y));
+  const g = el('g', {class:'direction-sign', transform:'translate('+cx+','+cy+')'}, gDeco);
+  el('rect', {x:-width/2, y:-15, width:width, height:30, rx:6}, g);
+  const t = el('text', {x:0, y:5, 'text-anchor':'middle'}, g);
+  t.textContent = x.text;
+});
+
+/* 方位・スケール */
+(() => {
+  const g = el('g', {transform:'translate('+(W-30)+','+(20)+')'}, gDeco);
+  const rot = GEO.meta.proj.rot_deg;
+  const a = el('g', {transform:'rotate('+rot+')'}, g);
+  el('path', {d:'M0,14 L0,-16', stroke:'var(--ink-soft)', 'stroke-width':2.5}, a);
+  el('path', {d:'M0,-16 L-6,-4 L6,-4 Z', fill:'var(--accent)', stroke:'var(--ink-soft)', 'stroke-width':1}, a);
+  const t = el('text', {x:0, y:-24, class:'deco', 'font-size':15, 'text-anchor':'middle', transform:'rotate('+rot+')'}, g);
+  t.textContent = 'N';
+  const sb = el('g', {transform:'translate('+(W-165)+','+(H-6)+')'}, gDeco);
+  el('path', {d:'M0,0 L100,0 M0,-5 L0,5 M100,-5 L100,5', stroke:'var(--ink-soft)', 'stroke-width':2}, sb);
+  const st = el('text', {x:50, y:-8, class:'deco', 'font-size':13, 'text-anchor':'middle'}, sb);
+  st.textContent = '100m';
+})();
+
+/* ---------- 店ラベルレイアウト ---------- */
+/* バス通り最寄り点 */
+const busPts = [];
+GEO.busway.forEach(seg => seg.forEach(p => busPts.push(p)));
+busPts.sort((a,b)=>a[1]-b[1]);
+function busXAtY(y){
+  if (!busPts.length) return W/2;
+  let lo=busPts[0], hi=busPts[busPts.length-1];
+  for (let i=1;i<busPts.length;i++){ if (busPts[i][1]>=y){ hi=busPts[i]; lo=busPts[i-1]; break; } }
+  if (y<=busPts[0][1]) return busPts[0][0];
+  if (y>=busPts[busPts.length-1][1]) return busPts[busPts.length-1][0];
+  const t=(y-lo[1])/((hi[1]-lo[1])||1e-9);
+  return lo[0]+t*(hi[0]-lo[0]);
+}
+function distToBus(s){ return Math.abs(s.x - busXAtY(s.y)); }
+
+const FS = 16.5, LABEL_GAP = 20;
+function estW(name){
+  let w = 0;
+  for (const ch of name) w += ch.charCodeAt(0) < 256 ? 0.56 : 1.02;
+  return w * FS;
+}
+function preferredLabelSide(s){
+  const h = s.hint || {};
+  if (h.anchor === 'start') return 1;
+  if (h.anchor === 'end') return -1;
+  return s.x >= busXAtY(s.y) ? 1 : -1;
+}
+function labelCandidate(s, side){
+  const w = estW(s.name);
+  const lx = s.x + side * LABEL_GAP;
+  const x0 = side > 0 ? lx : lx - w;
+  return {s, side, lx, x0, x1:x0+w, y0:s.y-FS*.62, y1:s.y+FS*.62};
+}
+function resolveHorizontalOverlaps(boxes){
+  for (let pass=0; pass<12; pass++){
+    let moved = false;
+    for (let a=0; a<boxes.length; a++) for (let b=a+1; b<boxes.length; b++){
+      const A=boxes[a], B=boxes[b];
+      const ox = Math.min(A.x1, B.x1) - Math.max(A.x0, B.x0);
+      const oy = Math.min(A.y1, B.y1) - Math.max(A.y0, B.y0);
+      if (ox <= 0 || oy <= 0) continue;
+      const delta = ox + 8;
+      if (A.side === B.side){
+        const target = A.side > 0
+          ? (A.s.x >= B.s.x ? A : B)
+          : (A.s.x <= B.s.x ? A : B);
+        const shift = target.side * delta;
+        target.lx += shift; target.x0 += shift; target.x1 += shift;
+      } else {
+        const shift = delta / 2;
+        [A, B].forEach(box => {
+          box.lx += box.side * shift;
+          box.x0 += box.side * shift;
+          box.x1 += box.side * shift;
+        });
+      }
+      moved = true;
+    }
+    boxes.forEach(box => {
+      GEO.shops.forEach(other => {
+        if (other === box.s) return;
+        const hitsX = other.x > box.x0-10 && other.x < box.x1+10;
+        const hitsY = other.y > box.y0-10 && other.y < box.y1+10;
+        if (!hitsX || !hitsY) return;
+        const shift = box.side > 0
+          ? Math.max(0, other.x + 12 - box.x0)
+          : -Math.max(0, box.x1 - (other.x - 12));
+        if (!shift) return;
+        box.lx += shift; box.x0 += shift; box.x1 += shift;
+        moved = true;
+      });
+    });
+    if (!moved) break;
+  }
+}
+function layoutLabels(){
+  const parent = GEO.shops.map((_, i) => i);
+  const find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
+  const unite = (a, b) => { a=find(a); b=find(b); if (a!==b) parent[a]=b; };
+  for (let i=0; i<GEO.shops.length; i++) for (let j=i+1; j<GEO.shops.length; j++){
+    if (Math.abs(GEO.shops[i].y - GEO.shops[j].y) < FS * 1.24) unite(i, j);
+  }
+  const groups = new Map();
+  GEO.shops.forEach((_, i) => {
+    const root = find(i);
+    if (!groups.has(root)) groups.set(root, []);
+    groups.get(root).push(i);
+  });
+  groups.forEach(indices => {
+    let best = null;
+    for (let mask=0; mask<(1<<indices.length); mask++){
+      const boxes = indices.map((idx, bit) => labelCandidate(GEO.shops[idx], (mask & (1<<bit)) ? 1 : -1));
+      resolveHorizontalOverlaps(boxes);
+      let score = 0;
+      boxes.forEach((box, bit) => {
+        if (box.x0 < -PAD+12) score += (-PAD+12-box.x0) * 10000;
+        if (box.x1 > W+PAD-12) score += (box.x1-(W+PAD-12)) * 10000;
+        if (box.side !== preferredLabelSide(GEO.shops[indices[bit]])) score += 1;
+        score += Math.max(0, Math.abs(box.lx-box.s.x)-LABEL_GAP) * .1;
+        GEO.shops.forEach((other, oi) => {
+          if (oi === indices[bit]) return;
+          if (other.x > box.x0-10 && other.x < box.x1+10 && other.y > box.y0-10 && other.y < box.y1+10) score += 1000;
+        });
+      });
+      for (let a=0; a<boxes.length; a++) for (let b=a+1; b<boxes.length; b++){
+        const ox = Math.min(boxes[a].x1, boxes[b].x1) - Math.max(boxes[a].x0, boxes[b].x0);
+        const oy = Math.min(boxes[a].y1, boxes[b].y1) - Math.max(boxes[a].y0, boxes[b].y0);
+        if (ox > 0 && oy > 0) score += 100000 + ox * oy;
+      }
+      if (!best || score < best.score) best = {score, boxes};
+    }
+    indices.forEach((idx, i) => {
+      const s = GEO.shops[idx], box = best.boxes[i];
+      s.anchor = box.side > 0 ? 'start' : 'end';
+      s.lx = box.lx;
+      s.ly = s.y;
+    });
+  });
+}
+
+let selectedIndex = -1;
+function starSize(s){ return s.name.indexOf('公園')>=0 || s.cat==='place' ? 1.15 : 1; }
+function isPrimaryLabel(s){
+  return s.cat === 'place' || /郵便局|中学校|小学校|市民センター|不動尊|ドライブスクール|ヨークベニマル/.test(s.name);
+}
+function updateSelectedMarker(){
+  document.querySelectorAll('.hit').forEach(h => {
+    const idx = +h.dataset.i, on = idx === selectedIndex;
+    const s = GEO.shops[idx], star = h.querySelector('.star');
+    h.classList.toggle('selected', on);
+    h.setAttribute('aria-pressed', on ? 'true' : 'false');
+    if (star) star.setAttribute('transform', 'scale('+(starSize(s) * (on ? 1.18 : 1))+')');
+  });
+}
+function setSelectedShop(s){
+  selectedIndex = s ? GEO.shops.indexOf(s) : -1;
+  updateSelectedMarker();
+}
+function drawShops(){
+  gShops.innerHTML = ''; gLead.innerHTML = '';
+  layoutLabels();
+  GEO.shops.forEach((s, idx) => {
+    const primary = isPrimaryLabel(s);
+    if (s.clamped && s.far_m > 0){
+      const rad = (s.far_deg||0) * Math.PI/180;
+      const ex = s.x + 30*Math.cos(rad), ey = s.y - 30*Math.sin(rad);
+      el('path', {d:'M'+s.x+','+s.y+' L'+ex+','+ey, class:'faraway '+(primary?'primary':'detail'), 'marker-end':''}, gLead);
+      el('path', {d:'M'+ex+','+ey+' l'+(-7*Math.cos(rad-0.5))+','+(7*Math.sin(rad-0.5))+' M'+ex+','+ey+' l'+(-7*Math.cos(rad+0.5))+','+(7*Math.sin(rad+0.5)), class:'faraway '+(primary?'primary':'detail')}, gLead);
+    }
+    const hasVoices = (s.voices||[]).length > 0;
+    const g = el('g', {class:'hit'+(idx===selectedIndex?' selected':''), tabindex:0, role:'button',
+      'aria-pressed':idx===selectedIndex?'true':'false', 'data-i':idx,
+      'aria-label':s.name+(hasVoices?'、こどもの声あり':'')}, gShops);
+    el('circle', {cx:s.x, cy:s.y, r:s.padr || 22, class:'pad'}, g);  // タップ領域 (隣の星と重ならない半径)
+    if (IS_DEBUG && s.tx !== undefined){
+      // スプレッド表示された星の真の位置を可視化
+      el('path', {d:'M'+(s.tx-5)+','+(s.ty-5)+' L'+(s.tx+5)+','+(s.ty+5)+' M'+(s.tx-5)+','+(s.ty+5)+' L'+(s.tx+5)+','+(s.ty-5), stroke:'#d13030', 'stroke-width':1.6, fill:'none'}, g);
+      el('path', {d:'M'+s.tx+','+s.ty+' L'+s.x+','+s.y, stroke:'rgba(209,48,48,.5)', 'stroke-width':1, 'stroke-dasharray':'2 2', fill:'none'}, g);
+    }
+    const marker = el('g', {class:'marker', transform:'translate('+s.x+','+s.y+')'}, g);
+    el('circle', {cx:0, cy:0, r:16, class:'selected-ring'}, marker);
+    const st = el('use', {href:'#starShape', x:0, y:0, class:'star '+s.cat,
+      transform:'scale('+(starSize(s) * (idx===selectedIndex?1.18:1))+')'}, marker);
+    if (hasVoices){
+      const bx = s.x + 13;
+      const by = s.y - 13;
+      const vg = el('g', {class:'voice-badge', transform:'translate('+bx+','+by+')'}, g);
+      const vt = el('title', {}, vg); vt.textContent = 'こどもの声あり';
+      el('path', {d:'M-4,5 L-7,9 L-6,4', class:'tail'}, vg);
+      el('rect', {x:-9, y:-7, width:18, height:13, rx:4.5, class:'bubble'}, vg);
+      [-4,0,4].forEach(x => el('circle', {cx:x, cy:0, r:1.15, class:'dot'}, vg));
+    }
+    if (IS_DEBUG){
+      const c = {'osm:exact':'#2e9e44','gsi_dem':'#176b58','osm:partial':'#d1a520','gsi_addr':'#2e6fd1','approx':'#d13030'}[s.src]||'#888';
+      el('circle', {cx:s.x, cy:s.y, r:14, fill:'none', stroke:c, 'stroke-width':2, 'stroke-dasharray':'3 3'}, g);
+    }
+    const t = el('text', {x:s.lx, y:s.ly+FS*0.35, class:'shoplabel '+(primary?'primary b':'detail'),
+      'font-size':FS, 'text-anchor':s.anchor}, g);
+    t.textContent = s.name;
+    if (s.clamped && s.far_m > 0){
+      const ft = el('text', {x:s.lx, y:s.ly+FS*0.35+15, class:'shoplabel '+(primary?'primary':'detail'), 'font-size':10.5,
+        'text-anchor':s.anchor, opacity:.8}, g);
+      ft.textContent = '実際は約'+(s.far_m>=1000? (s.far_m/1000).toFixed(1)+'km':(s.far_m+'m'))+'先';
+    }
+  });
+  applyFilter();
+  updateSelectedMarker();
+}
+
+/* ---------- フィルタ・検索・店舗詳細スライダー ---------- */
+const activeCats = new Set();
+let query = '', voiceOnly = false, searchOpenedList = false;
+const filtersDiv = document.getElementById('filters');
+Object.keys(CATS).forEach(k => {
+  const b = document.createElement('button');
+  b.className = 'chip c-'+k; b.setAttribute('aria-pressed','false');
+  const dot = document.createElement('span'); dot.className = 'dot';
+  const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = CATS[k].label;
+  b.appendChild(dot); b.appendChild(lbl);
+  b.addEventListener('click', () => {
+    const on = b.getAttribute('aria-pressed') === 'true';
+    b.setAttribute('aria-pressed', on?'false':'true');
+    if (on) activeCats.delete(k); else activeCats.add(k);
+    hideDetail();
+    applyFilter();
+  });
+  filtersDiv.appendChild(b);
+});
+const voiceFilter = document.createElement('button');
+voiceFilter.className = 'chip voice-filter'; voiceFilter.setAttribute('aria-pressed','false');
+voiceFilter.type = 'button';
+const voiceIcon = document.createElement('span'); voiceIcon.className = 'voice-chip-icon'; voiceIcon.setAttribute('aria-hidden','true');
+const voiceCount = GEO.shops.filter(s => (s.voices||[]).length > 0).length;
+const voiceLabel = document.createElement('span'); voiceLabel.className = 'lbl'; voiceLabel.textContent = 'こどもの声（'+voiceCount+'店）';
+voiceFilter.appendChild(voiceIcon); voiceFilter.appendChild(voiceLabel);
+voiceFilter.addEventListener('click', () => {
+  voiceOnly = !voiceOnly;
+  voiceFilter.setAttribute('aria-pressed', voiceOnly ? 'true' : 'false');
+  hideDetail();
+  applyFilter();
+});
+filtersDiv.appendChild(voiceFilter);
+document.getElementById('q').addEventListener('input', e => {
+  query = e.target.value.trim().toLowerCase();
+  hideDetail();
+  applyFilter({fromSearch:true});
+});
+function norm(s){ return s.toLowerCase().replace(/[ァ-ン]/g, m=>String.fromCharCode(m.charCodeAt(0)-0x60)); }
+function searchText(s){
+  return norm(s.name + ' ' + (s.addr||'') + ' ' + (s.note||'') + ' ' + (s.voices||[]).map(v=>v.text).join(' '));
+}
+function matchesFilter(s){
+  if (activeCats.size && !activeCats.has(s.cat)) return false;
+  if (voiceOnly && !(s.voices||[]).length) return false;
+  if (query && searchText(s).indexOf(norm(query)) < 0) return false;
+  return true;
+}
+function applyFilter({fromSearch=false} = {}){
+  const matched = [];
+  document.querySelectorAll('.hit').forEach(h => {
+    const s = GEO.shops[+h.dataset.i];
+    const ok = matchesFilter(s);
+    const glow = ok && (query.length > 0 || voiceOnly || (activeCats.size && activeCats.has(s.cat)));
+    if (ok) matched.push(s);
+    h.classList.toggle('dim', !ok);
+    h.classList.toggle('glowing', !!glow);
+    h.setAttribute('tabindex', ok ? 0 : -1);
+  });
+  const status = document.getElementById('searchstatus');
+  const filtering = query.length > 0 || voiceOnly || activeCats.size > 0;
+  status.textContent = filtering ? (matched.length ? matched.length+'件' : '見つかりません') : '';
+  status.classList.toggle('empty', filtering && matched.length === 0);
+
+  if (query) renderList(null, '検索結果'); else renderList();
+
+  if (fromSearch){
+    const enough = Array.from(query).length >= 2;
+    if (enough && matched.length === 1){
+      listpanel.classList.remove('show');
+      searchOpenedList = false;
+      focusShopOnMap(matched[0], true);
+    } else if (enough && matched.length > 1){
+      setSelectedShop(null);
+      renderList(null, '検索結果');
+      listpanel.classList.add('show');
+      searchOpenedList = true;
+    } else if (enough && matched.length === 0){
+      listpanel.classList.remove('show');
+      searchOpenedList = false;
+      setSelectedShop(null);
+    } else if (searchOpenedList){
+      listpanel.classList.remove('show');
+      searchOpenedList = false;
+    }
+  }
+}
+
+const chooser = document.getElementById('chooser');
+const mapwrap = document.getElementById('mapwrap');
+const viewport = document.getElementById('viewport');
+const detailPanel = document.getElementById('detailPanel');
+const detailRail = document.getElementById('detailRail');
+const detailPrev = document.getElementById('detailPrev');
+const detailNext = document.getElementById('detailNext');
+const detailCount = document.getElementById('detailCount');
+const detailTitle = document.getElementById('detailTitle');
+let pinned = null, lastFocusHit = null;
+let detailShops = [], detailIndex = -1, detailScrollFrame = 0;
+function svgToWrap(x, y){
+  const vb = svg.viewBox.baseVal, r = svg.getBoundingClientRect(), wr = mapwrap.getBoundingClientRect();
+  return [ (x - vb.x) / vb.width * r.width + (r.left - wr.left),
+           (y - vb.y) / vb.height * r.height + (r.top - wr.top) ];
+}
+function placeBubble(box, px, py){
+  // px/py は mapwrap 相対。viewport 可視域も mapwrap 相対に変換してからクランプする
+  const wrapLeft = mapwrap.offsetLeft, wrapTop = mapwrap.offsetTop;
+  const visL = viewport.scrollLeft - wrapLeft, visT = viewport.scrollTop - wrapTop;
+  const halfW = Math.min(box.offsetWidth || 224, viewport.clientWidth * 0.78) / 2;
+  const minL = visL + halfW + 6;
+  const maxL = visL + viewport.clientWidth - halfW - 6;
+  const cx = Math.max(minL, Math.min(maxL, px));
+  box.style.setProperty('--arrow-dx', (px - cx) + 'px');
+  // 縦: 可視域基準で上に収まらなければ下側に出す
+  box.classList.toggle('below', (py - visT) < 250);
+  box.style.left = cx + 'px'; box.style.top = py + 'px';
+}
+function focusShopOnMap(s, openDetail){
+  const fx = (s.x + PAD) / (W + 2*PAD), fy = (s.y + PAD) / (H + 2*PAD);
+  viewport.scrollLeft = fx * wrap.offsetWidth - viewport.clientWidth/2;
+  viewport.scrollTop = fy * wrap.offsetHeight - viewport.clientHeight/2;
+  setSelectedShop(s);
+  if (openDetail){
+    pinned = s;
+    requestAnimationFrame(() => showDetail(s, false));
+  }
+}
+function detailText(tag, className, text){
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+function setPhotoState(target, state){
+  ['is-loading','is-error','is-success'].forEach(name => target.classList.remove(name));
+  target.classList.add('is-' + state);
+  target.setAttribute('aria-busy', state === 'loading' ? 'true' : 'false');
+}
+function setPhotoPicture(picture, photo, stateTarget){
+  const source = picture.querySelector('source');
+  const image = picture.querySelector('img');
+  setPhotoState(stateTarget, 'loading');
+  source.srcset = photo.src + '.webp';
+  image.src = photo.src + '.jpg';
+  image.alt = photo.alt;
+  if (image.complete){
+    setPhotoState(stateTarget, image.naturalWidth ? 'success' : 'error');
+  }
+}
+function createPhotoPicture(photo, className, stateTarget){
+  const picture = detailText('picture', className);
+  const source = document.createElement('source');
+  source.type = 'image/webp';
+  const image = document.createElement('img');
+  image.loading = 'lazy';
+  image.decoding = 'async';
+  image.addEventListener('load', () => setPhotoState(stateTarget, 'success'));
+  image.addEventListener('error', () => setPhotoState(stateTarget, 'error'));
+  picture.appendChild(source);
+  picture.appendChild(image);
+  setPhotoPicture(picture, photo, stateTarget);
+  return picture;
+}
+let photoLightbox = null, photoLightboxPicture = null, photoLightboxFrame = null;
+let photoLightboxTitle = null, photoLightboxCaption = null, photoLightboxTrigger = null;
+function ensurePhotoLightbox(photo){
+  if (photoLightbox) return;
+  photoLightbox = detailText('div', 'photo-lightbox');
+  photoLightbox.id = 'photoLightbox';
+  photoLightbox.hidden = true;
+  photoLightbox.setAttribute('role', 'dialog');
+  photoLightbox.setAttribute('aria-modal', 'true');
+  photoLightbox.setAttribute('aria-labelledby', 'photoLightboxTitle');
+  const shell = detailText('div', 'photo-lightbox-shell');
+  photoLightboxTitle = detailText('h2', 'sr-only');
+  photoLightboxTitle.id = 'photoLightboxTitle';
+  const close = detailText('button', 'photo-lightbox-close', '✕');
+  close.type = 'button';
+  close.setAttribute('aria-label', '拡大写真を閉じる');
+  photoLightboxFrame = detailText('div', 'photo-lightbox-frame');
+  photoLightboxPicture = createPhotoPicture(photo, 'photo-lightbox-picture', photoLightboxFrame);
+  photoLightboxCaption = detailText('p', 'photo-lightbox-caption');
+  shell.appendChild(photoLightboxTitle);
+  shell.appendChild(close);
+  shell.appendChild(photoLightboxFrame);
+  photoLightboxFrame.appendChild(photoLightboxPicture);
+  shell.appendChild(photoLightboxCaption);
+  photoLightbox.appendChild(shell);
+  document.body.appendChild(photoLightbox);
+  close.addEventListener('click', () => closePhotoLightbox(true));
+  photoLightbox.addEventListener('click', event => {
+    event.stopPropagation();
+    if (event.target === photoLightbox) closePhotoLightbox(true);
+  });
+  photoLightbox.addEventListener('keydown', event => {
+    if (event.key === 'Tab'){
+      event.preventDefault();
+      close.focus();
+    }
+  });
+}
+function openPhotoLightbox(photo, shopName, trigger){
+  ensurePhotoLightbox(photo);
+  photoLightboxTrigger = trigger;
+  photoLightboxTitle.textContent = shopName + 'の写真';
+  photoLightboxCaption.textContent = photo.alt;
+  setPhotoPicture(photoLightboxPicture, photo, photoLightboxFrame);
+  photoLightbox.hidden = false;
+  detailPanel.inert = true;
+  requestAnimationFrame(() => photoLightbox.querySelector('.photo-lightbox-close').focus());
+}
+function closePhotoLightbox(restoreFocus){
+  if (!photoLightbox || photoLightbox.hidden) return false;
+  photoLightbox.hidden = true;
+  if (detailPanel.getAttribute('aria-hidden') === 'false') detailPanel.inert = false;
+  const trigger = photoLightboxTrigger;
+  photoLightboxTrigger = null;
+  if (restoreFocus && trigger && trigger.isConnected){
+    requestAnimationFrame(() => trigger.focus());
+  }
+  return true;
+}
+function buildPhotoGallery(s, photos){
+  const gallery = detailText('section', 'detail-gallery');
+  gallery.setAttribute('aria-label', s.name + 'の写真');
+  let currentPhoto = photos[0];
+  const mainButton = detailText('button', 'detail-photo-main');
+  mainButton.type = 'button';
+  mainButton.setAttribute('aria-haspopup', 'dialog');
+  mainButton.setAttribute('aria-label', currentPhoto.alt + 'を拡大表示');
+  const mainPicture = createPhotoPicture(currentPhoto, 'detail-photo-picture', mainButton);
+  mainButton.appendChild(mainPicture);
+  mainButton.addEventListener('click', () => openPhotoLightbox(currentPhoto, s.name, mainButton));
+  gallery.appendChild(mainButton);
+  if (photos.length > 1){
+    const thumbnails = detailText('div', 'detail-photo-thumbs');
+    thumbnails.setAttribute('aria-label', '表示する写真を選ぶ');
+    const live = detailText('span', 'sr-only');
+    live.setAttribute('role', 'status');
+    live.setAttribute('aria-live', 'polite');
+    const buttons = photos.map((photo, index) => {
+      const button = detailText('button', 'detail-photo-thumb');
+      button.type = 'button';
+      button.setAttribute('aria-label', photo.alt + 'を表示');
+      button.setAttribute('aria-pressed', index === 0 ? 'true' : 'false');
+      button.appendChild(createPhotoPicture(photo, '', button));
+      button.addEventListener('click', () => {
+        currentPhoto = photo;
+        setPhotoPicture(mainPicture, photo, mainButton);
+        mainButton.setAttribute('aria-label', photo.alt + 'を拡大表示');
+        buttons.forEach(item => item.setAttribute('aria-pressed', item === button ? 'true' : 'false'));
+        live.textContent = photo.alt + 'を表示中';
+      });
+      thumbnails.appendChild(button);
+      return button;
+    });
+    gallery.appendChild(thumbnails);
+    gallery.appendChild(live);
+  }
+  return gallery;
+}
+function buildDetailCard(s){
+  const card = detailText('article', 'detail-card');
+  const cat = detailText('div', 'detail-cat');
+  cat.style.color = CATS[s.cat].cc;
+  cat.appendChild(detailText('span', 'detail-cat-dot'));
+  cat.appendChild(detailText('span', '', CATS[s.cat].label));
+  card.appendChild(cat);
+  card.appendChild(detailText('h2', '', s.name));
+
+  if (s.addr){
+    let address = s.addr;
+    if (IS_DEBUG) address += '  ['+s.src+'] ('+s.lat.toFixed(6)+','+s.lng.toFixed(6)+')';
+    card.appendChild(detailText('p', 'detail-address', address));
+  }
+  const photos = Array.isArray(s.photos) ? s.photos.filter(photo => photo && photo.src && photo.alt) : [];
+  if (photos.length) card.appendChild(buildPhotoGallery(s, photos));
+  const statuses = detailText('div', 'detail-statuses');
+  const voices = s.voices || [];
+  if (voices.length){
+    const voiceButton = detailText('button', 'detail-status voice', 'こどもの声 ' + voices.length + '件を見る');
+    voiceButton.type = 'button';
+    voiceButton.setAttribute('aria-label', s.name + 'のこどもの声' + voices.length + '件を見る');
+    voiceButton.setAttribute('aria-expanded', 'false');
+    voiceButton.addEventListener('click', () => {
+      const block = card.querySelector('.detail-voice-block');
+      if (!block) return;
+      const expanded = voiceButton.getAttribute('aria-expanded') !== 'true';
+      voiceButton.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      voiceButton.textContent = expanded ? 'こどもの声を閉じる' : 'こどもの声 ' + voices.length + '件を見る';
+      block.hidden = !expanded;
+      if (!expanded) return;
+      const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      requestAnimationFrame(() => {
+        block.scrollIntoView({behavior:reduceMotion ? 'auto' : 'smooth', block:'start'});
+        block.focus({preventScroll:true});
+      });
+    });
+    statuses.appendChild(voiceButton);
+  }
+  if (s.note) statuses.appendChild(detailText('span', 'detail-status', '紹介あり'));
+  if (s.url && /^https:\/\//.test(s.url)) statuses.appendChild(detailText('span', 'detail-status', '詳しい店舗情報あり'));
+  if (statuses.children.length) card.appendChild(statuses);
+  if (s.note) card.appendChild(detailText('p', 'detail-note', s.note));
+
+  if (voices.length){
+    const block = detailText('section', 'detail-voice-block');
+    block.tabIndex = -1;
+    block.hidden = true;
+    const title = detailText('h3', 'detail-voice-title');
+    title.appendChild(detailText('span', 'voice-title-icon', '···'));
+    title.appendChild(detailText('span', '', 'こどもの声'));
+    block.appendChild(title);
+    voices.forEach(v => block.appendChild(detailText('p', 'detail-voice', v.text)));
+    card.appendChild(block);
+  } else if (!s.note){
+    card.appendChild(detailText('p', 'detail-empty', '地図上の位置と住所を確認できます。'));
+  }
+
+  if (s.url && /^https:\/\//.test(s.url)){
+    const link = detailText('a', 'detail-link', '詳しい店舗情報はこちら ↗');
+    link.href = s.url; link.target = '_blank'; link.rel = 'noopener';
+    card.appendChild(link);
+  }
+  return card;
+}
+function updateDetailIndex(index, panMap){
+  if (!detailShops.length) return;
+  detailIndex = Math.max(0, Math.min(detailShops.length - 1, index));
+  const s = detailShops[detailIndex];
+  pinned = s;
+  detailCount.textContent = (detailIndex + 1) + ' / ' + detailShops.length;
+  detailPrev.disabled = detailIndex === 0;
+  detailNext.disabled = detailIndex === detailShops.length - 1;
+  detailTitle.textContent = s.name + 'の詳細';
+  Array.from(detailRail.children).forEach((card, i) => card.setAttribute('aria-hidden', i === detailIndex ? 'false' : 'true'));
+  if (panMap) focusShopOnMap(s, false); else setSelectedShop(s);
+}
+function moveDetailTo(index, smooth){
+  if (!detailShops.length) return;
+  const next = Math.max(0, Math.min(detailShops.length - 1, index));
+  updateDetailIndex(next, true);
+  detailRail.scrollTo({left: next * detailRail.clientWidth, behavior: smooth ? 'smooth' : 'auto'});
+}
+function showDetail(s, focusClose){
+  const filtered = GEO.shops.filter(matchesFilter).slice().sort((a,b) => a.y-b.y || a.x-b.x);
+  detailShops = filtered.includes(s) ? filtered : [s].concat(filtered);
+  detailRail.replaceChildren(...detailShops.map(buildDetailCard));
+  detailIndex = Math.max(0, detailShops.indexOf(s));
+  document.getElementById('listpanel').classList.remove('show');
+  searchOpenedList = false;
+  hideChooser();
+  document.body.classList.add('detail-open');
+  detailPanel.inert = false;
+  detailPanel.setAttribute('aria-hidden', 'false');
+  updateDetailIndex(detailIndex, false);
+  requestAnimationFrame(() => detailRail.scrollTo({left: detailIndex * detailRail.clientWidth, behavior:'auto'}));
+  if (focusClose) document.getElementById('detailClose').focus();
+}
+function hideDetail(restoreFocus){
+  closePhotoLightbox(false);
+  const wasOpen = detailPanel.getAttribute('aria-hidden') === 'false';
+  document.body.classList.remove('detail-open');
+  detailPanel.inert = true;
+  detailPanel.setAttribute('aria-hidden', 'true');
+  if (restoreFocus && wasOpen && lastFocusHit){ try{ lastFocusHit.focus(); }catch(e){} }
+  pinned = null;
+  detailIndex = -1;
+  setSelectedShop(null);
+}
+function hideChooser(){ chooser.classList.remove('show'); }
+function nearby(s){
+  return GEO.shops.filter(o => Math.hypot(o.x-s.x, o.y-s.y) < 22);
+}
+function showChooser(list, s){
+  chooser.innerHTML = '';
+  setSelectedShop(null);
+  const t = document.createElement('div'); t.className='ctitle'; t.textContent='どのお店？'; chooser.appendChild(t);
+  list.forEach(o => {
+    const b = document.createElement('button'); b.className='copt';
+    const d = document.createElement('span'); d.className='cdot'; d.style.background = CATS[o.cat].cc;
+    const nm = document.createElement('span'); nm.textContent = o.name;
+    b.appendChild(d); b.appendChild(nm);
+    b.addEventListener('click', ev => { ev.stopPropagation(); hideChooser(); pinned = o; showDetail(o, true); });
+    chooser.appendChild(b);
+  });
+  const [px, py] = svgToWrap(s.x, s.y);
+  placeBubble(chooser, px, py);
+  chooser.classList.add('show');
+  const first = chooser.querySelector('.copt'); if (first) first.focus();
+}
+gShops.addEventListener('click', e => {
+  const h = e.target.closest('.hit'); if (!h) return;
+  e.stopPropagation();
+  lastFocusHit = h;
+  const s = GEO.shops[+h.dataset.i];
+  const nb = nearby(s).filter(o => matchesFilter(o));
+  if (nb.length > 1){ showChooser(nb, s); } else { pinned = s; showDetail(s, false); }
+});
+gShops.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const h = e.target.closest('.hit'); if (!h) return;
+  e.preventDefault(); lastFocusHit = h;
+  pinned = GEO.shops[+h.dataset.i]; showDetail(pinned, true);
+});
+document.getElementById('detailClose').addEventListener('click', e => { e.stopPropagation(); hideDetail(true); });
+detailPanel.addEventListener('click', e => e.stopPropagation());
+detailPrev.addEventListener('click', () => moveDetailTo(detailIndex - 1, true));
+detailNext.addEventListener('click', () => moveDetailTo(detailIndex + 1, true));
+detailRail.addEventListener('scroll', () => {
+  if (detailScrollFrame || detailPanel.getAttribute('aria-hidden') === 'true') return;
+  detailScrollFrame = requestAnimationFrame(() => {
+    detailScrollFrame = 0;
+    const next = Math.round(detailRail.scrollLeft / Math.max(1, detailRail.clientWidth));
+    if (next !== detailIndex) updateDetailIndex(next, true);
+  });
+}, {passive:true});
+detailRail.addEventListener('keydown', e => {
+  if (e.target.closest('a,button,input')) return;
+  if (e.key === 'ArrowLeft'){ e.preventDefault(); moveDetailTo(detailIndex - 1, true); }
+  if (e.key === 'ArrowRight'){ e.preventDefault(); moveDetailTo(detailIndex + 1, true); }
+});
+chooser.addEventListener('click', e => e.stopPropagation());
+document.addEventListener('click', () => { hideDetail(); hideChooser(); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (closePhotoLightbox(true)){
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    return;
+  }
+  hideDetail(true);
+  hideChooser();
+});
+
+/* ---------- ズーム (中心点を維持) ---------- */
+const wrap = document.getElementById('mapwrap');
+const ZMIN = 95, ZMAX = 420;
+let zoom = window.innerWidth >= 760 ? 108 : 175;
+function applyZoom(keepCenter){
+  const vp = viewport;
+  const cx = keepCenter ? (vp.scrollLeft + vp.clientWidth/2) / wrap.offsetWidth : null;
+  const cy = keepCenter ? (vp.scrollTop + vp.clientHeight/2) / wrap.offsetHeight : null;
+  wrap.style.width = zoom+'%'; wrap.style.maxWidth = 'none';
+  if (keepCenter){
+    vp.scrollLeft = cx * wrap.offsetWidth - vp.clientWidth/2;
+    vp.scrollTop  = cy * wrap.offsetHeight - vp.clientHeight/2;
+  }
+  hideDetail(); hideChooser();
+  document.getElementById('zin').disabled  = zoom >= ZMAX;
+  document.getElementById('zout').disabled = zoom <= ZMIN;
+}
+document.getElementById('zin').addEventListener('click', () => { zoom = Math.min(zoom+45, ZMAX); applyZoom(true); });
+document.getElementById('zout').addEventListener('click', () => { zoom = Math.max(zoom-45, ZMIN); applyZoom(true); });
+window.addEventListener('resize', () => {
+  hideChooser();
+  if (detailIndex >= 0) requestAnimationFrame(() => detailRail.scrollTo({left:detailIndex * detailRail.clientWidth, behavior:'auto'}));
+});
+
+/* ---------- お店一覧パネル ---------- */
+const listpanel = document.getElementById('listpanel');
+const listrows = document.getElementById('listrows');
+let listCtx = {members: null, title: null};  // 一覧の現在文脈 (区画絞り込み中にフィルタ再描画されても維持)
+function renderList(memberIdx, title){
+  if (!listrows) return;
+  if (arguments.length > 0){ listCtx = {members: memberIdx, title: title || null}; }
+  listrows.innerHTML = '';
+  let src = GEO.shops;
+  if (Array.isArray(listCtx.members)) src = listCtx.members.map(i => GEO.shops[i]);
+  const visible = src.filter(matchesFilter);
+  document.getElementById('listtitle').textContent =
+    (listCtx.title ? listCtx.title + '（' + visible.length + '件）' : 'お店一覧');
+  visible.slice().sort((a,b)=>a.y-b.y).forEach(s => {
+    const b = document.createElement('button'); b.className = 'lrow';
+    const d = document.createElement('span'); d.className='ldot'; d.style.background = CATS[s.cat].cc;
+    const nm = document.createElement('span'); nm.className='lname'; nm.textContent = s.name;
+    const ad = document.createElement('span'); ad.className='laddr'; ad.textContent = (s.addr||'').replace('仙台市青葉区','').replace('仙台市泉区','泉区 ');
+    b.setAttribute('aria-label', s.name + ((s.voices||[]).length ? '、こどもの声あり' : ''));
+    b.appendChild(d); b.appendChild(nm);
+    if ((s.voices||[]).length){
+      const vi = document.createElement('span'); vi.className='lvoice'; vi.title='こどもの声あり'; vi.setAttribute('aria-hidden','true');
+      b.appendChild(vi);
+    }
+    b.appendChild(ad);
+    b.addEventListener('click', () => {
+      listpanel.classList.remove('show');
+      searchOpenedList = false;
+      focusShopOnMap(s, false);
+      showDetail(s, true);
+    });
+    listrows.appendChild(b);
+  });
+}
+document.getElementById('listbtn').addEventListener('click', e => {
+  e.stopPropagation(); renderList(null, query ? '検索結果' : null); listpanel.classList.add('show');
+});
+document.getElementById('listclose').addEventListener('click', () => { listpanel.classList.remove('show'); searchOpenedList = false; });
+listpanel.addEventListener('click', e => e.stopPropagation());
+document.addEventListener('keydown', e => { if (e.key === 'Escape'){ listpanel.classList.remove('show'); searchOpenedList = false; } });
+
+/* ---------- 編集モード (?edit=1) ---------- */
+if (IS_EDIT){
+  const style = document.createElement('style');
+  style.textContent = 'body.edit .hit{ touch-action:none; }';
+  document.head.appendChild(style);
+  let dragging = null;
+  svg.addEventListener('pointerdown', e => {
+    const h = e.target.closest('.hit'); if (!h) return;
+    dragging = GEO.shops[+h.dataset.i];
+    dragging.moved = true;
+    svg.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const vb = svg.viewBox.baseVal, r = svg.getBoundingClientRect();
+    dragging.x = Math.round(((e.clientX - r.left)/r.width * vb.width + vb.x)*10)/10;
+    dragging.y = Math.round(((e.clientY - r.top)/r.height * vb.height + vb.y)*10)/10;
+    drawShops();
+  });
+  svg.addEventListener('pointerup', () => { dragging = null; });
+  svg.addEventListener('pointercancel', () => { dragging = null; });
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    const P = GEO.meta.proj, rot = -P.rot_deg*Math.PI/180;
+    const out = GEO.shops.map(s => {
+      // ドラッグしていない星は常に真のlat/lngを出力 (クランプ・スプレッドの表示位置に汚染されない)
+      if (!s.moved) return {name:s.name, lat:s.lat, lng:s.lng};
+      const gx = s.x + GEO.meta.minx, gy = s.y + GEO.meta.miny;
+      const x0 = gx*Math.cos(rot) - gy*Math.sin(rot);
+      const y0 = gx*Math.sin(rot) + gy*Math.cos(rot);
+      const lng = P.lon0 + x0/(111320*P.cosf);
+      const lat = P.lat0 + (-y0)/111320;
+      return {name:s.name, lat:+lat.toFixed(6), lng:+lng.toFixed(6), moved:!!s.moved};
+    });
+    const blob = new Blob([JSON.stringify(out, null, 1)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'nakayama_coords.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  });
+}
+
+drawShops();
+applyZoom(false);
+/* 初期表示は商店街の密集帯を中心に */
+requestAnimationFrame(() => {
+  const vp = viewport;
+  const cx = (busXAtY(H*0.45) + PAD) / (W + 2*PAD);
+  vp.scrollLeft = wrap.offsetWidth * cx - vp.clientWidth / 2;
+  vp.scrollTop = wrap.offsetHeight * 0.22;
+});
+</script>
+</body>
+</html>
