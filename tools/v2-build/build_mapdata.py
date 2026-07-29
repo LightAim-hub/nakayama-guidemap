@@ -7,6 +7,7 @@ preview出力: リポジトリ直下の preview.html (本番2ファイルは非�
 実行: python tools/v2-build/build_mapdata.py [--preview] (どこから実行してもよい)
 """
 import argparse, json, math, os
+from collections import Counter, defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 def P(name):
@@ -252,6 +253,9 @@ xs, ys = [p[0] for p in pts], [p[1] for p in pts]
 MARGIN = 110
 minx, maxx = min(xs) - MARGIN - 85, max(xs) + MARGIN  # 西は+85(うどう沼を収める)
 miny, maxy = min(ys) - MARGIN, max(ys) + MARGIN
+W, H = round(maxx - minx), round(maxy - miny)
+CLIP_PAD = 115
+CLIP_RECT = (minx - CLIP_PAD, miny - CLIP_PAD, maxx + CLIP_PAD, maxy + CLIP_PAD)
 
 def in_view(p, pad=0):
     return (minx - pad) <= p[0] <= (maxx + pad) and (miny - pad) <= p[1] <= (maxy + pad)
@@ -276,60 +280,255 @@ def simplify(points, eps=4.0):
         return [pts_[0], pts_[-1]]
     return dp(points)
 
-def clip_line(points):
-    """ビュー外区間を落とす(単純: 全点外なら捨て、跨ぎはそのまま残す)"""
-    segs, cur = [], []
-    for i, p in enumerate(points):
-        if in_view(p, pad=60):
-            cur.append(p)
-        else:
-            if cur:
-                cur.append(p)  # 縁まで伸ばす
-                segs.append(cur)
-                cur = []
-    if cur:
-        segs.append(cur)
-    return [s for s in segs if len(s) >= 2]
+_CS_LEFT, _CS_RIGHT, _CS_TOP, _CS_BOTTOM = 1, 2, 4, 8
 
-# 支給マップと同じ目印になる接続路だけを残す。住宅路の全表示は視覚ノイズになるため行わない。
-# OSM way id は2026-07-10受領図の交差位置を、店舗の実測座標と照合して固定したもの。
-REFERENCE_SIDE_STREET_WAY_IDS = {
-    104236630, 998965378,                    # 北側の導入路
-    104542851, 104236575,                   # 7丁目・6丁目境
-    104236593, 104236598,                   # 中山中学校・鳥瀧不動尊側
-    103842633, 103846535,                   # 4丁目・5丁目北側
-    103842635, 103846544,                   # 4丁目・5丁目中央
-    103842207, 104236852,                   # 2丁目・5丁目南側
-    103842201, 104236843,                   # とびのこ公園・小学校側
-    103842204, 104236847,                   # 坂の登り口側
+def _outcode(p, rect=CLIP_RECT):
+    xmin, ymin, xmax, ymax = rect
+    code = 0
+    if p[0] < xmin: code |= _CS_LEFT
+    elif p[0] > xmax: code |= _CS_RIGHT
+    if p[1] < ymin: code |= _CS_TOP
+    elif p[1] > ymax: code |= _CS_BOTTOM
+    return code
+
+def clip_segment(a, b, rect=CLIP_RECT):
+    """Cohen–Sutherland。交差点を矩形境界へ正確に置く。"""
+    xmin, ymin, xmax, ymax = rect
+    x1, y1 = a
+    x2, y2 = b
+    c1, c2 = _outcode((x1, y1), rect), _outcode((x2, y2), rect)
+    while True:
+        if not (c1 | c2):
+            return (x1, y1), (x2, y2)
+        if c1 & c2:
+            return None
+        code = c1 or c2
+        if code & _CS_TOP:
+            x = x1 + (x2 - x1) * (ymin - y1) / ((y2 - y1) or 1e-12); y = ymin
+        elif code & _CS_BOTTOM:
+            x = x1 + (x2 - x1) * (ymax - y1) / ((y2 - y1) or 1e-12); y = ymax
+        elif code & _CS_RIGHT:
+            y = y1 + (y2 - y1) * (xmax - x1) / ((x2 - x1) or 1e-12); x = xmax
+        else:
+            y = y1 + (y2 - y1) * (xmin - x1) / ((x2 - x1) or 1e-12); x = xmin
+        if code == c1:
+            x1, y1, c1 = x, y, _outcode((x, y), rect)
+        else:
+            x2, y2, c2 = x, y, _outcode((x, y), rect)
+
+def clip_line(points):
+    """ポリラインを線分単位で切り、連続する可視線分だけをまとめる。"""
+    segs, cur = [], []
+    for a, b in zip(points, points[1:]):
+        clipped = clip_segment(a, b)
+        if clipped is None:
+            if len(cur) >= 2: segs.append(cur)
+            cur = []
+            continue
+        ca, cb = clipped
+        if not cur or math.hypot(cur[-1][0] - ca[0], cur[-1][1] - ca[1]) > 0.01:
+            if len(cur) >= 2: segs.append(cur)
+            cur = [ca, cb]
+        else:
+            cur.append(cb)
+    if len(cur) >= 2: segs.append(cur)
+    return segs
+
+def on_clip_boundary(p, tolerance=0.05):
+    xmin, ymin, xmax, ymax = CLIP_RECT
+    return (abs(p[0]-xmin) <= tolerance or abs(p[0]-xmax) <= tolerance or
+            abs(p[1]-ymin) <= tolerance or abs(p[1]-ymax) <= tolerance)
+
+# 道路は名称ではなく OSM highway class を正とする。
+CLASS_MAP = {
+    'primary': 'major', 'secondary': 'major',
+    'tertiary': 'mid', 'unclassified': 'mid',
+    'residential': 'minor', 'living_street': 'minor',
+    'service': 'service',
+    'footway': 'path', 'path': 'path', 'steps': 'path',
 }
-CLASS_MAP = {'primary': 'major', 'secondary': 'major', 'tertiary': 'mid',
-             'unclassified': 'mid', 'residential': 'minor', 'living_street': 'minor'}
-BUS_NAMES = ('中山幹線１号線', '中山幹線２号線', '中山幹線1号線', '中山幹線2号線')
-CORE_BUS_NAMES = {'中山幹線１号線', '中山幹線1号線'}
-SOUTH_BRANCH_NAMES = {'中山幹線２号線', '中山幹線2号線'}
-GUIDE_SPINE_NAMES = CORE_BUS_NAMES
-GUIDE_SPINE_WAY_IDS = {1017367080}  # ヨークベニマル付近の信号から中央幹線まで
-roads = []
+SPINE_ROAD_NAMES = {'中山幹線１号線', '中山幹線1号線'}
+
+def line_length(points):
+    return sum(math.hypot(b[0]-a[0], b[1]-a[1]) for a, b in zip(points, points[1:]))
+
+def point_segment_distance(p, a, b):
+    dx, dy = b[0]-a[0], b[1]-a[1]
+    den = dx*dx + dy*dy
+    if den <= 1e-12: return math.hypot(p[0]-a[0], p[1]-a[1])
+    t = max(0.0, min(1.0, ((p[0]-a[0])*dx + (p[1]-a[1])*dy) / den))
+    return math.hypot(p[0]-(a[0]+t*dx), p[1]-(a[1]+t*dy))
+
+def point_polyline_distance(p, points):
+    return min((point_segment_distance(p, a, b) for a, b in zip(points, points[1:])), default=1e9)
+
+road_fragments = []
 for e in raw['elements']:
     t = e.get('tags', {})
     hw = t.get('highway')
-    if e['type'] != 'way' or 'geometry' not in e or hw not in CLASS_MAP:
+    if e.get('type') != 'way' or 'geometry' not in e or hw not in CLASS_MAP:
         continue
-    if CLASS_MAP[hw] == 'minor' and e.get('id') not in REFERENCE_SIDE_STREET_WAY_IDS:
-        continue
-    cls = CLASS_MAP[hw]
     road_name = t.get('name', '')
-    if road_name in CORE_BUS_NAMES:
-        cls = 'major'  # バス通りは商店街の主役なので強調
-    elif road_name in SOUTH_BRANCH_NAMES:
-        cls = 'mid'  # 南中山方向はT字の太線対象外
-    pts_ = [project(g['lat'], g['lon']) for g in e['geometry']]
-    for seg in clip_line(pts_):
-        sp = simplify(seg, eps=3.5)
-        roads.append({'cls': cls, 'name': road_name,
-                      'guide_spine': road_name in GUIDE_SPINE_NAMES or e.get('id') in GUIDE_SPINE_WAY_IDS,
-                      'pts': [[round(x, 1), round(y, 1)] for x, y in sp]})
+    cls = 'spine' if road_name in SPINE_ROAD_NAMES else CLASS_MAP[hw]
+    source = [project(g['lat'], g['lon']) for g in e['geometry']]
+    if len(source) < 2:
+        continue
+    for seg in clip_line(source):
+        if line_length(seg) < 0.5:
+            continue
+        road_fragments.append({
+            'cls': cls, 'name': road_name, 'highways': {hw}, 'raw_ids': {e.get('id')},
+            'guide_spine': cls == 'spine', 'pts': seg,
+            'start_source': math.hypot(seg[0][0]-source[0][0], seg[0][1]-source[0][1]) < 0.05,
+            'end_source': math.hypot(seg[-1][0]-source[-1][0], seg[-1][1]-source[-1][1]) < 0.05,
+            'start_boundary': on_clip_boundary(seg[0]), 'end_boundary': on_clip_boundary(seg[-1]),
+        })
+
+def endpoint_clusters(items, tolerance=2.0):
+    """端点を2m以内で同一ノード化する。内部点は動かさない。"""
+    cell = tolerance
+    grid, centers, counts = defaultdict(list), [], []
+    def locate(p):
+        gx, gy = math.floor(p[0]/cell), math.floor(p[1]/cell)
+        best, best_d = None, tolerance + 1e-9
+        for ix in range(gx-1, gx+2):
+            for iy in range(gy-1, gy+2):
+                for node in grid[(ix, iy)]:
+                    d = math.hypot(p[0]-centers[node][0], p[1]-centers[node][1])
+                    if d < best_d: best, best_d = node, d
+        if best is not None:
+            n = counts[best] + 1
+            centers[best] = ((centers[best][0]*counts[best]+p[0])/n,
+                             (centers[best][1]*counts[best]+p[1])/n)
+            counts[best] = n
+            return best
+        node = len(centers)
+        centers.append(p); counts.append(1); grid[(gx, gy)].append(node)
+        return node
+    nodes = [(locate(r['pts'][0]), locate(r['pts'][-1])) for r in items]
+    return nodes
+
+def merge_chains(items):
+    """同classで次数2の端点チェーンを結合。異なる実名同士は結ばない。"""
+    merged_all = []
+    for cls in ('service', 'minor', 'mid', 'major', 'spine', 'path'):
+        group = [r for r in items if r['cls'] == cls]
+        if not group: continue
+        nodes = endpoint_clusters(group)
+        adjacency = defaultdict(list)
+        for i, (a, b) in enumerate(nodes):
+            adjacency[a].append((i, 0)); adjacency[b].append((i, 1))
+        mergeable = {}
+        for node, refs in adjacency.items():
+            if len(refs) != 2 or refs[0][0] == refs[1][0]:
+                mergeable[node] = False
+                continue
+            n1, n2 = group[refs[0][0]]['name'], group[refs[1][0]]['name']
+            mergeable[node] = not n1 or not n2 or n1 == n2
+        visited = set()
+
+        def walk(first, start_node):
+            idx, node = first, start_node
+            out, parts = [], []
+            start_source = start_boundary = False
+            end_source = end_boundary = False
+            while idx not in visited:
+                visited.add(idx)
+                edge = group[idx]
+                side = 0 if nodes[idx][0] == node else 1
+                oriented = edge['pts'] if side == 0 else list(reversed(edge['pts']))
+                ss = edge['start_source'] if side == 0 else edge['end_source']
+                sb = edge['start_boundary'] if side == 0 else edge['end_boundary']
+                es = edge['end_source'] if side == 0 else edge['start_source']
+                eb = edge['end_boundary'] if side == 0 else edge['start_boundary']
+                if not out:
+                    out = list(oriented); start_source, start_boundary = ss, sb
+                else:
+                    joint = ((out[-1][0]+oriented[0][0])/2, (out[-1][1]+oriented[0][1])/2)
+                    out[-1] = joint; out.extend(oriented[1:])
+                parts.append(edge); end_source, end_boundary = es, eb
+                end_node = nodes[idx][1-side]
+                if not mergeable.get(end_node, False): break
+                candidates = [j for j, _ in adjacency[end_node] if j != idx and j not in visited]
+                if len(candidates) != 1: break
+                idx, node = candidates[0], end_node
+            names = {p['name'] for p in parts if p['name']}
+            return {
+                'cls': cls, 'name': max(names, key=len) if names else '',
+                'highways': set().union(*(p['highways'] for p in parts)),
+                'raw_ids': set().union(*(p['raw_ids'] for p in parts)),
+                'guide_spine': cls == 'spine', 'pts': out,
+                'start_source': start_source, 'end_source': end_source,
+                'start_boundary': start_boundary, 'end_boundary': end_boundary,
+            }
+
+        for i in range(len(group)):
+            if i in visited: continue
+            start = next((n for n in nodes[i] if not mergeable.get(n, False)), None)
+            if start is not None: merged_all.append(walk(i, start))
+        for i in range(len(group)):
+            if i not in visited: merged_all.append(walk(i, nodes[i][0]))
+    return merged_all
+
+def endpoint_states(items, tolerance=2.0, boundary_check=on_clip_boundary):
+    states = []
+    for i, road in enumerate(items):
+        pair = []
+        for p in (road['pts'][0], road['pts'][-1]):
+            boundary = boundary_check(p)
+            connected = any(
+                j != i and point_polyline_distance(p, other['pts']) < tolerance
+                for j, other in enumerate(items)
+            )
+            pair.append({'boundary': boundary, 'connected': connected})
+        states.append(pair)
+    return states
+
+# 1) 端点チェーン統合 2) 通り抜けでないmidをminorへ 3) 40m未満の孤立片を除去。
+roads_stage = merge_chains(road_fragments)
+states = endpoint_states(roads_stage)
+cleaned, downgraded_mid, removed_isolated = [], 0, 0
+for road, ends in zip(roads_stage, states):
+    length = line_length(road['pts'])
+    touches = [e['boundary'] or e['connected'] for e in ends]
+    isolated_short = length < 40 and not any(touches)
+    if road['cls'] == 'mid' and not all(touches):
+        road['cls'] = 'minor'
+        road['guide_spine'] = False
+        downgraded_mid += 1
+    if isolated_short:
+        if road['cls'] in ('major', 'mid', 'spine'):
+            road['cls'] = 'minor'
+            road['guide_spine'] = False
+        else:
+            removed_isolated += 1
+            continue
+    cleaned.append(road)
+
+roads_internal = merge_chains(cleaned)
+final_states = endpoint_states(roads_internal)
+floating_endpoints = actual_dead_ends = boundary_endpoints = connected_endpoints = 0
+for road, ends in zip(roads_internal, final_states):
+    source_flags = (road['start_source'], road['end_source'])
+    for end, source in zip(ends, source_flags):
+        if end['boundary']: boundary_endpoints += 1
+        if end['connected']: connected_endpoints += 1
+        if not end['boundary'] and not end['connected']:
+            if source: actual_dead_ends += 1
+            else: floating_endpoints += 1
+assert floating_endpoints == 0, 'floating road endpoints: %d' % floating_endpoints
+
+roads = []
+for road in roads_internal:
+    # 道路の接続点は省略しない。RDPで交差点の内部頂点を落とすと、最終GEOだけ
+    # 中空端点が再発するため。class別d連結によりDOM性能は点数に依存しない。
+    roads.append({
+        'cls': road['cls'], 'name': road['name'], 'guide_spine': road['cls'] == 'spine',
+        'pts': [list(p) for p in road['pts']],
+        '_start_source': road['start_source'], '_end_source': road['end_source'],
+        '_start_boundary': road['start_boundary'], '_end_boundary': road['end_boundary'],
+    })
+road_counts = dict(sorted(Counter(r['cls'] for r in roads).items()))
 
 rivers = []
 for e in raw['elements']:
@@ -368,12 +567,8 @@ for e in oq3['elements']:
     if any(in_view(p) for p in pts_):
         sando.append([[round(x, 1), round(y, 1)] for x, y in simplify(pts_, 3)])
 
-# バス通り(中山幹線1号線)の全体ポリライン (ラベル配置の基準線)
-busway = []
-for e in raw['elements']:
-    if e['type'] == 'way' and e.get('tags', {}).get('name') in ('中山幹線１号線', '中山幹線2号線', '中山幹線２号線') and 'geometry' in e:
-        busway.append([[round(x, 1), round(y, 1)] for x, y in
-                       [project(g['lat'], g['lon']) for g in e['geometry']]])
+# バス通り(中山幹線1号線)は、同じ正本道路ジオメトリから導出する。
+busway = [[list(p) for p in r['pts']] for r in roads if r['cls'] == 'spine']
 
 # Double Egg 4丁目: OSMノードは5丁目と同一地点だったため、通りの対面(西側)へ概算配置
 # (紙マップでは4丁目店は通りの西側。住所非公開のため要現地確認)
@@ -452,10 +647,59 @@ def shift(obj_list, wob=True):
         if wob:
             pts = [wobble(x, y) for x, y in pts]
         o['pts'] = [[round(x, 1), round(y, 1)] for x, y in pts]
-for coll in (roads, rivers, parks, waters):
+
+def shift_roads_topology_safe():
+    """共有点へ同じ揺らぎを適用し、クリップ端点だけはSVG外周へ戻す。"""
+    xmin, ymin, xmax, ymax = CLIP_RECT
+    for road in roads:
+        source_pts = road['pts']
+        shifted = []
+        for x, y in source_pts:
+            wx, wy = wobble(x - minx, y - miny)
+            # 外周で丸キャップが中途半端に見えないよう、交差した辺へ正確に固定する。
+            if abs(x - xmin) <= 0.2: wx = -CLIP_PAD
+            elif abs(x - xmax) <= 0.2: wx = W + CLIP_PAD
+            if abs(y - ymin) <= 0.2: wy = -CLIP_PAD
+            elif abs(y - ymax) <= 0.2: wy = H + CLIP_PAD
+            shifted.append([round(wx, 1), round(wy, 1)])
+        road['pts'] = shifted
+
+shift_roads_topology_safe()
+for coll in (rivers, parks, waters):
     shift(coll)
-busway = [[[round(x - minx, 1), round(y - miny, 1)] for x, y in seg] for seg in busway]
+# AOI帯は最終spineと同一ジオメトリを使い、道路とのずれを作らない。
+busway = [[list(p) for p in r['pts']] for r in roads if r['cls'] == 'spine']
 sando = [[[round(v, 1) for v in wobble(x - minx, y - miny)] for x, y in seg] for seg in sando]
+
+def on_canvas_boundary(p, tolerance=0.2):
+    return (abs(p[0] + CLIP_PAD) <= tolerance or
+            abs(p[0] - (W + CLIP_PAD)) <= tolerance or
+            abs(p[1] + CLIP_PAD) <= tolerance or
+            abs(p[1] - (H + CLIP_PAD)) <= tolerance)
+
+# 丸め・揺らぎ・外周スナップ後の、実際にGEOへ入る座標で再検査する。
+final_states = endpoint_states(roads, tolerance=2.0, boundary_check=on_canvas_boundary)
+floating_endpoints = actual_dead_ends = boundary_endpoints = connected_endpoints = 0
+for road, ends in zip(roads, final_states):
+    source_flags = (road['_start_source'], road['_end_source'])
+    for end, source in zip(ends, source_flags):
+        if end['boundary']: boundary_endpoints += 1
+        if end['connected']: connected_endpoints += 1
+        if not end['boundary'] and not end['connected']:
+            if source: actual_dead_ends += 1
+            else: floating_endpoints += 1
+assert floating_endpoints == 0, 'final GEO floating road endpoints: %d' % floating_endpoints
+road_quality = {
+    'floating_endpoints': floating_endpoints, 'actual_dead_ends': actual_dead_ends,
+    'boundary_endpoints': boundary_endpoints, 'connected_endpoints': connected_endpoints,
+    'two_point_paths': sum(len(r['pts']) == 2 for r in roads),
+    'downgraded_mid': downgraded_mid, 'removed_isolated_under_40m': removed_isolated,
+}
+for road in roads:
+    for key in ('_start_source', '_end_source', '_start_boundary', '_end_boundary'):
+        road.pop(key)
+print('roads by class:', road_counts)
+print('road endpoint quality (final GEO):', road_quality)
 
 # 方面表記 (道路の縁到達点から)
 def edge_exit(road_name, pick):
@@ -469,8 +713,6 @@ def edge_exit(road_name, pick):
         return None
     return pick(cands)
 
-W, H = round(maxx - minx), round(maxy - miny)
-
 exits = []
 p = edge_exit('中山幹線２号線', lambda c: min(c, key=lambda q: q[1]))
 if p: exits.append({'x': p[0], 'y': max(p[1], -60), 'text': '↑ 至 南中山', 'anchor': 'middle'})
@@ -479,9 +721,16 @@ if p: exits.append({'x': min(max(p[0], W + 70), W + 100), 'y': p[1] - 12,
                     'text': '至 泉中央 →', 'anchor': 'end'})
 p = edge_exit('通町中山線', lambda c: max(c, key=lambda q: q[1]))
 if p: exits.append({'x': p[0], 'y': min(p[1] + 28, H + 95), 'text': '↓ 至 北山', 'anchor': 'middle'})
+_north0 = project(LAT0, LON0)
+_north1 = project(LAT0 + 0.001, LON0)
+_north_dx, _north_dy = _north1[0] - _north0[0], _north1[1] - _north0[1]
+_north_screen_deg = math.degrees(math.atan2(_north_dx, -_north_dy))
 meta = {'W': W, 'H': H, 'proj': unproject_expr(), 'minx': round(minx, 2), 'miny': round(miny, 2),
-        'scale_m_per_px': 1.0, 'info_as_of': INFO_AS_OF,
-        'partner_logos': [{
+         'scale_m_per_px': 1.0, 'info_as_of': INFO_AS_OF,
+         'road_counts': road_counts, 'road_quality': road_quality,
+         'north_vector': [round(_north_dx, 4), round(_north_dy, 4)],
+         'north_screen_deg': round(_north_screen_deg, 4),
+         'partner_logos': [{
             'name': '宮城大学',
             'src': MIYAGI_UNIVERSITY_LOGO_SRC,
             'alt': '宮城大学',
@@ -504,44 +753,24 @@ if ARGS.preview:
     slope_top['x'], slope_top['y'], slope_top['padr'] = 427.8, 270.0, 22
     slope_top['tx'], slope_top['ty'] = slope_top['x'], slope_top['y']
 
-# ---------------- 信号機 (OSM実データ + 支給マップFB) ----------------
+# ---------------- 信号機 (signals_raw.json の canvas 内全ノード) ----------------
 signals = []
-try:
-    _sig_raw = json.load(open(P('signals_raw.json'), encoding='utf-8'))
-    _sig_pts = []
-    for e in _sig_raw.get('elements', []):
-        if e.get('lat') is None:
-            continue
-        sx, sy = project(e['lat'], e['lon'])
-        sx, sy = sx - minx, sy - miny
-        if -40 <= sx <= W + 40 and -40 <= sy <= H + 40:
-            _sig_pts.append((sx, sy))
-    for sx, sy in _sig_pts:  # 同一交差点の複数灯を1つに統合
-        if all(math.hypot(sx - gx, sy - gy) >= 30 for gx, gy in signals):
-            signals.append((round(sx, 1), round(sy, 1)))
-    signals = [list(p) for p in signals]
-except FileNotFoundError:
-    pass
-
-# 2026-07-10 振興組合FB: 位置把握用に3箇所を補足する。
-# OSMノード由来ではないため、施設の表示位置と道路中心から毎回再計算する。
-_signal_landmarks = [
-    ('東北電力研究開発センター', 'below'),
-    ('ウジエスーパー中山店', 'bus_side'),
-    ('お菜とお酒アイリス', 'bus_side'),
-]
-for _name, _mode in _signal_landmarks:
-    _shop = next(s for s in shops if s['name'] == _name)
-    _shop_x = _shop.get('tx', _shop['x'])
-    _shop_y = _shop.get('ty', _shop['y'])
-    if _mode == 'below':
-        # 支給図で施設直下にある交差路へ合わせる。
-        _sx, _sy = _shop_x + 6, _shop_y + 57
-    else:
-        _sx, _sy = _bus_x_at_y(_shop_y + miny) - minx, _shop_y
-    if all(math.hypot(_sx - gx, _sy - gy) >= 30 for gx, gy in signals):
-        signals.append([round(_sx, 1), round(_sy, 1)])
-print('signals:', len(signals))
+_sig_raw = json.load(open(P('signals_raw.json'), encoding='utf-8'))
+_signal_elements = []
+for e in _sig_raw.get('elements', []):
+    tags = e.get('tags', {})
+    is_signal = tags.get('highway') == 'traffic_signals' or tags.get('crossing') == 'traffic_signals'
+    if e.get('lat') is None or not is_signal:
+        continue
+    sx, sy = project(e['lat'], e['lon'])
+    sx, sy = sx - minx, sy - miny
+    if 0 <= sx <= W and 0 <= sy <= H:
+        _signal_elements.append((e.get('id', 0), sx, sy))
+for _, sx, sy in sorted(_signal_elements):
+    signals.append([round(sx, 1), round(sy, 1)])
+meta['signal_counts'] = {'raw_canvas': len(_signal_elements), 'displayed': len(signals)}
+assert meta['signal_counts']['raw_canvas'] == meta['signal_counts']['displayed']
+print('signals raw canvas/displayed:', len(_signal_elements), '/', len(signals))
 
 # 旧来の密集ゾーン展開は廃止。星は固定し、ラベルだけをブラウザ側で整理する。
 zones = []

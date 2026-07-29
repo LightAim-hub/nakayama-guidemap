@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Yusei+Magic&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
+  /* Hallmark · macrostructure: interactive cartographic canvas · tone: playful · anchor hue: warm orange */
   /* Hallmark · component: photo viewer/lightbox · genre: playful · theme: existing warm-paper
    * states: default · hover · focus · active · disabled · loading · error · success
    * contrast: existing warm-paper tokens preserved
@@ -17,15 +18,18 @@
     --paper:#FBF4E2; --paper-deep:#F1E5C8; --ink:#5C4327; --ink-soft:#7A5C3B;
     --accent:#C97B3D; --voice:#26747B;
     --c-medical:#a8875f; --c-life:#4a9d3f; --c-food:#e8902f; --c-edu:#3f7ec7; --c-place:#2fa3a0;
+    --map-ground:#F2E7C9; --road-fill:#FFFDF4; --road-spine-fill:#FBE9C4; --busway-band:#F6E0B8;
+    --road-casing-spine:#9B7F5C; --road-casing-major:#9B7F5C;
+    --road-casing-mid:#AE9373; --road-casing-minor:#CEBB9E; --road-casing-service:#D6C6A8;
     --photo-backdrop:rgba(35,25,15,.9); --photo-surface:#fffaf0; --photo-rule:#d8c4a0;
     --photo-focus:rgba(201,123,61,.72); --ease-photo:cubic-bezier(.16,1,.3,1); --dur-photo:140ms;
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;}
+  html,body{height:100%;overflow-x:clip;}
   body{
     font-family:'Zen Maru Gothic','Hiragino Maru Gothic ProN','Yu Gothic',sans-serif;
     background:var(--paper); color:var(--ink);
-    display:flex; flex-direction:column; overflow:hidden;
+    display:flex; flex-direction:column; overflow-y:hidden;
   }
   header{ padding:10px 14px 6px; border-bottom:2px dashed rgba(92,67,39,.35); z-index:20; background:var(--paper); }
   header h1{
@@ -54,10 +58,10 @@
   .chip.c-life{ color:var(--c-life); }
   .chip.c-food{ color:var(--c-food); } .chip.c-edu{ color:var(--c-edu); } .chip.c-place{ color:var(--c-place); }
   .chip.voice-filter{ color:var(--voice); }
-  .chip.voice-filter[aria-pressed="true"]{ background:var(--voice); color:#fff; box-shadow:inset 0 0 0 1.5px var(--voice); }
-  .chip.voice-filter[aria-pressed="true"] .lbl{ color:#fff; }
+  .chip.voice-filter[aria-pressed="true"]{ background:var(--voice); color:var(--photo-surface); box-shadow:inset 0 0 0 1.5px var(--voice); }
+  .chip.voice-filter[aria-pressed="true"] .lbl{ color:var(--photo-surface); }
   .chip.voice-filter[aria-pressed="true"] .voice-chip-icon,
-  .chip.voice-filter[aria-pressed="true"] .voice-chip-icon::after{ background:var(--voice); border-color:#fff; }
+  .chip.voice-filter[aria-pressed="true"] .voice-chip-icon::after{ background:var(--voice); border-color:var(--photo-surface); }
   .voice-chip-icon{ position:relative; width:18px; height:13px; flex:0 0 auto; border:1.7px solid currentColor;
     border-radius:5px; background:#fffaf0; }
   .voice-chip-icon::before{ content:"···"; position:absolute; inset:-3px 0 0; text-align:center; font-size:8px; font-weight:700; }
@@ -73,6 +77,10 @@
   #searchstatus.empty{ color:#b3562e; }
   .label-hint{ flex:0 0 auto; padding:4px 12px 6px; border-bottom:1px dashed rgba(122,92,59,.28);
     background:var(--paper); color:var(--ink-soft); font-size:.72rem; font-weight:700; text-align:center; }
+  .busway-legend{ flex:0 0 auto; display:flex; align-items:center; justify-content:center; gap:7px;
+    padding:3px 12px 5px; background:var(--paper); color:var(--ink-soft); font-size:.7rem; font-weight:700; }
+  .busway-legend span{ width:34px; height:9px; border-radius:999px; background:var(--busway-band);
+    border:1px solid rgba(155,127,92,.35); }
   @media(max-width:759px){
     header{ padding-bottom:7px; }
     header p{ display:none; }
@@ -84,20 +92,22 @@
     header h1 small{ display:none; }
   }
 
-  #viewport{ flex:1; overflow:auto; position:relative; background:var(--paper); -webkit-overflow-scrolling:touch; }
+  #viewport{ flex:1; overflow:auto; position:relative; background:var(--paper); -webkit-overflow-scrolling:touch;
+    touch-action:pan-x pan-y; }
   #mapwrap{ width:175%; max-width:none; margin:0 auto; position:relative; }
   @media(min-width:760px){ #mapwrap{ width:108%; max-width:1000px; } }
   svg{ display:block; width:100%; height:auto; }
   text{ user-select:none; }
 
-  .road-major-c{ stroke:#8a6a44; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.85; }
-  .road-major-f{ stroke:#fdf7e7; fill:none; stroke-linecap:round; stroke-linejoin:round; }
-  .road-mid-c{ stroke:#8a6a44; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.7; }
-  .road-mid-f{ stroke:#faf1da; fill:none; stroke-linecap:round; stroke-linejoin:round; }
-  .road-main-c{ stroke:#8a6a44; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.88; }
-  .road-main-f{ stroke:#fdf7e7; fill:none; stroke-linecap:round; stroke-linejoin:round; }
-  .road-minor-c{ stroke:#a98c66; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.55; }
-  .road-minor-f{ stroke:#faf1da; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  [class^="road-"]{ fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .busway-band{ fill:none; stroke:var(--busway-band); stroke-linecap:round; stroke-linejoin:round; }
+  .road-spine-c, .road-major-c{ stroke:var(--road-casing-spine); }
+  .road-mid-c{ stroke:var(--road-casing-mid); }
+  .road-minor-c{ stroke:var(--road-casing-minor); }
+  .road-service-c{ stroke:var(--road-casing-service); }
+  .road-spine-f{ stroke:var(--road-spine-fill); }
+  .road-major-f, .road-mid-f, .road-minor-f, .road-service-f{ stroke:var(--road-fill); }
+  .road-path-f{ stroke:var(--road-casing-mid); stroke-dasharray:4 7; }
   .sando{ stroke:#a98c66; stroke-dasharray:7 6; fill:none; opacity:.65; }
   .river{ stroke:#8fbdd2; fill:none; stroke-linecap:round; opacity:.85; }
   .water{ fill:#bcd9e6; stroke:#8fbdd2; stroke-width:2; opacity:.9; }
@@ -120,15 +130,26 @@
   .voice-badge .tail{ fill:#fffaf0; stroke:var(--voice); stroke-width:1.7; stroke-linejoin:round; }
   .voice-badge .dot{ fill:var(--voice); }
   .shoplabel{ font-family:'Yusei Magic',sans-serif; fill:var(--ink); font-weight:700;
-    paint-order:stroke; stroke:var(--paper); stroke-width:7px; stroke-linejoin:round; }
+    paint-order:stroke; stroke:var(--paper); stroke-width:4.5px; stroke-linejoin:round; }
   .label-leader{ fill:none; stroke:rgba(122,92,59,.62); stroke-width:1.3; stroke-dasharray:3 3; pointer-events:none; }
   .shoplabel.label-hidden, .label-leader.label-hidden{ display:none; }
   .shoplabel.b{ font-weight:700; }
   .shoplabel.detail{ opacity:1; }
-  .hit.selected .shoplabel{ fill:#9a4f28; stroke:#fffaf0; stroke-width:9px; }
+  .hit.selected .shoplabel{ fill:#9a4f28; stroke:#fffaf0; }
   .faraway.detail{ opacity:1; }
   .roadname{ font-family:'Yusei Magic',sans-serif; fill:var(--ink-soft); opacity:.75;
     paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
+  svg[data-tier="tier1"] .road-minor-c,
+  svg[data-tier="tier1"] .road-service-c,
+  svg[data-tier="tier1"] .road-service-f,
+  svg[data-tier="tier1"] .road-path-f,
+  svg[data-tier="tier1"] .signal,
+  svg[data-tier="tier1"] .sando,
+  svg[data-tier="tier1"] .roadname{ display:none; }
+  svg[data-tier="tier2"] .road-service-c,
+  svg[data-tier="tier2"] .road-service-f,
+  svg[data-tier="tier2"] .road-path-f,
+  svg[data-tier="tier2"] .roadname-tier3{ display:none; }
   .parkname{ font-family:'Yusei Magic',sans-serif; fill:#6d8a3c;
     paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
   .rivername{ font-family:'Yusei Magic',sans-serif; fill:#5787a0;
@@ -143,7 +164,7 @@
   .detail-panel{ position:fixed; inset:0 0 0 auto; z-index:37; width:min(400px,calc(100vw - 24px)); height:100dvh;
     display:flex; flex-direction:column; overflow:hidden; background:#fffaf0; border-left:3px solid #d8c4a0;
     box-shadow:-18px 0 42px rgba(80,60,30,.28); transform:translateX(104%);
-    transition:transform .28s cubic-bezier(.22,.78,.28,1), height .22s cubic-bezier(.22,.78,.28,1); }
+    transition:transform .28s cubic-bezier(.22,.78,.28,1); }
   body.detail-open .detail-panel{ transform:translateX(0); }
   .detail-handle{ display:none; }
   .detail-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 16px 8px;
@@ -217,7 +238,7 @@
   button.detail-status{ min-height:44px; padding:7px 12px; border:2px solid rgba(38,116,123,.35); cursor:pointer; }
   .detail-status.voice{ background:#e4f2ef; color:var(--voice); }
   button.detail-status.voice::after{ content:' ↓'; margin-left:5px; }
-  button.detail-status.voice[aria-expanded="true"]{ background:var(--voice); border-color:var(--voice); color:#fff; }
+  button.detail-status.voice[aria-expanded="true"]{ background:var(--voice); border-color:var(--voice); color:var(--photo-surface); }
   button.detail-status.voice[aria-expanded="true"]::after{ content:' ↑'; }
   button.detail-status:focus-visible{ outline:3px solid rgba(38,116,123,.28); outline-offset:2px; }
   .detail-note{ margin-top:18px; padding:14px 15px; border-radius:14px; background:var(--paper);
@@ -250,7 +271,7 @@
   .chooser.show{ opacity:1; pointer-events:auto; }
   .chooser .ctitle{ font-size:.66rem; color:#9a8763; font-weight:700; text-align:center; margin:1px 0 6px; }
   .chooser .copt{ display:flex; align-items:center; gap:8px; width:100%; min-height:44px; border:0;
-    background:#fff; border-radius:9px; margin-bottom:5px; padding:5px 9px; font:inherit; font-size:.78rem;
+    background:var(--photo-surface); border-radius:9px; margin-bottom:5px; padding:5px 9px; font:inherit; font-size:.78rem;
     color:var(--ink); cursor:pointer; text-align:left; }
   .chooser .copt:active{ background:#f3e7cc; }
   .chooser .cdot{ width:12px; height:12px; border-radius:50%; flex:0 0 auto; border:1.5px solid rgba(92,67,39,.4); }
@@ -261,11 +282,23 @@
     border-radius:50% 45% 52% 48% / 48% 52% 45% 50%;
     box-shadow:2px 3px 0 rgba(92,67,39,.25); cursor:pointer; }
   .zoomctl button:active{ transform:translateY(2px); box-shadow:none; }
+  .compass-hud{ position:fixed; top:12px; right:12px; z-index:25; width:44px; height:44px;
+    border:2px solid var(--ink-soft); border-radius:50% 45% 52% 48% / 48% 52% 45% 50%;
+    background:var(--paper); box-shadow:2px 3px 0 rgba(92,67,39,.25); pointer-events:none; }
+  .compass-rotor{ position:absolute; inset:5px; transform:rotate(var(--north-rotation,0deg)); transform-origin:center; }
+  .compass-axis{ position:absolute; left:50%; top:5px; width:2px; height:24px; transform:translateX(-50%);
+    border-radius:999px; background:linear-gradient(to bottom,var(--accent) 0 50%,var(--ink-soft) 50% 100%); }
+  .compass-axis::before{ content:""; position:absolute; left:50%; top:-4px; transform:translateX(-50%);
+    border-left:6px solid transparent; border-right:6px solid transparent; border-top:0; border-bottom:9px solid var(--ink-soft); }
+  .compass-axis::after{ content:""; position:absolute; left:50%; top:-1px; transform:translateX(-50%);
+    border-left:4px solid transparent; border-right:4px solid transparent; border-top:0; border-bottom:6px solid var(--accent); }
+  .compass-n{ position:absolute; left:50%; top:-7px; transform:translateX(-50%); color:var(--ink-soft);
+    font-family:'Yusei Magic',sans-serif; font-size:9px; font-weight:700; line-height:1; }
 
   #editbar{ display:none; position:fixed; left:10px; bottom:62px; z-index:40; gap:8px; }
   body.edit #editbar{ display:flex; }
   body.edit #listbtn{ display:none; }
-  #editbar button{ font:inherit; font-size:.72rem; font-weight:700; color:#fff; background:#b3562e;
+  #editbar button{ font:inherit; font-size:.72rem; font-weight:700; color:var(--photo-surface); background:#b3562e;
     border:0; border-radius:999px; padding:8px 14px; cursor:pointer; box-shadow:0 3px 8px rgba(0,0,0,.25); }
   body.edit .hit{ cursor:grab; }
   #srcinfo{ display:none; position:fixed; left:10px; bottom:112px; z-index:40; font-size:.62rem;
@@ -309,7 +342,7 @@
   .lrow .lvoice::before{ content:"···"; position:relative; top:-2px; font-size:8px; font-weight:700; }
   .lrow .laddr{ grid-column:2 / 4; font-size:.7rem; line-height:1.4; color:var(--ink-soft); text-align:left; }
   @media(max-width:759px){
-    .detail-panel{ inset:auto 0 0; width:100%; height:66dvh; min-height:min(330px,calc(100dvh - 120px)); max-height:90dvh;
+    .detail-panel{ inset:auto 0 0; width:100%; height:66dvh; min-height:28dvh; max-height:90dvh;
       border:3px solid #d8c4a0; border-bottom:0;
       border-radius:22px 22px 0 0; box-shadow:0 -18px 42px rgba(80,60,30,.28); transform:translateY(104%); }
     body.detail-open .detail-panel{ transform:translateY(0); }
@@ -335,11 +368,13 @@
     .detail-voice{ padding:8px 10px 8px 26px; font-size:.76rem; }
     .detail-link{ min-height:44px; margin-top:14px; }
     .detail-nav{ padding:2px 12px calc(4px + env(safe-area-inset-bottom)); }
-    body.detail-open .zoomctl, body.detail-open #listbtn{ opacity:0; pointer-events:none; }
+    body.detail-open:not(.detail-peek) .zoomctl, body.detail-open:not(.detail-peek) #listbtn{ opacity:0; pointer-events:none; }
+    body.detail-peek .zoomctl, body.detail-peek #listbtn{ bottom:calc(28dvh + 12px); }
   }
   @media(prefers-reduced-motion:reduce){
     .detail-panel{ transition:none; }
     .detail-rail{ scroll-behavior:auto; }
+    .chip, .chooser{ transition:none; }
     .detail-photo-main, .detail-photo-thumb, .photo-lightbox-close{ transition:none; }
   }
 </style>
@@ -354,6 +389,7 @@
 <div class="filters" id="filters"></div>
 <div class="searchbar"><input id="q" type="search" placeholder="お店をさがす（例：ケーキ）" aria-label="お店を検索"><span id="searchstatus" role="status" aria-live="polite"></span></div>
 <p class="label-hint" id="labelHint">ズームすると店名が出ます</p>
+<p class="busway-legend"><span aria-hidden="true"></span>このオレンジの通り沿いが商店街</p>
 
 <div id="viewport">
   <div id="mapwrap">
@@ -366,6 +402,9 @@
   <button id="zin" aria-label="拡大">＋</button>
   <button id="zout" aria-label="縮小">－</button>
 </div>
+<div class="compass-hud" id="compassHud" role="img" aria-label="北の方角">
+  <span class="compass-rotor" aria-hidden="true"><span class="compass-axis"></span><span class="compass-n">N</span></span>
+</div>
 <button id="listbtn" aria-haspopup="dialog">📋 お店一覧</button>
 <div id="listpanel" role="dialog" aria-label="お店一覧">
   <div class="lhead"><h2 id="listtitle">お店一覧</h2><button class="lclose" id="listclose" aria-label="閉じる">✕</button></div>
@@ -373,7 +412,7 @@
 </div>
 <aside class="detail-panel" id="detailPanel" role="dialog" aria-modal="false" aria-labelledby="detailTitle" aria-hidden="true" inert>
   <span class="detail-handle" role="separator" aria-orientation="horizontal" tabindex="0"
-    aria-label="お店の詳細の高さを変える" aria-valuemin="66" aria-valuemax="90" aria-valuenow="66"></span>
+    aria-label="お店の詳細の高さを変える" aria-valuemin="28" aria-valuemax="90" aria-valuenow="66"></span>
   <div class="detail-head">
     <div class="detail-head-copy">
       <span class="detail-eyebrow">お店の詳細</span>
@@ -421,6 +460,10 @@ const NS = 'http://www.w3.org/2000/svg';
 const W = GEO.meta.W, H = GEO.meta.H, PAD = 115;
 const svg = document.getElementById('map');
 svg.setAttribute('viewBox', (-PAD)+' '+(-PAD)+' '+(W+2*PAD)+' '+(H+2*PAD));
+const compassHud = document.getElementById('compassHud');
+const northAngle = Number(GEO.meta.north_screen_deg || 0);
+compassHud.style.setProperty('--north-rotation', northAngle+'deg');
+compassHud.dataset.northAngle = northAngle.toFixed(4);
 
 const QS = new URLSearchParams(location.search);
 const IS_EDIT = QS.get('edit') === '1';
@@ -441,7 +484,7 @@ function polyClosed(pts){ return poly(pts)+'Z'; }
 const defs = el('defs', {}, svg);
 el('path', {id:'starShape', d:'M0,-10 L2.8,-3.3 L10,-3.1 L4.5,1.3 L6.4,8.2 L0,4.2 L-6.4,8.2 L-4.5,1.3 L-10,-3.1 L-2.8,-3.3 Z'}, defs);
 
-el('rect', {x:-PAD, y:-PAD, width:W+2*PAD, height:H+2*PAD, fill:'var(--paper)'}, svg);
+el('rect', {x:-PAD, y:-PAD, width:W+2*PAD, height:H+2*PAD, fill:'var(--map-ground)'}, svg);
 const gWater = el('g', {}, svg);
 const gRoads = el('g', {}, svg);
 const gNames = el('g', {}, svg);
@@ -453,64 +496,80 @@ GEO.parks.forEach(p => el('path', {d:polyClosed(p.pts), class:'park'}, gWater));
 GEO.waters.forEach(w => el('path', {d:polyClosed(w.pts), class:'water'}, gWater));
 GEO.rivers.forEach(r => el('path', {d:poly(r.pts), class:'river', 'stroke-width':9}, gWater));
 
-const roadsSorted = GEO.roads;
-roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-c', 'stroke-width':9}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-f', 'stroke-width':5.5}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-c', 'stroke-width':21}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-f', 'stroke-width':13.5}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-c', 'stroke-width':38}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-f', 'stroke-width':27}, gRoads); });
-const mainStreet = roadsSorted.filter(r => r.guide_spine);
-mainStreet.forEach(r => el('path', {d:poly(r.pts), class:'road-main-c', 'stroke-width':48}, gRoads));
-mainStreet.forEach(r => el('path', {d:poly(r.pts), class:'road-main-f', 'stroke-width':34}, gRoads));
-GEO.sando.forEach(s => el('path', {d:poly(s), class:'sando', 'stroke-width':3}, gRoads));
+const ROAD_DRAW_ORDER = ['service','minor','mid','major','spine'];
+const ROAD_WIDTHS = {
+  spine:{fill:30, casing:36}, major:{fill:22, casing:27}, mid:{fill:14, casing:18},
+  minor:{fill:9, casing:12}, service:{fill:5, casing:6.5}, path:{fill:3},
+};
+function displayRoadClass(r){ return r.guide_spine ? 'spine' : r.cls; }
+function combinedRoadD(cls){
+  return GEO.roads.filter(r => displayRoadClass(r) === cls).map(r => poly(r.pts)).join('');
+}
+const buswayD = (GEO.busway||[]).map(seg => poly(seg)).join('');
+if (buswayD) el('path', {d:buswayD, class:'busway-band', 'stroke-width':120, 'data-road-width':120}, gRoads);
+/* 全classのcasingを先に敷き、その上へ全classのfillを敷く。 */
+ROAD_DRAW_ORDER.forEach(cls => {
+  const d = combinedRoadD(cls);
+  if (d) el('path', {d, class:'road-'+cls+'-c', 'stroke-width':ROAD_WIDTHS[cls].casing,
+    'data-road-width':ROAD_WIDTHS[cls].casing}, gRoads);
+});
+ROAD_DRAW_ORDER.forEach(cls => {
+  const d = combinedRoadD(cls);
+  if (d) el('path', {d, class:'road-'+cls+'-f', 'stroke-width':ROAD_WIDTHS[cls].fill,
+    'data-road-width':ROAD_WIDTHS[cls].fill}, gRoads);
+});
+const pathD = combinedRoadD('path');
+if (pathD) el('path', {d:pathD, class:'road-path-f', 'stroke-width':ROAD_WIDTHS.path.fill,
+  'data-road-width':ROAD_WIDTHS.path.fill}, gRoads);
+GEO.sando.forEach(s => el('path', {d:poly(s), class:'sando', 'stroke-width':3, 'data-road-width':3}, gRoads));
 
-/* 信号機 (OSM実データ11箇所 + 振興組合の位置把握FB3箇所) */
+/* 信号機 (signals_raw.json の canvas 内全数) */
 (GEO.signals||[]).forEach(p => {
-  const g = el('g', {transform:'translate('+p[0]+','+p[1]+')'}, gRoads);
+  const g = el('g', {class:'signal', transform:'translate('+p[0]+','+p[1]+')'}, gRoads);
   el('rect', {x:-11, y:-5.5, width:22, height:11, rx:5.5, fill:'#fffdf5', stroke:'var(--ink)', 'stroke-width':1.5}, g);
   el('circle', {cx:-6, cy:0, r:2.7, fill:'#e4574d'}, g);
   el('circle', {cx:0,  cy:0, r:2.7, fill:'#f0c93f'}, g);
   el('circle', {cx:6,  cy:0, r:2.7, fill:'#57b06a'}, g);
 });
+gRoads.dataset.nodeCount = gRoads.querySelectorAll('*').length;
 
-/* 道路名 (実名・表示域内に実在する道路のみ) */
-const ROADLBL = [
-  {match:'中山幹線１号線', text:'中山バス通り', dy:-18, targetY:1455},
-  {match:'荒巻本沢街道線', text:'荒巻本沢街道', dy:-11},
-  {match:'通町中山線', text:'通町中山線', dy:-11, targetY:900, size:13},
-  {match:'北山実沢線', text:'北山実沢線', dy:-11, size:13},
-  {match:'荒巻泉線', text:'荒巻泉線', dy:-11, targetY:740, size:13},
-];
-const usedLbl = new Set();
-ROADLBL.forEach((rl, i) => {
-  let best = null;
-  GEO.roads.forEach(r => {
-    if (!r.name || r.name.indexOf(rl.match) < 0) return;
-    const len = r.pts.reduce((a,p,j)=> j? a+Math.hypot(p[0]-r.pts[j-1][0], p[1]-r.pts[j-1][1]) : 0, 0);
-    if (!best || len > best.len) best = {r, len};
-  });
-  if (!best || best.len < 150 || usedLbl.has(rl.text)) return;
-  usedLbl.add(rl.text);
-  let pts = best.r.pts;
-  if (pts[0][1] > pts[pts.length-1][1]) pts = pts.slice().reverse();
-  // targetY指定時: そのy付近を通る位置にラベルを置く (店ラベルとの被り回避)
-  let offsetPct = 42;
-  if (rl.targetY !== undefined){
-    let acc = 0, hit = null;
-    for (let k = 1; k < pts.length; k++){
-      const seg = Math.hypot(pts[k][0]-pts[k-1][0], pts[k][1]-pts[k-1][1]);
-      if (hit === null && ((pts[k-1][1] <= rl.targetY && rl.targetY <= pts[k][1]) || (pts[k][1] <= rl.targetY && rl.targetY <= pts[k-1][1]))){
-        hit = acc + seg / 2;
-      }
-      acc += seg;
-    }
-    if (hit !== null) offsetPct = Math.max(6, Math.min(82, hit / acc * 100));
+/* 道路名: 実網から最長の同名線を選び、バス通りは750m間隔で反復する。 */
+function lineLength(pts){
+  return pts.reduce((sum,p,i) => i ? sum + Math.hypot(p[0]-pts[i-1][0], p[1]-pts[i-1][1]) : 0, 0);
+}
+function readableRoadPoints(pts){
+  if (pts.length < 2) return pts;
+  const first=pts[0], last=pts[pts.length-1];
+  const reverse = Math.abs(last[0]-first[0]) >= Math.abs(last[1]-first[1])
+    ? last[0] < first[0] : last[1] < first[1];
+  return reverse ? pts.slice().reverse() : pts;
+}
+let roadLabelId = 0;
+function addRoadLabel(pts, text, startOffset, tier, dy=-11){
+  const id = 'roadLabelPath'+(roadLabelId++);
+  el('path', {id, d:poly(readableRoadPoints(pts)), fill:'none'}, defs);
+  const t = el('text', {class:'roadname roadname-'+tier, 'data-screen-font':10, dy}, gNames);
+  const tp = el('textPath', {href:'#'+id, startOffset, 'text-anchor':'middle'}, t);
+  tp.textContent = text;
+}
+(GEO.busway||[]).forEach(seg => {
+  const len = lineLength(seg);
+  if (len < 80) return;
+  if (len < 600){ addRoadLabel(seg, '中山バス通り', len/2, 'tier2', -18); return; }
+  for (let offset=375; offset<len-90; offset+=750){
+    addRoadLabel(seg, '中山バス通り', offset, 'tier2', -18);
   }
-  const p = el('path', {id:'rl'+i, d:poly(pts), fill:'none'}, defs);
-  const t = el('text', {class:'roadname', 'font-size':rl.size || 16.5, dy:rl.dy}, gNames);
-  const tp = el('textPath', {href:'#rl'+i, startOffset:offsetPct+'%'}, t);
-  tp.textContent = rl.text;
+});
+const namedRoads = new Map();
+GEO.roads.forEach(r => {
+  if (!r.name || displayRoadClass(r) === 'spine') return;
+  const len = lineLength(r.pts), prior = namedRoads.get(r.name);
+  if (!prior || len > prior.len) namedRoads.set(r.name, {r, len});
+});
+Array.from(namedRoads.values()).sort((a,b)=>b.len-a.len).forEach(({r,len}) => {
+  if (len < 90) return;
+  const tier = ['minor','service','path'].includes(displayRoadClass(r)) ? 'tier3' : 'tier2';
+  addRoadLabel(r.pts, r.name, '50%', tier);
 });
 GEO.parks.forEach(p => {
   // 店舗(SPOTS)として星＋ラベルを持つ公園は二重表示しない
@@ -548,15 +607,8 @@ GEO.waters.forEach(w => {
   t.textContent = x.text;
 });
 
-/* 方位・スケール */
+/* スケール（方位は画面固定HUDで表示） */
 (() => {
-  const g = el('g', {transform:'translate('+(W-30)+','+(20)+')'}, gDeco);
-  const rot = GEO.meta.proj.rot_deg;
-  const a = el('g', {transform:'rotate('+rot+')'}, g);
-  el('path', {d:'M0,14 L0,-16', stroke:'var(--ink-soft)', 'stroke-width':2.5}, a);
-  el('path', {d:'M0,-16 L-6,-4 L6,-4 Z', fill:'var(--accent)', stroke:'var(--ink-soft)', 'stroke-width':1}, a);
-  const t = el('text', {x:0, y:-24, class:'deco', 'font-size':15, 'text-anchor':'middle', transform:'rotate('+rot+')'}, g);
-  t.textContent = 'N';
   const sb = el('g', {transform:'translate('+(W-165)+','+(H-6)+')'}, gDeco);
   el('path', {d:'M0,0 L100,0 M0,-5 L0,5 M100,-5 L100,5', stroke:'var(--ink-soft)', 'stroke-width':2}, sb);
   const st = el('text', {x:50, y:-8, class:'deco', 'font-size':13, 'text-anchor':'middle'}, sb);
@@ -579,11 +631,18 @@ function busXAtY(y){
 }
 function distToBus(s){ return Math.abs(s.x - busXAtY(s.y)); }
 
-const FS = 16.5, LABEL_GAP = 20, LABEL_MIN_Y_GAP = 40;
-function estW(name){
+function screenScale(){
+  const rect = svg.getBoundingClientRect();
+  return Math.max(.001, rect.width / svg.viewBox.baseVal.width);
+}
+function labelScreenPx(s){ return isAnchorLabel(s) ? 15 : 12; }
+function labelMapFont(s){ return labelScreenPx(s) / screenScale(); }
+function labelGapMap(){ return 18 / screenScale(); }
+function labelMinYGap(){ return 28 / screenScale(); }
+function estW(name, fs){
   let w = 0;
   for (const ch of name) w += ch.charCodeAt(0) < 256 ? 0.56 : 1.02;
-  return w * FS;
+  return w * fs;
 }
 function preferredLabelSide(s){
   const h = s.hint || {};
@@ -592,10 +651,10 @@ function preferredLabelSide(s){
   return s.x >= busXAtY(s.y) ? 1 : -1;
 }
 function labelCandidate(s, index, side){
-  const w = estW(s.name);
-  const lx = s.x + side * LABEL_GAP;
+  const fs = labelMapFont(s), gap = labelGapMap(), w = estW(s.name, fs);
+  const lx = s.x + side * gap;
   const x0 = side > 0 ? lx : lx - w;
-  return {s, index, side, lx, x0, x1:x0+w, ly:s.y, y0:s.y-FS*.62, y1:s.y+FS*.62};
+  return {s, index, side, fs, gap, lx, x0, x1:x0+w, ly:s.y, y0:s.y-fs*.62, y1:s.y+fs*.62};
 }
 function overflowPenalty(box){
   const left = -PAD + 12, right = W + PAD - 12;
@@ -607,9 +666,10 @@ function overflowPenalty(box){
  */
 function solveOrderedColumn(boxes){
   boxes.sort((a,b) => a.s.y-b.s.y || a.index-b.index);
+  const minGap = labelMinYGap();
   const blocks = [];
   boxes.forEach((box, i) => {
-    const target = box.s.y - i * LABEL_MIN_Y_GAP;
+    const target = box.s.y - i * minGap;
     blocks.push({start:i, end:i, sum:target, count:1, mean:target});
     while (blocks.length > 1 && blocks[blocks.length-2].mean > blocks[blocks.length-1].mean){
       const b = blocks.pop(), a = blocks.pop();
@@ -620,17 +680,18 @@ function solveOrderedColumn(boxes){
   });
   const solved = new Array(boxes.length);
   blocks.forEach(block => {
-    for (let i=block.start; i<=block.end; i++) solved[i] = block.mean + i * LABEL_MIN_Y_GAP;
+    for (let i=block.start; i<=block.end; i++) solved[i] = block.mean + i * minGap;
   });
-  const minY = -PAD + FS, maxY = H + PAD - FS;
+  const maxFont = boxes.reduce((max,box)=>Math.max(max,box.fs), 0);
+  const minY = -PAD + maxFont, maxY = H + PAD - maxFont;
   let shift = solved.length && solved[0] < minY ? minY-solved[0] : 0;
   if (solved.length && solved[solved.length-1] + shift > maxY){
     shift += maxY - (solved[solved.length-1] + shift);
   }
   boxes.forEach((box, i) => {
     box.ly = solved[i] + shift;
-    box.y0 = box.ly - FS*.62;
-    box.y1 = box.ly + FS*.62;
+    box.y0 = box.ly - box.fs*.62;
+    box.y1 = box.ly + box.fs*.62;
   });
 }
 function shiftLabelBox(box, dx){
@@ -691,6 +752,8 @@ function layoutLabels(){
     const s = box.s;
     s.anchor = box.side > 0 ? 'start' : 'end';
     s.labelSide = box.side;
+    s.labelFont = box.fs;
+    s.labelGap = box.gap;
     s.lx = +box.lx.toFixed(1);
     s.ly = +box.ly.toFixed(1);
     s.labelBox = {x0:box.x0, x1:box.x1, y0:box.y0, y1:box.y1};
@@ -707,6 +770,7 @@ function labelPriority(s){
   if (s.url && /^https:\/\//.test(s.url)) return 1;
   return 0;
 }
+function isAnchorLabel(s){ return isPrimaryLabel(s) || (s.voices||[]).length > 0; }
 function paddedBoxesOverlap(a, b, padX, padY){
   return a.x0-padX < b.x1+padX && a.x1+padX > b.x0-padX &&
     a.y0-padY < b.y1+padY && a.y1+padY > b.y0-padY;
@@ -714,14 +778,16 @@ function paddedBoxesOverlap(a, b, padX, padY){
 function updateLabelVisibility(){
   const matching = GEO.shops.map((s,index)=>({s,index})).filter(item => matchesFilter(item.s));
   const filtering = query.length > 0 || voiceOnly || activeCats.size > 0;
-  const showAll = zoom >= ZMAX || (filtering && matching.length <= 12);
-  const padY = showAll ? 0 : Math.max(0, (ZMAX-zoom) * .16);
+  const showAll = zoom >= 265 || (filtering && matching.length <= 12);
+  const padY = showAll ? 0 : Math.max(0, (265-zoom) * .16);
   const padX = padY * .45;
   const accepted = [], visible = new Set();
   matching.sort((a,b) => labelPriority(b.s)-labelPriority(a.s) ||
     Number(isPrimaryLabel(b.s))-Number(isPrimaryLabel(a.s)) || a.index-b.index);
   matching.forEach(item => {
     const force = showAll || item.index === selectedIndex;
+    if (!showAll && Math.abs(item.s.ly-item.s.y) > 120) return;
+    if (!force && svg.dataset.tier === 'tier1' && !isAnchorLabel(item.s)) return;
     const conflict = !force && accepted.some(other =>
       paddedBoxesOverlap(item.s.labelBox, other.s.labelBox, padX, padY));
     if (conflict) return;
@@ -738,13 +804,19 @@ function updateLabelVisibility(){
   return {visible:visible.size, total:GEO.shops.length};
 }
 function updateSelectedMarker(){
+  let selectedHit = null;
   document.querySelectorAll('.hit').forEach(h => {
     const idx = +h.dataset.i, on = idx === selectedIndex;
     const s = GEO.shops[idx], star = h.querySelector('.star');
     h.classList.toggle('selected', on);
     h.setAttribute('aria-pressed', on ? 'true' : 'false');
-    if (star) star.setAttribute('transform', 'scale('+(starSize(s) * (on ? 1.18 : 1))+')');
+    if (star) star.setAttribute('transform', 'scale('+(starSize(s) * (on ? 1.35 : 1))+')');
+    if (on) selectedHit = h;
   });
+  if (selectedHit){
+    gShops.appendChild(selectedHit);
+    lastFocusHit = selectedHit;
+  }
 }
 function setSelectedShop(s){
   selectedIndex = s ? GEO.shops.indexOf(s) : -1;
@@ -755,18 +827,20 @@ function drawShops(){
   gShops.replaceChildren(); gLead.replaceChildren();
   layoutLabels();
   GEO.shops.forEach((s, idx) => {
-    const primary = isPrimaryLabel(s);
+    const primary = isAnchorLabel(s), scale = screenScale(), halo = 4.5 / scale;
     if (s.clamped && s.far_m > 0){
       const rad = (s.far_deg||0) * Math.PI/180;
       const ex = s.x + 30*Math.cos(rad), ey = s.y - 30*Math.sin(rad);
-      el('path', {d:'M'+s.x+','+s.y+' L'+ex+','+ey, class:'faraway '+(primary?'primary':'detail'), 'marker-end':''}, gLead);
-      el('path', {d:'M'+ex+','+ey+' l'+(-7*Math.cos(rad-0.5))+','+(7*Math.sin(rad-0.5))+' M'+ex+','+ey+' l'+(-7*Math.cos(rad+0.5))+','+(7*Math.sin(rad+0.5)), class:'faraway '+(primary?'primary':'detail')}, gLead);
+      el('path', {d:'M'+s.x+','+s.y+' L'+ex+','+ey, class:'faraway '+(primary?'primary':'detail'),
+        'marker-end':'', 'data-label-i':idx}, gLead);
+      el('path', {d:'M'+ex+','+ey+' l'+(-7*Math.cos(rad-0.5))+','+(7*Math.sin(rad-0.5))+' M'+ex+','+ey+' l'+(-7*Math.cos(rad+0.5))+','+(7*Math.sin(rad+0.5)),
+        class:'faraway '+(primary?'primary':'detail'), 'data-label-i':idx}, gLead);
     }
     const hasVoices = (s.voices||[]).length > 0;
     const g = el('g', {class:'hit'+(idx===selectedIndex?' selected':''), tabindex:0, role:'button',
       'aria-pressed':idx===selectedIndex?'true':'false', 'data-i':idx,
       'aria-label':s.name+(hasVoices?'、こどもの声あり':'')}, gShops);
-    el('circle', {cx:s.x, cy:s.y, r:s.padr || 22, class:'pad'}, g);  // タップ領域 (隣の星と重ならない半径)
+    el('circle', {cx:s.x, cy:s.y, r:Math.max(s.padr||0, 24/scale), class:'pad'}, g);
     if (IS_DEBUG && s.tx !== undefined && Math.hypot(s.x-s.tx, s.y-s.ty) > .1){
       // 固定星の不変条件に違反した場合だけ、真位置との差を可視化する。
       el('path', {d:'M'+(s.tx-5)+','+(s.ty-5)+' L'+(s.tx+5)+','+(s.ty+5)+' M'+(s.tx-5)+','+(s.ty+5)+' L'+(s.tx+5)+','+(s.ty-5), stroke:'#d13030', 'stroke-width':1.6, fill:'none'}, g);
@@ -775,7 +849,7 @@ function drawShops(){
     const marker = el('g', {class:'marker', transform:'translate('+s.x+','+s.y+')'}, g);
     el('circle', {cx:0, cy:0, r:16, class:'selected-ring'}, marker);
     const st = el('use', {href:'#starShape', x:0, y:0, class:'star '+s.cat,
-      transform:'scale('+(starSize(s) * (idx===selectedIndex?1.18:1))+')'}, marker);
+      transform:'scale('+(starSize(s) * (idx===selectedIndex?1.35:1))+')'}, marker);
     if (hasVoices){
       const bx = s.x + 13;
       const by = s.y - 13;
@@ -789,16 +863,21 @@ function drawShops(){
       const c = {'osm:exact':'#2e9e44','gsi_dem':'#176b58','osm:partial':'#d1a520','gsi_addr':'#2e6fd1','approx':'#d13030'}[s.src]||'#888';
       el('circle', {cx:s.x, cy:s.y, r:14, fill:'none', stroke:c, 'stroke-width':2, 'stroke-dasharray':'3 3'}, g);
     }
-    if (Math.abs(s.ly-s.y) > 3 || Math.abs(s.lx-(s.x+s.labelSide*LABEL_GAP)) > 3){
+    if (Math.abs(s.ly-s.y) > 3 || Math.abs(s.lx-(s.x+s.labelSide*s.labelGap)) > 3){
       el('path', {d:'M'+s.x+','+s.y+' L'+(s.lx-s.labelSide*4)+','+s.ly,
-        class:'label-leader', 'data-label-i':idx}, gLead);
+        class:'label-leader', 'stroke-width':1.3/scale, 'data-label-i':idx}, gLead);
     }
-    const t = el('text', {x:s.lx, y:s.ly+FS*0.35, class:'shoplabel '+(primary?'primary b':'detail'),
-      'font-size':FS, 'text-anchor':s.anchor, 'data-label-i':idx}, g);
+    const t = el('text', {x:s.lx, y:s.ly+s.labelFont*0.35, class:'shoplabel '+(primary?'primary b':'detail'),
+      'font-size':s.labelFont, 'text-anchor':s.anchor, 'data-label-i':idx,
+      'data-screen-font':labelScreenPx(s)}, g);
+    t.style.strokeWidth = halo+'px';
     t.textContent = s.name;
     if (s.clamped && s.far_m > 0){
-      const ft = el('text', {x:s.lx, y:s.ly+FS*0.35+15, class:'shoplabel '+(primary?'primary':'detail'), 'font-size':10.5,
-        'text-anchor':s.anchor, opacity:.8, 'data-label-i':idx}, g);
+      const farFont = 10/scale;
+      const ft = el('text', {x:s.lx, y:s.ly+s.labelFont*0.35+14/scale,
+        class:'shoplabel '+(primary?'primary':'detail'), 'font-size':farFont,
+        'text-anchor':s.anchor, opacity:.8, 'data-label-i':idx, 'data-screen-font':10}, g);
+      ft.style.strokeWidth = halo+'px';
       ft.textContent = '実際は約'+(s.far_m>=1000? (s.far_m/1000).toFixed(1)+'km':(s.far_m+'m'))+'先';
     }
   });
@@ -820,11 +899,12 @@ Object.keys(CATS).forEach(k => {
     const on = b.getAttribute('aria-pressed') === 'true';
     b.setAttribute('aria-pressed', on?'false':'true');
     if (on) activeCats.delete(k); else activeCats.add(k);
-    hideDetail();
+    peekDetail();
     applyFilter();
   });
   filtersDiv.appendChild(b);
 });
+filtersDiv.addEventListener('click', event => event.stopPropagation());
 const voiceFilter = document.createElement('button');
 voiceFilter.className = 'chip voice-filter'; voiceFilter.setAttribute('aria-pressed','false');
 voiceFilter.type = 'button';
@@ -835,13 +915,14 @@ voiceFilter.appendChild(voiceIcon); voiceFilter.appendChild(voiceLabel);
 voiceFilter.addEventListener('click', () => {
   voiceOnly = !voiceOnly;
   voiceFilter.setAttribute('aria-pressed', voiceOnly ? 'true' : 'false');
-  hideDetail();
+  peekDetail();
   applyFilter();
 });
 filtersDiv.appendChild(voiceFilter);
+document.querySelector('.searchbar').addEventListener('click', event => event.stopPropagation());
 document.getElementById('q').addEventListener('input', e => {
   query = e.target.value.trim().toLowerCase();
-  hideDetail();
+  peekDetail();
   applyFilter({fromSearch:true});
 });
 function norm(s){ return s.toLowerCase().replace(/[ァ-ン]/g, m=>String.fromCharCode(m.charCodeAt(0)-0x60)); }
@@ -880,14 +961,12 @@ function applyFilter({fromSearch=false} = {}){
       searchOpenedList = false;
       focusShopOnMap(matched[0], true);
     } else if (enough && matched.length > 1){
-      setSelectedShop(null);
       renderList(null, '検索結果');
       listpanel.classList.add('show');
       searchOpenedList = true;
     } else if (enough && matched.length === 0){
       listpanel.classList.remove('show');
       searchOpenedList = false;
-      setSelectedShop(null);
     } else if (searchOpenedList){
       listpanel.classList.remove('show');
       searchOpenedList = false;
@@ -907,8 +986,8 @@ const detailTitle = document.getElementById('detailTitle');
 const detailHandle = detailPanel.querySelector('.detail-handle');
 let pinned = null, lastFocusHit = null;
 let detailShops = [], detailIndex = -1, detailScrollFrame = 0;
-const DETAIL_SNAP_RATIOS = [.66, .90];
-let detailSnapIndex = 0, detailDrag = null;
+const DETAIL_SNAP_RATIOS = [.28, .66, .90];
+let detailSnapIndex = 1, detailDrag = null;
 function isMobileDetail(){ return window.matchMedia('(max-width:759px)').matches; }
 function updateDetailHeightAria(height){
   const pct = Math.round(height / Math.max(1, window.innerHeight) * 100);
@@ -926,6 +1005,8 @@ function setDetailSnap(index){
   if (!isMobileDetail()) return;
   detailSnapIndex = Math.max(0, Math.min(DETAIL_SNAP_RATIOS.length - 1, index));
   setDetailHeight(window.innerHeight * DETAIL_SNAP_RATIOS[detailSnapIndex]);
+  const open = detailPanel.getAttribute('aria-hidden') === 'false';
+  document.body.classList.toggle('detail-peek', open && detailSnapIndex === 0);
 }
 detailHandle.addEventListener('pointerdown', event => {
   if (!isMobileDetail() || event.button !== 0) return;
@@ -990,8 +1071,8 @@ function placeBubble(box, px, py){
 }
 function focusShopOnMap(s, openDetail){
   const fx = (s.x + PAD) / (W + 2*PAD), fy = (s.y + PAD) / (H + 2*PAD);
-  viewport.scrollLeft = fx * wrap.offsetWidth - viewport.clientWidth/2;
-  viewport.scrollTop = fy * wrap.offsetHeight - viewport.clientHeight/2;
+  viewport.scrollLeft = wrap.offsetLeft + fx * wrap.offsetWidth - viewport.clientWidth/2;
+  viewport.scrollTop = wrap.offsetTop + fy * wrap.offsetHeight - viewport.clientHeight/2;
   setSelectedShop(s);
   if (openDetail){
     pinned = s;
@@ -1223,7 +1304,8 @@ function showDetail(s, focusClose){
   document.getElementById('listpanel').classList.remove('show');
   searchOpenedList = false;
   hideChooser();
-  if (isMobileDetail()) setDetailSnap(0);
+  document.body.classList.remove('detail-peek');
+  if (isMobileDetail()) setDetailSnap(1);
   document.body.classList.add('detail-open');
   detailPanel.inert = false;
   detailPanel.setAttribute('aria-hidden', 'false');
@@ -1235,6 +1317,7 @@ function hideDetail(restoreFocus){
   closePhotoLightbox(false);
   const wasOpen = detailPanel.getAttribute('aria-hidden') === 'false';
   document.body.classList.remove('detail-open');
+  document.body.classList.remove('detail-peek');
   detailPanel.inert = true;
   detailPanel.setAttribute('aria-hidden', 'true');
   if (restoreFocus && wasOpen && lastFocusHit){ try{ lastFocusHit.focus(); }catch(e){} }
@@ -1242,13 +1325,32 @@ function hideDetail(restoreFocus){
   detailIndex = -1;
   setSelectedShop(null);
 }
+function peekDetail(){
+  const isOpen = detailPanel.getAttribute('aria-hidden') === 'false';
+  if (isOpen && isMobileDetail()){
+    document.body.classList.add('detail-peek');
+    setDetailSnap(0);
+  }
+  hideChooser();
+}
 function hideChooser(){ chooser.classList.remove('show'); }
-function nearby(s){
-  return GEO.shops.filter(o => Math.hypot(o.x-s.x, o.y-s.y) < 22);
+function svgPointFromClient(clientX, clientY){
+  const vb = svg.viewBox.baseVal, rect = svg.getBoundingClientRect();
+  return {
+    x:vb.x + (clientX-rect.left) / rect.width * vb.width,
+    y:vb.y + (clientY-rect.top) / rect.height * vb.height,
+  };
+}
+function hitCandidatesAt(clientX, clientY){
+  const point = svgPointFromClient(clientX, clientY);
+  const radius = 24 / screenScale();
+  return GEO.shops.filter(matchesFilter).map(s => ({s, d:Math.hypot(s.x-point.x, s.y-point.y)}))
+    .filter(item => item.d <= radius).sort((a,b)=>a.d-b.d).map(item=>item.s);
 }
 function showChooser(list, s){
   chooser.replaceChildren();
-  setSelectedShop(null);
+  pinned = s;
+  setSelectedShop(s);
   const t = document.createElement('div'); t.className='ctitle'; t.textContent='どのお店？'; chooser.appendChild(t);
   list.forEach(o => {
     const b = document.createElement('button'); b.className='copt';
@@ -1263,13 +1365,20 @@ function showChooser(list, s){
   chooser.classList.add('show');
   const first = chooser.querySelector('.copt'); if (first) first.focus();
 }
-gShops.addEventListener('click', e => {
-  const h = e.target.closest('.hit'); if (!h) return;
+svg.addEventListener('click', e => {
+  if (performance.now() < suppressMapClickUntil){ e.stopPropagation(); return; }
+  const candidates = hitCandidatesAt(e.clientX, e.clientY);
+  const directHit = e.target.closest && e.target.closest('.hit');
+  if (directHit){
+    const directShop = GEO.shops[+directHit.dataset.i];
+    if (directShop && matchesFilter(directShop) && !candidates.includes(directShop)) candidates.unshift(directShop);
+  }
+  if (!candidates.length) return;
   e.stopPropagation();
-  lastFocusHit = h;
-  const s = GEO.shops[+h.dataset.i];
-  const nb = nearby(s).filter(o => matchesFilter(o));
-  if (nb.length > 1){ showChooser(nb, s); } else { pinned = s; showDetail(s, false); }
+  const s = candidates[0];
+  lastFocusHit = gShops.querySelector('.hit[data-i="'+GEO.shops.indexOf(s)+'"]');
+  if (candidates.length > 1){ showChooser(candidates, s); }
+  else { pinned = s; setSelectedShop(s); showDetail(s, false); }
 });
 gShops.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -1310,32 +1419,140 @@ document.addEventListener('keydown', e => {
 /* ---------- ズーム (中心点を維持) ---------- */
 const wrap = document.getElementById('mapwrap');
 const ZMIN = 95, ZMAX = 420;
-let zoom = window.innerWidth >= 760 ? 108 : 175;
-function applyZoom(keepCenter){
-  const vp = viewport;
-  const cx = keepCenter ? (vp.scrollLeft + vp.clientWidth/2) / wrap.offsetWidth : null;
-  const cy = keepCenter ? (vp.scrollTop + vp.clientHeight/2) / wrap.offsetHeight : null;
-  wrap.style.width = zoom+'%'; wrap.style.maxWidth = 'none';
-  if (keepCenter){
-    vp.scrollLeft = cx * wrap.offsetWidth - vp.clientWidth/2;
-    vp.scrollTop  = cy * wrap.offsetHeight - vp.clientHeight/2;
-  }
-  updateLabelVisibility();
-  hideDetail(); hideChooser();
-  document.getElementById('zin').disabled  = zoom >= ZMAX;
+let zoom = 240;
+let suppressMapClickUntil = 0;
+function zoomTier(){ return zoom < 140 ? 'tier1' : (zoom < 265 ? 'tier2' : 'tier3'); }
+function updateMapScaleStyling(){
+  const scale = screenScale();
+  const k = Math.pow(zoom/175, -.3);
+  svg.dataset.tier = zoomTier();
+  svg.dataset.zoom = String(zoom);
+  gRoads.dataset.strokeK = k.toFixed(6);
+  gRoads.querySelectorAll('[data-road-width]').forEach(path => {
+    path.setAttribute('stroke-width', (Number(path.dataset.roadWidth) * k).toFixed(3));
+  });
+  gNames.querySelectorAll('.roadname').forEach(name => {
+    name.setAttribute('font-size', (10/scale).toFixed(3));
+    name.style.strokeWidth = (4.5/scale)+'px';
+  });
+}
+function updateZoomButtons(){
+  document.getElementById('zin').disabled = zoom >= ZMAX;
   document.getElementById('zout').disabled = zoom <= ZMIN;
 }
-document.getElementById('zin').addEventListener('click', () => { zoom = Math.min(zoom+45, ZMAX); applyZoom(true); });
-document.getElementById('zout').addEventListener('click', () => { zoom = Math.max(zoom-45, ZMIN); applyZoom(true); });
+function applyZoom(keepCenter, {refreshShops=true, peek=true} = {}){
+  const vp = viewport;
+  const cx = keepCenter ? (vp.scrollLeft + vp.clientWidth/2 - wrap.offsetLeft) / wrap.offsetWidth : null;
+  const cy = keepCenter ? (vp.scrollTop + vp.clientHeight/2 - wrap.offsetTop) / wrap.offsetHeight : null;
+  wrap.style.width = zoom+'%'; wrap.style.maxWidth = 'none';
+  if (keepCenter){
+    vp.scrollLeft = wrap.offsetLeft + cx * wrap.offsetWidth - vp.clientWidth/2;
+    vp.scrollTop  = wrap.offsetTop + cy * wrap.offsetHeight - vp.clientHeight/2;
+  }
+  updateMapScaleStyling();
+  if (refreshShops) drawShops();
+  if (peek) peekDetail();
+  updateZoomButtons();
+}
+function zoomAtViewportPoint(localX, localY, nextZoom, options){
+  const fx = (viewport.scrollLeft + localX - wrap.offsetLeft) / Math.max(1, wrap.offsetWidth);
+  const fy = (viewport.scrollTop + localY - wrap.offsetTop) / Math.max(1, wrap.offsetHeight);
+  zoom = Math.max(ZMIN, Math.min(ZMAX, nextZoom));
+  applyZoom(false, options);
+  viewport.scrollLeft = wrap.offsetLeft + fx * wrap.offsetWidth - localX;
+  viewport.scrollTop = wrap.offsetTop + fy * wrap.offsetHeight - localY;
+}
+const zoomControls = document.querySelector('.zoomctl');
+zoomControls.addEventListener('click', event => event.stopPropagation());
+document.getElementById('zin').addEventListener('click', () => {
+  zoom = Math.min(zoom+45, ZMAX); svg.dataset.lastZoomInput = 'button-in'; applyZoom(true);
+});
+document.getElementById('zout').addEventListener('click', () => {
+  zoom = Math.max(zoom-45, ZMIN); svg.dataset.lastZoomInput = 'button-out'; applyZoom(true);
+});
+
+/* 1指のネイティブpanを保ち、2ポインタが揃った時だけ独自pinchへ切り替える。 */
+const activeMapPointers = new Map();
+let pinchState = null, lastTap = null;
+function pointerPair(){ return Array.from(activeMapPointers.values()).slice(0,2); }
+function viewportLocalMidpoint(a, b){
+  const rect = viewport.getBoundingClientRect();
+  return {x:(a.x+b.x)/2-rect.left, y:(a.y+b.y)/2-rect.top};
+}
+function beginPinch(){
+  const pair = pointerPair();
+  if (pair.length < 2) return;
+  const mid = viewportLocalMidpoint(pair[0], pair[1]);
+  const distance = Math.max(1, Math.hypot(pair[1].x-pair[0].x, pair[1].y-pair[0].y));
+  pinchState = {
+    startZoom:zoom, startDistance:distance,
+    anchorX:(viewport.scrollLeft+mid.x-wrap.offsetLeft)/Math.max(1,wrap.offsetWidth),
+    anchorY:(viewport.scrollTop+mid.y-wrap.offsetTop)/Math.max(1,wrap.offsetHeight),
+  };
+  svg.dataset.pinchGestureCount = String((Number(svg.dataset.pinchGestureCount)||0)+1);
+  suppressMapClickUntil = performance.now()+500;
+  peekDetail();
+}
+viewport.addEventListener('pointerdown', event => {
+  if (event.pointerType !== 'touch') return;
+  activeMapPointers.set(event.pointerId, {x:event.clientX, y:event.clientY,
+    startX:event.clientX, startY:event.clientY, moved:false});
+  if (activeMapPointers.size === 2) beginPinch();
+}, {passive:true});
+viewport.addEventListener('pointermove', event => {
+  const item = activeMapPointers.get(event.pointerId);
+  if (!item) return;
+  item.x = event.clientX; item.y = event.clientY;
+  if (Math.hypot(item.x-item.startX, item.y-item.startY) > 8) item.moved = true;
+  if (activeMapPointers.size < 2 || !pinchState) return;
+  event.preventDefault();
+  const pair = pointerPair();
+  const distance = Math.max(1, Math.hypot(pair[1].x-pair[0].x, pair[1].y-pair[0].y));
+  const mid = viewportLocalMidpoint(pair[0], pair[1]);
+  zoom = Math.max(ZMIN, Math.min(ZMAX, pinchState.startZoom * distance/pinchState.startDistance));
+  applyZoom(false, {refreshShops:false, peek:false});
+  viewport.scrollLeft = wrap.offsetLeft + pinchState.anchorX * wrap.offsetWidth - mid.x;
+  viewport.scrollTop = wrap.offsetTop + pinchState.anchorY * wrap.offsetHeight - mid.y;
+  svg.dataset.lastZoomInput = 'pinch';
+  svg.dataset.pinchMoveCount = String((Number(svg.dataset.pinchMoveCount)||0)+1);
+}, {passive:false});
+function finishMapPointer(event){
+  const item = activeMapPointers.get(event.pointerId);
+  if (!item) return;
+  const wasPinch = !!pinchState || activeMapPointers.size >= 2;
+  activeMapPointers.delete(event.pointerId);
+  if (wasPinch && activeMapPointers.size < 2){
+    pinchState = null;
+    suppressMapClickUntil = performance.now()+450;
+    applyZoom(false, {refreshShops:true, peek:true});
+    return;
+  }
+  if (event.type !== 'pointerup' || item.moved || performance.now() < suppressMapClickUntil) return;
+  const now = performance.now();
+  if (lastTap && now-lastTap.time <= 300 && Math.hypot(item.x-lastTap.x,item.y-lastTap.y) <= 24){
+    const rect = viewport.getBoundingClientRect();
+    suppressMapClickUntil = now+450;
+    svg.dataset.lastZoomInput = 'double-tap';
+    svg.dataset.doubleTapCount = String((Number(svg.dataset.doubleTapCount)||0)+1);
+    zoomAtViewportPoint(item.x-rect.left, item.y-rect.top, zoom+45, {refreshShops:true, peek:true});
+    lastTap = null;
+  } else {
+    lastTap = {time:now, x:item.x, y:item.y};
+  }
+}
+viewport.addEventListener('pointerup', finishMapPointer, {passive:true});
+viewport.addEventListener('pointercancel', finishMapPointer, {passive:true});
 window.addEventListener('resize', () => {
   hideChooser();
   if (isMobileDetail()) setDetailSnap(detailSnapIndex);
   else {
     detailPanel.style.removeProperty('height');
     detailPanel.classList.remove('is-resizing');
+    document.body.classList.remove('detail-peek');
     detailDrag = null;
   }
   if (detailIndex >= 0) requestAnimationFrame(() => detailRail.scrollTo({left:detailIndex * detailRail.clientWidth, behavior:'auto'}));
+  requestAnimationFrame(() => applyZoom(true, {refreshShops:true, peek:false}));
 });
 
 /* ---------- お店一覧パネル ---------- */
@@ -1420,14 +1637,16 @@ if (IS_EDIT){
   });
 }
 
-drawShops();
 applyZoom(false);
 /* 初期表示は商店街の密集帯を中心に */
 requestAnimationFrame(() => {
   const vp = viewport;
-  const cx = (busXAtY(H*0.45) + PAD) / (W + 2*PAD);
-  vp.scrollLeft = wrap.offsetWidth * cx - vp.clientWidth / 2;
-  vp.scrollTop = wrap.offsetHeight * 0.22;
+  const initialY = 850;
+  const cx = (busXAtY(initialY) + PAD) / (W + 2*PAD);
+  const cy = (initialY + PAD) / (H + 2*PAD);
+  vp.scrollLeft = wrap.offsetLeft + wrap.offsetWidth * cx - vp.clientWidth / 2;
+  vp.scrollTop = wrap.offsetTop + wrap.offsetHeight * cy - vp.clientHeight / 2;
+  svg.dataset.initialCenterY = String(initialY);
 });
 </script>
 </body>

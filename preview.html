@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Yusei+Magic&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
+  /* Hallmark · macrostructure: interactive cartographic canvas · tone: playful · anchor hue: warm orange */
   /* Hallmark · component: photo viewer/lightbox · genre: playful · theme: existing warm-paper
    * states: default · hover · focus · active · disabled · loading · error · success
    * contrast: existing warm-paper tokens preserved
@@ -17,15 +18,18 @@
     --paper:#FBF4E2; --paper-deep:#F1E5C8; --ink:#5C4327; --ink-soft:#7A5C3B;
     --accent:#C97B3D; --voice:#26747B;
     --c-medical:#a8875f; --c-life:#4a9d3f; --c-food:#e8902f; --c-edu:#3f7ec7; --c-place:#2fa3a0;
+    --map-ground:#F2E7C9; --road-fill:#FFFDF4; --road-spine-fill:#FBE9C4; --busway-band:#F6E0B8;
+    --road-casing-spine:#9B7F5C; --road-casing-major:#9B7F5C;
+    --road-casing-mid:#AE9373; --road-casing-minor:#CEBB9E; --road-casing-service:#D6C6A8;
     --photo-backdrop:rgba(35,25,15,.9); --photo-surface:#fffaf0; --photo-rule:#d8c4a0;
     --photo-focus:rgba(201,123,61,.72); --ease-photo:cubic-bezier(.16,1,.3,1); --dur-photo:140ms;
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;}
+  html,body{height:100%;overflow-x:clip;}
   body{
     font-family:'Zen Maru Gothic','Hiragino Maru Gothic ProN','Yu Gothic',sans-serif;
     background:var(--paper); color:var(--ink);
-    display:flex; flex-direction:column; overflow:hidden;
+    display:flex; flex-direction:column; overflow-y:hidden;
   }
   header{ padding:10px 14px 6px; border-bottom:2px dashed rgba(92,67,39,.35); z-index:20; background:var(--paper); }
   header h1{
@@ -54,10 +58,10 @@
   .chip.c-life{ color:var(--c-life); }
   .chip.c-food{ color:var(--c-food); } .chip.c-edu{ color:var(--c-edu); } .chip.c-place{ color:var(--c-place); }
   .chip.voice-filter{ color:var(--voice); }
-  .chip.voice-filter[aria-pressed="true"]{ background:var(--voice); color:#fff; box-shadow:inset 0 0 0 1.5px var(--voice); }
-  .chip.voice-filter[aria-pressed="true"] .lbl{ color:#fff; }
+  .chip.voice-filter[aria-pressed="true"]{ background:var(--voice); color:var(--photo-surface); box-shadow:inset 0 0 0 1.5px var(--voice); }
+  .chip.voice-filter[aria-pressed="true"] .lbl{ color:var(--photo-surface); }
   .chip.voice-filter[aria-pressed="true"] .voice-chip-icon,
-  .chip.voice-filter[aria-pressed="true"] .voice-chip-icon::after{ background:var(--voice); border-color:#fff; }
+  .chip.voice-filter[aria-pressed="true"] .voice-chip-icon::after{ background:var(--voice); border-color:var(--photo-surface); }
   .voice-chip-icon{ position:relative; width:18px; height:13px; flex:0 0 auto; border:1.7px solid currentColor;
     border-radius:5px; background:#fffaf0; }
   .voice-chip-icon::before{ content:"···"; position:absolute; inset:-3px 0 0; text-align:center; font-size:8px; font-weight:700; }
@@ -73,6 +77,10 @@
   #searchstatus.empty{ color:#b3562e; }
   .label-hint{ flex:0 0 auto; padding:4px 12px 6px; border-bottom:1px dashed rgba(122,92,59,.28);
     background:var(--paper); color:var(--ink-soft); font-size:.72rem; font-weight:700; text-align:center; }
+  .busway-legend{ flex:0 0 auto; display:flex; align-items:center; justify-content:center; gap:7px;
+    padding:3px 12px 5px; background:var(--paper); color:var(--ink-soft); font-size:.7rem; font-weight:700; }
+  .busway-legend span{ width:34px; height:9px; border-radius:999px; background:var(--busway-band);
+    border:1px solid rgba(155,127,92,.35); }
   @media(max-width:759px){
     header{ padding-bottom:7px; }
     header p{ display:none; }
@@ -84,20 +92,22 @@
     header h1 small{ display:none; }
   }
 
-  #viewport{ flex:1; overflow:auto; position:relative; background:var(--paper); -webkit-overflow-scrolling:touch; }
+  #viewport{ flex:1; overflow:auto; position:relative; background:var(--paper); -webkit-overflow-scrolling:touch;
+    touch-action:pan-x pan-y; }
   #mapwrap{ width:175%; max-width:none; margin:0 auto; position:relative; }
   @media(min-width:760px){ #mapwrap{ width:108%; max-width:1000px; } }
   svg{ display:block; width:100%; height:auto; }
   text{ user-select:none; }
 
-  .road-major-c{ stroke:#8a6a44; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.85; }
-  .road-major-f{ stroke:#fdf7e7; fill:none; stroke-linecap:round; stroke-linejoin:round; }
-  .road-mid-c{ stroke:#8a6a44; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.7; }
-  .road-mid-f{ stroke:#faf1da; fill:none; stroke-linecap:round; stroke-linejoin:round; }
-  .road-main-c{ stroke:#8a6a44; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.88; }
-  .road-main-f{ stroke:#fdf7e7; fill:none; stroke-linecap:round; stroke-linejoin:round; }
-  .road-minor-c{ stroke:#a98c66; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.55; }
-  .road-minor-f{ stroke:#faf1da; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  [class^="road-"]{ fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .busway-band{ fill:none; stroke:var(--busway-band); stroke-linecap:round; stroke-linejoin:round; }
+  .road-spine-c, .road-major-c{ stroke:var(--road-casing-spine); }
+  .road-mid-c{ stroke:var(--road-casing-mid); }
+  .road-minor-c{ stroke:var(--road-casing-minor); }
+  .road-service-c{ stroke:var(--road-casing-service); }
+  .road-spine-f{ stroke:var(--road-spine-fill); }
+  .road-major-f, .road-mid-f, .road-minor-f, .road-service-f{ stroke:var(--road-fill); }
+  .road-path-f{ stroke:var(--road-casing-mid); stroke-dasharray:4 7; }
   .sando{ stroke:#a98c66; stroke-dasharray:7 6; fill:none; opacity:.65; }
   .river{ stroke:#8fbdd2; fill:none; stroke-linecap:round; opacity:.85; }
   .water{ fill:#bcd9e6; stroke:#8fbdd2; stroke-width:2; opacity:.9; }
@@ -120,15 +130,26 @@
   .voice-badge .tail{ fill:#fffaf0; stroke:var(--voice); stroke-width:1.7; stroke-linejoin:round; }
   .voice-badge .dot{ fill:var(--voice); }
   .shoplabel{ font-family:'Yusei Magic',sans-serif; fill:var(--ink); font-weight:700;
-    paint-order:stroke; stroke:var(--paper); stroke-width:7px; stroke-linejoin:round; }
+    paint-order:stroke; stroke:var(--paper); stroke-width:4.5px; stroke-linejoin:round; }
   .label-leader{ fill:none; stroke:rgba(122,92,59,.62); stroke-width:1.3; stroke-dasharray:3 3; pointer-events:none; }
   .shoplabel.label-hidden, .label-leader.label-hidden{ display:none; }
   .shoplabel.b{ font-weight:700; }
   .shoplabel.detail{ opacity:1; }
-  .hit.selected .shoplabel{ fill:#9a4f28; stroke:#fffaf0; stroke-width:9px; }
+  .hit.selected .shoplabel{ fill:#9a4f28; stroke:#fffaf0; }
   .faraway.detail{ opacity:1; }
   .roadname{ font-family:'Yusei Magic',sans-serif; fill:var(--ink-soft); opacity:.75;
     paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
+  svg[data-tier="tier1"] .road-minor-c,
+  svg[data-tier="tier1"] .road-service-c,
+  svg[data-tier="tier1"] .road-service-f,
+  svg[data-tier="tier1"] .road-path-f,
+  svg[data-tier="tier1"] .signal,
+  svg[data-tier="tier1"] .sando,
+  svg[data-tier="tier1"] .roadname{ display:none; }
+  svg[data-tier="tier2"] .road-service-c,
+  svg[data-tier="tier2"] .road-service-f,
+  svg[data-tier="tier2"] .road-path-f,
+  svg[data-tier="tier2"] .roadname-tier3{ display:none; }
   .parkname{ font-family:'Yusei Magic',sans-serif; fill:#6d8a3c;
     paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
   .rivername{ font-family:'Yusei Magic',sans-serif; fill:#5787a0;
@@ -143,7 +164,7 @@
   .detail-panel{ position:fixed; inset:0 0 0 auto; z-index:37; width:min(400px,calc(100vw - 24px)); height:100dvh;
     display:flex; flex-direction:column; overflow:hidden; background:#fffaf0; border-left:3px solid #d8c4a0;
     box-shadow:-18px 0 42px rgba(80,60,30,.28); transform:translateX(104%);
-    transition:transform .28s cubic-bezier(.22,.78,.28,1), height .22s cubic-bezier(.22,.78,.28,1); }
+    transition:transform .28s cubic-bezier(.22,.78,.28,1); }
   body.detail-open .detail-panel{ transform:translateX(0); }
   .detail-handle{ display:none; }
   .detail-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 16px 8px;
@@ -217,7 +238,7 @@
   button.detail-status{ min-height:44px; padding:7px 12px; border:2px solid rgba(38,116,123,.35); cursor:pointer; }
   .detail-status.voice{ background:#e4f2ef; color:var(--voice); }
   button.detail-status.voice::after{ content:' ↓'; margin-left:5px; }
-  button.detail-status.voice[aria-expanded="true"]{ background:var(--voice); border-color:var(--voice); color:#fff; }
+  button.detail-status.voice[aria-expanded="true"]{ background:var(--voice); border-color:var(--voice); color:var(--photo-surface); }
   button.detail-status.voice[aria-expanded="true"]::after{ content:' ↑'; }
   button.detail-status:focus-visible{ outline:3px solid rgba(38,116,123,.28); outline-offset:2px; }
   .detail-note{ margin-top:18px; padding:14px 15px; border-radius:14px; background:var(--paper);
@@ -250,7 +271,7 @@
   .chooser.show{ opacity:1; pointer-events:auto; }
   .chooser .ctitle{ font-size:.66rem; color:#9a8763; font-weight:700; text-align:center; margin:1px 0 6px; }
   .chooser .copt{ display:flex; align-items:center; gap:8px; width:100%; min-height:44px; border:0;
-    background:#fff; border-radius:9px; margin-bottom:5px; padding:5px 9px; font:inherit; font-size:.78rem;
+    background:var(--photo-surface); border-radius:9px; margin-bottom:5px; padding:5px 9px; font:inherit; font-size:.78rem;
     color:var(--ink); cursor:pointer; text-align:left; }
   .chooser .copt:active{ background:#f3e7cc; }
   .chooser .cdot{ width:12px; height:12px; border-radius:50%; flex:0 0 auto; border:1.5px solid rgba(92,67,39,.4); }
@@ -261,11 +282,23 @@
     border-radius:50% 45% 52% 48% / 48% 52% 45% 50%;
     box-shadow:2px 3px 0 rgba(92,67,39,.25); cursor:pointer; }
   .zoomctl button:active{ transform:translateY(2px); box-shadow:none; }
+  .compass-hud{ position:fixed; top:12px; right:12px; z-index:25; width:44px; height:44px;
+    border:2px solid var(--ink-soft); border-radius:50% 45% 52% 48% / 48% 52% 45% 50%;
+    background:var(--paper); box-shadow:2px 3px 0 rgba(92,67,39,.25); pointer-events:none; }
+  .compass-rotor{ position:absolute; inset:5px; transform:rotate(var(--north-rotation,0deg)); transform-origin:center; }
+  .compass-axis{ position:absolute; left:50%; top:5px; width:2px; height:24px; transform:translateX(-50%);
+    border-radius:999px; background:linear-gradient(to bottom,var(--accent) 0 50%,var(--ink-soft) 50% 100%); }
+  .compass-axis::before{ content:""; position:absolute; left:50%; top:-4px; transform:translateX(-50%);
+    border-left:6px solid transparent; border-right:6px solid transparent; border-top:0; border-bottom:9px solid var(--ink-soft); }
+  .compass-axis::after{ content:""; position:absolute; left:50%; top:-1px; transform:translateX(-50%);
+    border-left:4px solid transparent; border-right:4px solid transparent; border-top:0; border-bottom:6px solid var(--accent); }
+  .compass-n{ position:absolute; left:50%; top:-7px; transform:translateX(-50%); color:var(--ink-soft);
+    font-family:'Yusei Magic',sans-serif; font-size:9px; font-weight:700; line-height:1; }
 
   #editbar{ display:none; position:fixed; left:10px; bottom:62px; z-index:40; gap:8px; }
   body.edit #editbar{ display:flex; }
   body.edit #listbtn{ display:none; }
-  #editbar button{ font:inherit; font-size:.72rem; font-weight:700; color:#fff; background:#b3562e;
+  #editbar button{ font:inherit; font-size:.72rem; font-weight:700; color:var(--photo-surface); background:#b3562e;
     border:0; border-radius:999px; padding:8px 14px; cursor:pointer; box-shadow:0 3px 8px rgba(0,0,0,.25); }
   body.edit .hit{ cursor:grab; }
   #srcinfo{ display:none; position:fixed; left:10px; bottom:112px; z-index:40; font-size:.62rem;
@@ -309,7 +342,7 @@
   .lrow .lvoice::before{ content:"···"; position:relative; top:-2px; font-size:8px; font-weight:700; }
   .lrow .laddr{ grid-column:2 / 4; font-size:.7rem; line-height:1.4; color:var(--ink-soft); text-align:left; }
   @media(max-width:759px){
-    .detail-panel{ inset:auto 0 0; width:100%; height:66dvh; min-height:min(330px,calc(100dvh - 120px)); max-height:90dvh;
+    .detail-panel{ inset:auto 0 0; width:100%; height:66dvh; min-height:28dvh; max-height:90dvh;
       border:3px solid #d8c4a0; border-bottom:0;
       border-radius:22px 22px 0 0; box-shadow:0 -18px 42px rgba(80,60,30,.28); transform:translateY(104%); }
     body.detail-open .detail-panel{ transform:translateY(0); }
@@ -335,11 +368,13 @@
     .detail-voice{ padding:8px 10px 8px 26px; font-size:.76rem; }
     .detail-link{ min-height:44px; margin-top:14px; }
     .detail-nav{ padding:2px 12px calc(4px + env(safe-area-inset-bottom)); }
-    body.detail-open .zoomctl, body.detail-open #listbtn{ opacity:0; pointer-events:none; }
+    body.detail-open:not(.detail-peek) .zoomctl, body.detail-open:not(.detail-peek) #listbtn{ opacity:0; pointer-events:none; }
+    body.detail-peek .zoomctl, body.detail-peek #listbtn{ bottom:calc(28dvh + 12px); }
   }
   @media(prefers-reduced-motion:reduce){
     .detail-panel{ transition:none; }
     .detail-rail{ scroll-behavior:auto; }
+    .chip, .chooser{ transition:none; }
     .detail-photo-main, .detail-photo-thumb, .photo-lightbox-close{ transition:none; }
   }
 </style>
@@ -354,6 +389,7 @@
 <div class="filters" id="filters"></div>
 <div class="searchbar"><input id="q" type="search" placeholder="お店をさがす（例：ケーキ）" aria-label="お店を検索"><span id="searchstatus" role="status" aria-live="polite"></span></div>
 <p class="label-hint" id="labelHint">ズームすると店名が出ます</p>
+<p class="busway-legend"><span aria-hidden="true"></span>このオレンジの通り沿いが商店街</p>
 
 <div id="viewport">
   <div id="mapwrap">
@@ -366,6 +402,9 @@
   <button id="zin" aria-label="拡大">＋</button>
   <button id="zout" aria-label="縮小">－</button>
 </div>
+<div class="compass-hud" id="compassHud" role="img" aria-label="北の方角">
+  <span class="compass-rotor" aria-hidden="true"><span class="compass-axis"></span><span class="compass-n">N</span></span>
+</div>
 <button id="listbtn" aria-haspopup="dialog">📋 お店一覧</button>
 <div id="listpanel" role="dialog" aria-label="お店一覧">
   <div class="lhead"><h2 id="listtitle">お店一覧</h2><button class="lclose" id="listclose" aria-label="閉じる">✕</button></div>
@@ -373,7 +412,7 @@
 </div>
 <aside class="detail-panel" id="detailPanel" role="dialog" aria-modal="false" aria-labelledby="detailTitle" aria-hidden="true" inert>
   <span class="detail-handle" role="separator" aria-orientation="horizontal" tabindex="0"
-    aria-label="お店の詳細の高さを変える" aria-valuemin="66" aria-valuemax="90" aria-valuenow="66"></span>
+    aria-label="お店の詳細の高さを変える" aria-valuemin="28" aria-valuemax="90" aria-valuenow="66"></span>
   <div class="detail-head">
     <div class="detail-head-copy">
       <span class="detail-eyebrow">お店の詳細</span>
@@ -399,7 +438,7 @@
 </footer>
 
 <script>
-const GEO = {"meta":{"W":1291,"H":1738,"proj":{"lat0":38.2935,"lon0":140.8435,"cosf":0.7848466771836701,"rot_deg":46.4},"minx":-746.69,"miny":-822.83,"scale_m_per_px":1.0,"info_as_of":"2026年6月12日","partner_logos":[{"name":"宮城大学","src":"assets/myu_logo.png","alt":"宮城大学","status":"approved"}]},"shops":[{"name":"工房しらかば","cat":"life","url":"https://www.nakayaman.com/post/kobo-shirakaba","voices":[],"note":"","addr":"仙台市青葉区中山3-20-15","lat":38.294327,"lng":140.833237,"src":"gsi_addr","x":195.0,"y":110.0,"tx":195.0,"ty":110.0,"padr":22},{"name":"ヨークベニマル 仙台中山店","cat":"life","url":"https://www.nakayaman.com/post/yorkbenimaru-nakayama-store","voices":[],"note":"","addr":"宮城県仙台市青葉区中山7丁目1-1番60号","lat":38.293734,"lng":140.8351282,"src":"osm:exact","hint":{"anchor":"end"},"x":261.1,"y":275.2,"tx":261.1,"ty":275.2,"padr":22},{"name":"東北電力研究開発センター","cat":"life","url":"#","voices":[],"note":"","addr":"","lat":38.2949933,"lng":140.8357089,"src":"osm:exact","hint":{"anchor":"end"},"x":397.6,"y":215.2,"tx":397.6,"ty":215.2,"padr":22},{"name":"みなみ歯科クリニック","cat":"medical","url":"https://www.nakayaman.com/post/%E3%81%BF%E3%81%AA%E3%81%BF%E6%AD%AF%E7%A7%91%E3%82%AF%E3%83%AA%E3%83%8B%E3%83%83%E3%82%AF","voices":[],"note":"","addr":"仙台市青葉区中山7-2-31","lat":38.2957069,"lng":140.8366632,"src":"osm:exact","hint":{"anchor":"start"},"x":512.7,"y":220.8,"tx":512.7,"ty":220.8,"padr":22},{"name":"カーブス アクロスガーデン中山","cat":"medical","url":"https://www.nakayaman.com/post/%E3%82%AB%E3%83%BC%E3%83%96%E3%82%B9%E3%82%A2%E3%82%AF%E3%83%AD%E3%82%B9%E3%82%AC%E3%83%BC%E3%83%87%E3%83%B3%E4%B8%AD%E5%B1%B1","voices":[],"note":"","addr":"仙台市青葉区中山7-2-31","lat":38.296197,"lng":140.8370282,"src":"osm:partial","hint":{"anchor":"start"},"x":574.2,"y":206.3,"tx":574.2,"ty":206.3,"padr":22},{"name":"ダイシン長命ヶ丘店","cat":"life","url":"https://www.nakayaman.com/post/%E3%83%80%E3%82%A4%E3%82%B7%E3%83%B3%E9%95%B7%E5%91%BD%E3%83%B6%E4%B8%98","voices":[],"note":"","addr":"仙台市泉区南中山1-32-1","lat":38.3009387,"lng":140.830393,"src":"osm:partial","clamped":true,"far_m":650,"far_deg":90,"x":556.6,"y":55.0,"padr":22},{"name":"Friend vividhair","cat":"medical","url":"https://www.nakayaman.com/post/friend-vividhair","voices":[],"note":"","addr":"仙台市泉区南中山2-17-4 南中山中学校隣","lat":38.308353,"lng":140.826447,"src":"gsi_addr","clamped":true,"far_m":1450,"far_deg":90,"x":916.6,"y":55.0,"padr":22},{"name":"七十七銀行中山支店","cat":"life","url":"https://www.nakayaman.com/post/%E4%B8%83%E5%8D%81%E4%B8%83%E4%B8%AD%E5%B1%B1%E6%94%AF%E5%BA%97","voices":[],"note":"","addr":"仙台市青葉区中山4-23-28","lat":38.2942968,"lng":140.8373124,"src":"osm:exact","x":438.1,"y":370.2,"tx":438.1,"ty":370.2,"padr":12},{"name":"ウジエスーパー中山店","cat":"food","url":"https://www.nakayaman.com/post/%E3%82%A6%E3%82%B8%E3%82%A8%E3%82%B9%E3%83%BC%E3%83%91%E3%83%BC%E4%B8%AD%E5%B1%B1","voices":[],"note":"","addr":"仙台市青葉区中山4-22-2","lat":38.2936956,"lng":140.8383588,"src":"osm:partial","x":452.7,"y":482.5,"tx":452.7,"ty":482.5,"padr":22},{"name":"リハビリステーション中山","cat":"medical","url":"https://www.nakayaman.com/post/%E3%83%AA%E3%83%8F%E3%83%93%E3%83%AA%E3%82%B9%E3%83%86%E3%83%BC%E3%82%B7%E3%83%A7%E3%83%B3%E4%B8%AD%E5%B1%B1","voices":[],"note":"","addr":"仙台市青葉区中山6-11-3","lat":38.2949957,"lng":140.8366807,"src":"osm:exact","x":456.4,"y":276.5,"tx":456.4,"ty":276.5,"padr":13},{"name":"志摩整骨院","cat":"medical","url":"https://www.nakayaman.com/post/%E5%BF%97%E6%91%A9%E6%95%B4%E9%AA%A8%E9%99%A2","voices":[],"note":"","addr":"仙台市青葉区中山6-9-3","lat":38.294483,"lng":140.837509,"src":"gsi_addr","x":465.0,"y":368.3,"tx":465.0,"ty":368.3,"padr":12},{"name":"BURB usedclothing","cat":"life","url":"https://www.nakayaman.com/post/burb-used-clothing","voices":[],"note":"","addr":"仙台市青葉区中山6-8-1","lat":38.294231,"lng":140.83812,"src":"gsi_addr","x":481.5,"y":426.3,"tx":481.5,"ty":426.3,"padr":12},{"name":"レストラン KAYA","cat":"food","url":"https://www.nakayaman.com/post/%E3%83%AC%E3%82%B9%E3%83%88%E3%83%A9%E3%83%B3kaya","voices":[{"text":"何回も食べに行ったことがあって、おいしい"}],"note":"","addr":"仙台市青葉区中山6-7-3","lat":38.2942005,"lng":140.8382831,"src":"osm:exact","x":488.8,"y":439.0,"tx":488.8,"ty":439.0,"padr":12},{"name":"中山郵便局","cat":"life","url":"#","voices":[],"note":"","addr":"仙台市青葉区中山6-6-3","lat":38.2940947,"lng":140.8386373,"src":"osm:partial","x":501.6,"y":469.5,"tx":501.6,"ty":469.5,"padr":12},{"name":"中山歯科","cat":"medical","url":"https://www.nakayaman.com/post/_%E4%B8%AD%E5%B1%B1%E6%AD%AF%E7%A7%91","voices":[],"note":"","addr":"仙台市青葉区中山6-6-45","lat":38.2940516,"lng":140.8388235,"src":"osm:exact","x":509.4,"y":484.6,"tx":509.4,"ty":484.6,"padr":12},{"name":"中山中学校","cat":"edu","url":"https://www.nakayaman.com/post/%E4%BB%99%E5%8F%B0%E5%B8%82%E7%AB%8B%E4%B8%AD%E5%B1%B1%E4%B8%AD%E5%AD%A6%E6%A0%A1","voices":[],"note":"","addr":"仙台市青葉区中山6-16-1","lat":38.2963809,"lng":140.8393772,"src":"osm:partial","x":730.5,"y":340.8,"tx":730.5,"ty":340.8,"padr":22},{"name":"佐藤次夫税理士事務所","cat":"life","url":"https://www.nakayaman.com/post/%E4%BD%90%E8%97%A4%E7%B4%80%E5%A4%AB%E7%A8%8E%E7%90%86%E5%A3%AB%E4%BA%8B%E5%8B%99%E6%89%80","voices":[],"note":"","addr":"仙台市青葉区中山5-19-5","lat":38.29281111232315,"lng":140.8414904658582,"src":"approx","x":570.1,"y":748.6,"tx":570.1,"ty":748.6,"padr":12},{"name":"Dogsalon Blanche","cat":"medical","url":"https://www.nakayaman.com/post/dogsalon-blanche","voices":[],"note":"","addr":"仙台市青葉区中山5丁目19-15 4号室","lat":38.293217,"lng":140.840607,"src":"gsi_addr","x":549.6,"y":661.5,"tx":549.6,"ty":661.5,"padr":12},{"name":"中華レストラン とらの子","cat":"food","url":"https://www.nakayaman.com/post/%E4%B8%AD%E8%8F%AF%E3%83%AC%E3%82%B9%E3%83%88%E3%83%A9%E3%83%B3-%E3%81%A8%E3%82%89%E3%81%AE%E5%AD%90","voices":[{"text":"街道市の肉まんがおいしい"},{"text":"チャーハンが大好きでよく行く"},{"text":"ラーメンがおいしい"}],"note":"","addr":"仙台市青葉区中山5-19-13","lat":38.2932002,"lng":140.8408145,"src":"osm:exact","x":560.7,"y":675.9,"tx":560.7,"ty":675.9,"padr":12},{"name":"中山不動産","cat":"life","url":"https://www.nakayaman.com/post/%E4%B8%AD%E5%B1%B1%E4%B8%8D%E5%8B%95%E7%94%A3","voices":[],"note":"","addr":"仙台市青葉区中山5-19-10","lat":38.293124,"lng":140.8409825,"src":"osm:exact","x":564.7,"y":692.4,"tx":564.7,"ty":692.4,"padr":12},{"name":"ダイニングバー 祭","cat":"food","url":"https://www.nakayaman.com/post/dinig-ba-%E7%A5%AD","voices":[],"note":"","addr":"仙台市青葉区中山5-19-9","lat":38.292969,"lng":140.841217,"src":"gsi_addr","x":566.3,"y":719.1,"tx":566.3,"ty":719.1,"padr":12},{"name":"Double Egg5丁目","cat":"food","url":"https://www.nakayaman.com/post/double-egg","voices":[{"text":"オムライスがふわふわでおいしい"},{"text":"オムライスの種類が多くて、ごはんの量もちょうどいい"},{"text":"街道市の日はポテトもあって、全部好き"}],"note":"","addr":"仙台市青葉区中山5-19-5","lat":38.292752887676855,"lng":140.84176753414184,"src":"approx","x":582.1,"y":770.6,"tx":582.1,"ty":770.6,"padr":12},{"name":"中山鍼灸接骨院","cat":"medical","url":"https://www.nakayaman.com/post/%E4%B8%AD%E5%B1%B1%E9%8D%BC%E7%81%B8%E6%8E%A5%E9%AA%A8%E9%99%A2","voices":[],"note":"","addr":"仙台市青葉区中山5-7-1","lat":38.291767,"lng":140.843033,"src":"gsi_addr","x":578.8,"y":926.3,"tx":578.8,"ty":926.3,"padr":12},{"name":"フラワー中山","cat":"life","url":"https://www.nakayaman.com/post/%E3%83%95%E3%83%A9%E3%83%AF%E3%83%BC%E4%B8%AD%E5%B1%B1","voices":[{"text":"きれいなお花がたくさんで、見ているだけで満足"},{"text":"街道市のとき100円くじがひける（あたるとお花のプレゼント）"}],"note":"","addr":"仙台市青葉区中山5-6-3","lat":38.2917065,"lng":140.8431656,"src":"osm:partial","x":582.0,"y":939.4,"tx":582.0,"ty":939.4,"padr":12},{"name":"河村内科外科クリニック","cat":"medical","url":"https://www.nakayaman.com/post/%E6%B2%B3%E6%9D%91%E5%86%85%E7%A7%91%E5%A4%96%E7%A7%91%E3%82%AF%E3%83%AA%E3%83%8B%E3%83%83%E3%82%AF","voices":[],"note":"","addr":"仙台市青葉区中山5-6-1","lat":38.291568,"lng":140.84336,"src":"osm:exact","x":582.5,"y":962.3,"tx":582.5,"ty":962.3,"padr":12},{"name":"ウエルシア薬局","cat":"life","url":"https://www.nakayaman.com/post/welcia-najkayama-store","voices":[{"text":"商品が安い"},{"text":"飲み物やお菓子をたくさん買う"}],"note":"","addr":"仙台市青葉区中山5-2-3","lat":38.291111,"lng":140.843948,"src":"gsi_addr","x":581.1,"y":1034.6,"tx":581.1,"ty":1034.6,"padr":13},{"name":"左官職人早坂組","cat":"life","url":"https://www.nakayaman.com/post/plastererhayasakagroupco-ltd","voices":[],"note":"","addr":"宮城県仙台市青葉区中山5丁目1-6","lat":38.291031,"lng":140.844315,"src":"gsi_addr","x":596.8,"y":1063.9,"tx":596.8,"ty":1063.9,"padr":15},{"name":"河北仙販 中山支店","cat":"life","url":"https://www.nakayaman.com/post/%E6%B2%B3%E5%8C%97%E4%BB%99%E8%B2%A9%E4%B8%AD%E5%B1%B1%E5%BA%97","voices":[],"note":"","addr":"仙台市青葉区中山1-19-3","lat":38.2902072,"lng":140.8452632,"src":"osm:exact","x":587.5,"y":1187.2,"tx":587.5,"ty":1187.2,"padr":22},{"name":"カットショップ NOBU","cat":"medical","url":"https://www.nakayaman.com/post/%E3%82%AB%E3%83%83%E3%83%88%E3%82%B7%E3%83%A7%E3%83%83%E3%83%97nobu","voices":[],"note":"","addr":"仙台市青葉区中山1-12-3","lat":38.2897068,"lng":140.8459678,"src":"osm:exact","x":589.6,"y":1270.2,"tx":589.6,"ty":1270.2,"padr":12},{"name":"梅原表具店","cat":"life","url":"https://www.nakayaman.com/post/%E6%A2%85%E5%8E%9F%E8%A1%A8%E5%85%B7%E5%BA%97","voices":[],"note":"","addr":"仙台市青葉区中山1-12-2","lat":38.289597,"lng":140.846054,"src":"gsi_addr","x":585.9,"y":1284.0,"tx":585.9,"ty":1284.0,"padr":12},{"name":"cake NAO","cat":"food","url":"https://www.nakayaman.com/post/cafe-nao","voices":[{"text":"いろんな種類のケーキがある"},{"text":"ホイップがふわふわ"},{"text":"ケーキ以外も売っていて、お土産にもなる"}],"note":"","addr":"仙台市青葉区中山1-11-5","lat":38.289471887676854,"lng":140.84642153414183,"src":"approx","x":598.0,"y":1316.9,"tx":598.0,"ty":1316.9,"padr":12},{"name":"中山ドライブスクール","cat":"life","url":"#","voices":[],"note":"","addr":"","lat":38.2886513,"lng":140.8484172,"src":"osm:exact","hint":{"anchor":"end"},"x":652.1,"y":1506.2,"tx":652.1,"ty":1506.2,"padr":22},{"name":"ビバホーム荒巻店","cat":"life","url":"https://www.nakayaman.com/post/%E3%83%93%E3%83%90%E3%83%9B%E3%83%BC%E3%83%A0-%E8%8D%92%E5%B7%BB%E5%BA%97","voices":[],"note":"","addr":"仙台市青葉区荒巻本沢2-1-1","lat":38.28764,"lng":140.849121,"src":"gsi_addr","x":613.0,"y":1628.3,"tx":613.0,"ty":1628.3,"padr":22},{"name":"中山市民センター","cat":"edu","url":"https://www.nakayaman.com/post/%E4%B8%AD%E5%B1%B1%E5%B8%82%E6%B0%91%E3%82%BB%E3%83%B3%E3%82%BF%E3%83%BC","voices":[{"text":"児童館の先生がやさしい"}],"note":"","addr":"仙台市青葉区中山3-13-1","lat":38.291759,"lng":140.8371509,"src":"osm:exact","x":223.8,"y":554.8,"tx":223.8,"ty":554.8,"padr":22},{"name":"藤倉設備工業","cat":"life","url":"https://www.nakayaman.com/post/_%E8%97%A4%E5%80%89%E8%A8%AD%E5%82%99","voices":[],"note":"","addr":"仙台市青葉区中山4-13-1","lat":38.2924555,"lng":140.8417797,"src":"osm:partial","x":558.8,"y":794.2,"tx":558.8,"ty":794.2,"padr":12},{"name":"Double Egg4丁目","cat":"food","url":"https://www.nakayaman.com/post/double-egg","voices":[{"text":"オムライスがふわふわでおいしい"},{"text":"オムライスの種類が多くて、ごはんの量もちょうどいい"},{"text":"街道市の日はポテトもあって、全部好き"}],"note":"","addr":"","lat":38.29212748086958,"lng":140.84113514373797,"src":"approx","x":493.6,"y":778.6,"tx":493.6,"ty":778.6,"padr":22},{"name":"柏屋","cat":"life","url":"https://www.nakayaman.com/post/%E6%9F%8F%E5%B1%8B%EF%BC%88%E6%96%87%E5%85%B7%E3%83%BB%E5%8C%96%E7%B2%A7%E5%93%81%EF%BC%89","voices":[{"text":"文房具やお菓子がたくさんある"},{"text":"学校の名札が買える"},{"text":"駄菓子が安く買える"}],"note":"","addr":"仙台市青葉区中山4-5-1","lat":38.2914326,"lng":140.8432048,"src":"osm:exact","x":562.2,"y":962.9,"tx":562.2,"ty":962.9,"padr":12},{"name":"たけむらや","cat":"life","url":"https://www.nakayaman.com/post/%E3%81%9F%E3%81%91%E3%82%80%E3%82%89%E3%82%84","voices":[],"note":"","addr":"仙台市青葉区中山4-2-1","lat":38.2911665,"lng":140.843617,"src":"osm:exact","x":565.6,"y":1009.4,"tx":565.6,"ty":1009.4,"padr":13},{"name":"和泉生花","cat":"life","url":"https://www.nakayaman.com/post/_%E5%92%8C%E6%B3%89%E7%94%9F%E8%8A%B1","voices":[],"note":"","addr":"仙台市青葉区中山2-7-20","lat":38.2897987,"lng":140.8429743,"src":"osm:exact","x":416.6,"y":1073.7,"tx":416.6,"ty":1073.7,"padr":22},{"name":"西原歯科医院","cat":"medical","url":"https://www.nakayaman.com/post/%E8%A5%BF%E5%8E%9F%E6%AD%AF%E7%A7%91%E5%8C%BB%E9%99%A2","voices":[],"note":"","addr":"仙台市青葉区中山2-1-18","lat":38.2891235,"lng":140.8461844,"src":"osm:exact","x":555.6,"y":1328.7,"tx":555.6,"ty":1328.7,"padr":21},{"name":"認定こども園 TOBINOKO","cat":"edu","url":"https://www.nakayaman.com/post/tobinoko","voices":[],"note":"","addr":"仙台市青葉区中山2-17-1","lat":38.2881965,"lng":140.8463918,"src":"osm:exact","hint":{"anchor":"end"},"x":493.4,"y":1412.9,"tx":493.4,"ty":1412.9,"padr":12},{"name":"多夢多夢舎中山工房","cat":"life","url":"https://www.nakayaman.com/post/tamutamushanakayamastudio","voices":[],"note":"","addr":"宮城県仙台市青葉区中山2-18-5","lat":38.2879389,"lng":140.846559,"src":"osm:exact","hint":{"anchor":"end"},"x":482.7,"y":1443.3,"tx":482.7,"ty":1443.3,"padr":12},{"name":"中山小学校","cat":"edu","url":"https://www.nakayaman.com/post/%E4%BB%99%E5%8F%B0%E5%B8%82%E7%AB%8B%E4%B8%AD%E5%B1%B1%E5%B0%8F%E5%AD%A6%E6%A0%A1","voices":[],"note":"","addr":"仙台市青葉区中山1丁目6-1","lat":38.2917789,"lng":140.8503859,"src":"osm:partial","x":1022.8,"y":1390.6,"tx":1022.8,"ty":1390.6,"padr":22},{"name":"サトー商会","cat":"food","url":"https://www.nakayaman.com/post/sato-aramaki","voices":[],"note":"","addr":"仙台市青葉区荒巻本沢1-17-4","lat":38.28932411232315,"lng":140.85040146585817,"src":"approx","hint":{"anchor":"start"},"x":825.9,"y":1580.1,"tx":825.9,"ty":1580.1,"padr":12},{"name":"みなとや","cat":"food","url":"https://www.nakayaman.com/post/minataya","voices":[],"note":"","addr":"仙台市青葉区荒巻本沢1-17-4","lat":38.289265887676855,"lng":140.85067853414182,"src":"approx","x":837.9,"y":1602.1,"tx":837.9,"ty":1602.1,"padr":12},{"name":"中山山の神公園","cat":"place","url":"#","voices":[{"text":"桜がきれい"}],"photos":[{"src":"assets/photos/yamanokami_1","alt":"中山山の神公園のブランコとすべり台と芝生"},{"src":"assets/photos/yamanokami_2","alt":"中山山の神公園の大きな木と芝生広場"}],"note":"","addr":"","lat":38.2884963,"lng":140.841611,"src":"osm:exact","x":229.5,"y":1087.4,"tx":229.5,"ty":1087.4,"padr":22},{"name":"なかやまとびのこ公園","cat":"place","url":"#","voices":[{"text":"広くて、いつでも遊べる"},{"text":"春はさくら、夏は緑、秋は落ち葉がきれい"},{"text":"川みたいなところにおたまじゃくしがいてかわいかった"},{"text":"公園の中の山から、公園全体が見える"}],"photos":[{"src":"assets/photos/tobinoko_1","alt":"なかやまとびのこ公園の東屋とすべり台"},{"src":"assets/photos/tobinoko_2","alt":"なかやまとびのこ公園の石組みの小川"}],"note":"「水の神」","addr":"","lat":38.288639,"lng":140.8458781,"src":"osm:exact","x":498.1,"y":1346.5,"tx":498.1,"ty":1346.5,"padr":22},{"name":"中山鳥瀧不動尊（目の神様）","cat":"place","url":"#","voices":[],"note":"中山のパワースポット。滝の水で目を洗うと目の病が治ると伝わる「目の神様」。","addr":"仙台市青葉区中山6-19-3","lat":38.2956402,"lng":140.8414793,"src":"osm:exact","x":797.5,"y":530.7,"tx":797.5,"ty":530.7,"padr":22},{"name":"おたからや","cat":"life","url":"https://www.nakayaman.com/post/otakaraya","voices":[],"note":"","addr":"仙台市青葉区中山5-19-6","lat":38.292839,"lng":140.841537,"src":"gsi_addr","x":575.1,"y":749.4,"tx":575.1,"ty":749.4,"padr":12},{"name":"お菜とお酒アイリス","cat":"food","url":"https://www.nakayaman.com/post/%E3%82%B9%E3%83%8A%E3%83%83%E3%82%AF%E3%82%A2%E3%82%A4%E3%83%AA%E3%82%B9","voices":[],"note":"","addr":"仙台市青葉区中山5-19-1","lat":38.292582,"lng":140.841927,"src":"osm:exact","x":577.9,"y":793.8,"tx":577.9,"ty":793.8,"padr":12},{"name":"デイサービス はるの風","cat":"medical","url":"https://www.nakayaman.com/post/%E3%83%87%E3%82%A4%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9%E3%81%AF%E3%82%8B%E3%81%AE%E9%A2%A8","voices":[],"note":"","addr":"仙台市青葉区中山5-11-3","lat":38.29216211232315,"lng":140.8423904658582,"src":"approx","x":572.0,"y":855.3,"tx":572.0,"ty":855.3,"padr":12},{"name":"遊季ガーデン","cat":"life","url":"https://www.nakayaman.com/post/%E9%81%8A%E5%B8%8C%E3%82%AC%E3%83%BC%E3%83%87%E3%83%B3%E6%A0%AA%E5%BC%8F%E4%BC%9A%E7%A4%BE","voices":[],"note":"","addr":"仙台市青葉区中山5-11-3-B（2F）","lat":38.29210388767685,"lng":140.84266753414184,"src":"approx","x":584.0,"y":877.3,"tx":584.0,"ty":877.3,"padr":12},{"name":"中杜建設","cat":"life","url":"https://www.nakayaman.com/post/_%E4%B8%AD%E6%9D%9C%E5%BB%BA%E8%A8%AD","voices":[],"note":"","addr":"仙台市青葉区中山5-19-10","lat":38.293044112323145,"lng":140.84095646585817,"src":"approx","x":556.7,"y":696.9,"tx":556.7,"ty":696.9,"padr":12},{"name":"ん daccha とこや","cat":"medical","url":"https://www.nakayaman.com/post/%E3%82%93-daccha-%E3%81%A8%E3%81%93%E3%82%84","voices":[],"note":"","addr":"仙台市青葉区中山5-19-10","lat":38.29298588767685,"lng":140.84123353414182,"src":"approx","x":568.7,"y":718.9,"tx":568.7,"ty":718.9,"padr":12},{"name":"花祭壇","cat":"life","url":"https://www.nakayaman.com/post/%E8%8A%B1%E7%A5%AD%E5%A3%87-%EF%BC%88%E6%9C%AC%E7%A4%BE%EF%BC%89","voices":[],"note":"","addr":"仙台市青葉区中山4-14-35","lat":38.292927,"lng":140.841019,"src":"gsi_addr","x":551.0,"y":709.8,"tx":551.0,"ty":709.8,"padr":12},{"name":"尚絅教会","cat":"life","url":"https://www.nakayaman.com/post/%E6%97%A5%E6%9C%AC%E3%83%91%E3%83%96%E3%83%86%E3%82%B9%E3%83%88%E5%B0%9A%E7%B5%85%E5%8D%94%E4%BC%9A","voices":[],"note":"","addr":"仙台市青葉区中山4-17-25","lat":38.2932675,"lng":140.8395617,"src":"osm:exact","x":490.7,"y":591.5,"tx":490.7,"ty":591.5,"padr":22},{"name":"スクールIE 仙台中山校","cat":"edu","url":"https://www.nakayaman.com/post/ie-school","voices":[],"note":"","addr":"仙台市青葉区中山5-19-17","lat":38.293297,"lng":140.840408,"src":"gsi_addr","x":544.0,"y":642.8,"tx":544.0,"ty":642.8,"padr":12},{"name":"BAKERY&BAKE EndRoll","cat":"food","url":"https://www.nakayaman.com/post/bakery-bake-endroll","voices":[],"note":"","addr":"仙台市青葉区中山1-11-5","lat":38.28953011232315,"lng":140.84614446585817,"src":"approx","x":586.0,"y":1294.9,"tx":586.0,"ty":1294.9,"padr":12},{"name":"商店街モニュメント","cat":"place","url":"#","voices":[],"note":"中山の坂の登り口にあるモニュメントが商店街への目印です！","addr":"","lat":38.2881,"lng":140.84642,"src":"approx","hint":{"anchor":"end"},"x":487.3,"y":1422.1,"tx":487.3,"ty":1422.1,"padr":12},{"name":"たきみち公園","cat":"place","url":"#","voices":[],"photos":[{"src":"assets/photos/takimichi_1","alt":"たきみち公園の桜とすべり台と石碑"},{"src":"assets/photos/takimichi_2","alt":"たきみち公園の桜の木"}],"note":"","addr":"","lat":38.291917,"lng":140.85282,"src":"osm:exact","x":1180.6,"y":1534.0,"tx":1180.6,"ty":1534.0,"padr":22},{"name":"中山の坂の上","cat":"place","url":"#","voices":[],"photos":[{"src":"assets/photos/sakanoue_1","alt":"中山の坂の上から見た市街地の眺め"}],"note":"バス通りでいちばん高いところ（標高155m）。ここから南へ下る坂が「中山の坂」で、坂の上からは市街地が見渡せます。","addr":"","lat":38.29485,"lng":140.836401,"src":"gsi_dem","x":427.8,"y":270.0,"tx":427.8,"ty":270.0,"padr":22}],"roads":[{"cls":"mid","name":"荒巻泉線","guide_spine":false,"pts":[[1345.5,310.9],[1332.6,333.9],[1333.7,419.4],[1334.7,443.5],[1325.0,470.5],[1306.2,499.2],[1181.5,578.5],[1109.1,735.7],[1103.9,787.6],[1114.0,820.9],[1186.4,911.2],[1278.0,1077.3],[1318.4,1161.5],[1329.3,1175.4],[1364.1,1192.8]]},{"cls":"mid","name":"中山幹線２号線","guide_spine":false,"pts":[[735.3,144.3],[576.8,-141.2]]},{"cls":"mid","name":"北山実沢線","guide_spine":false,"pts":[[284.5,939.3],[287.9,933.7],[251.3,489.0],[188.7,13.3],[146.3,-155.1]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[504.4,537.7],[339.1,595.8],[259.3,628.5]]},{"cls":"mid","name":"貝ケ森中央幹線","guide_spine":false,"pts":[[218.0,1446.7],[175.9,1483.2],[-113.6,1636.3]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[-53.0,642.1],[-6.5,638.4],[170.8,603.9]]},{"cls":"major","name":"中山幹線１号線","guide_spine":true,"pts":[[772.7,126.5],[597.7,221.2],[427.4,263.8],[563.4,746.3],[578.9,1303.2],[569.4,1386.8],[564.5,1456.0],[568.3,1490.4],[591.0,1562.5],[592.5,1584.6]]},{"cls":"mid","name":"第三勝山１号線","guide_spine":false,"pts":[[1334.4,9.5],[1296.7,-73.4]]},{"cls":"mid","name":"第三勝山１号線","guide_spine":false,"pts":[[839.0,-43.3],[759.6,-0.9],[755.8,6.5],[755.3,18.9],[790.3,112.5],[772.7,126.5]]},{"cls":"mid","name":"菖蒲沢橋線","guide_spine":false,"pts":[[572.3,1650.3],[558.9,1694.5],[542.6,1715.0],[507.5,1736.2],[472.5,1786.9]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[574.5,1637.0],[572.3,1650.3]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[592.5,1584.6],[692.3,1598.0],[725.3,1603.6],[813.7,1678.6],[1014.3,1766.0],[1035.2,1779.3],[1049.7,1797.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[404.0,1221.2],[582.6,1215.6]]},{"cls":"mid","name":"通町中山線","guide_spine":false,"pts":[[290.4,1067.2],[301.5,1019.8],[330.5,983.8],[337.5,955.6],[328.4,893.6],[321.3,798.2],[303.6,511.3],[275.8,313.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[413.5,1263.7],[581.8,1258.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[576.8,1059.2],[292.9,1067.2],[256.1,1044.4]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[397.4,575.8],[403.0,1234.2],[419.9,1278.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[322.9,771.4],[396.9,764.7],[566.4,760.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[349.5,940.6],[570.4,932.4]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[906.6,1334.3],[570.7,1346.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[742.8,801.3],[570.6,803.2]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[760.3,1343.7],[737.9,580.8],[698.1,478.1],[597.7,221.2],[517.0,-0.6],[471.4,-86.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1007.0,926.4],[570.4,932.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[450.5,351.0],[626.2,299.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[497.1,498.8],[684.4,447.8],[848.3,356.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[737.0,574.8],[523.4,590.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[674.9,289.8],[629.8,205.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[754.2,1210.4],[582.6,1215.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[751.9,1253.0],[581.8,1258.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[576.8,1059.2],[772.8,1057.2]]},{"cls":"mid","name":"第三勝山２号線","guide_spine":false,"pts":[[839.0,-43.3],[1000.2,286.2],[1269.7,126.3],[1372.9,73.5]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[195.1,81.6],[517.0,-0.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[308.2,395.5],[450.5,351.0]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[517.0,-0.6],[622.5,-56.9]]},{"cls":"mid","name":"川平中山１号線","guide_spine":false,"pts":[[836.3,612.2],[902.4,641.3],[958.8,662.9],[1018.1,707.8],[1081.4,748.1],[1103.5,769.9]]},{"cls":"mid","name":"荒巻本沢街道線","guide_spine":false,"pts":[[747.3,1621.2],[805.0,1608.1],[866.2,1581.5],[930.5,1594.1],[945.3,1604.8],[1050.6,1719.9],[1108.2,1791.7],[1147.6,1822.2]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[1309.1,1716.7],[1262.4,1698.8],[1182.0,1705.8]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[1336.7,1725.3],[1357.6,1741.4]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[1309.1,1716.7],[1336.7,1725.3]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[345.9,1544.1],[342.1,1553.1]]},{"cls":"mid","name":"枯木橋","guide_spine":false,"pts":[[349.0,1532.8],[345.9,1544.1]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[334.3,1436.4],[343.9,1451.2],[315.5,1460.3],[315.9,1475.9],[346.1,1520.7],[349.0,1532.8]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[1018.0,1798.0],[992.9,1812.5]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[691.0,1798.3],[590.6,1668.8],[570.5,1659.5]]},{"cls":"mid","name":"貝ケ森１号線","guide_spine":false,"pts":[[-58.3,1215.2],[-28.6,1230.5],[17.4,1263.3],[342.1,1553.1]]},{"cls":"mid","name":"第三勝山３号線","guide_spine":false,"pts":[[1260.1,-55.7],[914.9,113.9]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[419.9,1278.4],[461.3,1417.7],[462.5,1446.4],[471.8,1517.0],[490.8,1572.0],[592.5,1584.6]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[259.3,628.5],[170.8,603.9]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[568.3,1490.4],[541.7,1475.0],[526.4,1451.1],[524.7,1434.7],[461.3,1417.7]]},{"cls":"mid","name":"枯松坂","guide_spine":false,"pts":[[334.3,1436.4],[316.1,1410.7],[314.8,1367.9],[320.9,1349.4]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[1030.9,1790.3],[1018.0,1798.0]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[1039.7,1784.6],[1030.9,1790.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[507.5,148.9],[537.6,237.6]]},{"cls":"mid","name":"菖蒲沢橋線","guide_spine":false,"pts":[[592.5,1584.6],[574.5,1637.0]]},{"cls":"mid","name":"","guide_spine":true,"pts":[[427.4,263.8],[289.2,311.3],[227.1,315.5]]},{"cls":"mid","name":"貝ケ森中山幹線","guide_spine":false,"pts":[[-57.8,908.8],[-19.8,874.1],[22.4,868.2],[121.8,888.3],[274.3,944.6],[284.5,939.3]]},{"cls":"mid","name":"川平二丁目１号線","guide_spine":false,"pts":[[1142.0,656.6],[907.9,419.4]]},{"cls":"mid","name":"通町中山線","guide_spine":false,"pts":[[342.1,1553.1],[348.6,1563.1],[358.7,1604.7],[379.6,1633.5],[399.9,1671.6],[430.0,1689.1],[455.2,1723.1],[472.5,1786.9]]},{"cls":"mid","name":"通町中山線","guide_spine":false,"pts":[[472.5,1786.9],[468.6,1813.4]]},{"cls":"mid","name":"通町中山線","guide_spine":false,"pts":[[320.9,1349.4],[331.2,1293.9],[330.6,1276.3],[290.6,1191.9],[297.6,1111.1]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[772.1,606.1],[779.1,592.0],[785.5,590.9],[836.3,612.2]]},{"cls":"mid","name":"中山六丁目１号線","guide_spine":false,"pts":[[907.9,419.4],[848.3,356.2],[735.3,144.3]]}],"rivers":[{"name":"","pts":[[1176.3,943.8],[1178.2,966.2],[1174.1,996.2],[1176.8,1013.0],[1196.5,1033.0],[1209.0,1053.6],[1252.5,1058.7],[1251.0,1085.3],[1258.7,1099.5],[1279.3,1133.2]]},{"name":"","pts":[[1176.3,943.8],[1164.1,902.2]]},{"name":"","pts":[[1279.3,1133.2],[1301.0,1156.3]]},{"name":"","pts":[[1301.0,1156.3],[1309.7,1171.7],[1299.7,1194.6],[1307.8,1210.5],[1331.7,1235.3],[1377.1,1254.1]]},{"name":"梅田川","pts":[[303.7,1489.4],[337.1,1534.6],[355.6,1542.3],[362.1,1554.5],[375.8,1563.7],[408.8,1623.0],[483.4,1671.6],[494.1,1663.4],[506.7,1661.3],[523.2,1635.4],[561.1,1640.3],[621.1,1672.9],[676.4,1676.4],[704.4,1724.9],[761.6,1754.1],[864.2,1752.7],[921.9,1788.1],[939.1,1790.9],[988.9,1770.0],[1010.2,1775.2],[1021.4,1782.8],[1030.2,1800.0]]},{"name":"梅田川","pts":[[-52.9,963.5],[-13.8,974.2],[75.7,1052.6],[97.3,1124.3],[130.9,1147.3],[135.3,1157.0],[134.7,1183.9],[121.5,1253.6],[141.1,1328.7],[203.0,1343.7],[234.4,1370.9],[261.1,1390.5],[282.5,1398.2],[290.0,1405.9],[303.2,1443.8],[303.7,1489.4]]}],"parks":[{"name":"たきみち公園","pts":[[1134.8,1541.1],[1131.1,1547.4],[1173.7,1550.5],[1183.7,1542.2],[1197.7,1536.0],[1217.8,1533.8],[1228.5,1531.6],[1233.3,1527.7],[1238.4,1526.1],[1189.4,1494.8],[1177.8,1508.2],[1165.8,1501.9],[1157.7,1511.5],[1154.7,1510.4],[1134.8,1541.1]]},{"name":"中山とびのこ公園","pts":[[521.2,1264.9],[527.8,1286.5],[527.5,1313.1],[522.2,1332.9],[521.4,1356.9],[530.3,1374.5],[526.7,1431.2],[468.4,1415.9],[450.8,1362.7],[443.4,1326.1],[436.5,1297.5],[456.0,1292.3],[456.3,1279.9],[475.1,1274.5],[499.8,1273.1],[513.3,1266.9],[521.2,1264.9]]},{"name":"うどう沼公園","pts":[[161.8,44.8],[127.0,57.0],[125.8,64.4],[125.4,77.8],[131.9,89.2],[145.0,119.7],[155.7,135.6],[170.8,138.7],[179.4,141.9],[183.6,147.1],[187.0,147.5],[199.4,154.8],[205.7,193.6],[111.3,226.5],[115.3,252.1],[99.4,255.6],[101.3,267.7],[93.7,270.5],[89.7,256.1],[23.6,180.3],[25.8,92.3],[15.3,81.4],[60.8,19.3],[70.8,25.0],[152.4,2.7],[161.8,44.8]]},{"name":"中山山の神公園","pts":[[187.8,1062.5],[189.6,1095.9],[193.5,1100.5],[263.5,1117.4],[258.2,1068.5],[252.9,1066.8],[217.7,1082.5],[204.8,1082.0],[204.8,1064.3],[187.8,1062.5]]}],"waters":[{"name":"","pts":[[79.9,221.1],[88.1,221.0],[106.0,213.5],[134.4,204.8],[182.3,184.4],[189.0,178.6],[189.0,171.2],[181.4,160.0],[176.2,155.5],[156.9,147.6],[148.0,142.1],[140.6,125.3],[128.0,103.1],[124.6,90.1],[116.8,74.3],[119.1,61.0],[102.1,58.7],[80.0,94.3],[66.5,106.5],[59.0,114.5],[65.3,129.7],[87.6,153.1],[95.1,161.7],[83.0,195.6],[76.0,213.4],[79.9,221.1]]}],"sando":[[[905.5,598.0],[900.5,625.8]],[[900.5,625.8],[896.3,639.1]],[[788.2,429.1],[774.6,396.2]]],"busway":[[[734.2,146.6],[678.3,45.5],[622.5,-55.8],[575.8,-142.7],[532.2,-230.3],[507.8,-275.9],[505.0,-280.9],[494.6,-299.6],[480.0,-325.1],[476.8,-332.1],[474.1,-338.9],[455.2,-384.7],[452.6,-391.4],[422.7,-476.7],[418.8,-487.7],[415.2,-497.1]],[[769.4,127.9],[752.7,136.8],[734.2,146.6],[697.7,167.6],[684.3,174.8],[665.5,184.1],[646.3,194.2],[628.9,203.8],[595.4,219.9],[534.2,236.2],[429.1,264.3],[426.3,265.0],[440.3,312.3],[452.0,351.7],[459.6,377.3],[465.0,393.9],[465.4,397.1],[476.1,432.9],[484.0,459.5],[486.7,468.1],[496.0,500.0],[507.4,540.5],[524.5,591.4],[542.1,661.9],[552.2,697.7],[566.3,747.8],[567.7,762.0],[569.5,779.7],[570.0,805.5],[570.8,848.6],[571.6,890.1],[572.4,930.9],[573.3,974.3],[574.1,1017.7],[574.8,1052.0],[575.0,1060.3],[575.8,1101.7],[576.5,1140.5],[578.0,1174.1],[578.2,1182.0],[579.2,1217.1],[580.1,1253.4],[580.3,1258.7],[580.7,1268.4],[580.9,1273.1],[581.7,1302.2],[580.5,1310.7],[573.6,1344.5],[568.3,1385.1],[563.8,1435.5],[563.7,1456.0],[567.7,1492.2],[571.5,1505.0],[592.7,1563.9],[594.7,1574.9],[591.7,1585.3]]],"exits":[{"x":576.8,"y":-60,"text":"↑ 至 南中山","anchor":"middle"},{"x":1361,"y":298.9,"text":"至 泉中央 →","anchor":"end"},{"x":468.6,"y":1833,"text":"↓ 至 北山","anchor":"middle"}],"zones":[],"signals":[[1143.4,655.1],[197.0,80.3],[227.9,316.1],[261.5,630.3],[-15.2,1587.0],[591.7,1585.3],[734.1,146.7],[580.1,1253.5],[570.0,805.5],[278.0,848.2],[1232.4,543.7],[403.6,272.2],[490.9,482.5]]};
+const GEO = {"meta":{"W":1291,"H":1738,"proj":{"lat0":38.2935,"lon0":140.8435,"cosf":0.7848466771836701,"rot_deg":46.4},"minx":-746.69,"miny":-822.83,"scale_m_per_px":1.0,"info_as_of":"2026年6月12日","road_counts":{"major":2,"mid":34,"minor":234,"path":73,"service":189,"spine":1},"road_quality":{"floating_endpoints":0,"actual_dead_ends":155,"boundary_endpoints":132,"connected_endpoints":782,"two_point_paths":153,"downgraded_mid":0,"removed_isolated_under_40m":0},"north_vector":[80.6148,-76.7684],"north_screen_deg":46.4,"partner_logos":[{"name":"宮城大学","src":"assets/myu_logo.png","alt":"宮城大学","status":"approved"}],"signal_counts":{"raw_canvas":25,"displayed":25}},"shops":[{"name":"工房しらかば","cat":"life","url":"https://www.nakayaman.com/post/kobo-shirakaba","voices":[],"note":"","addr":"仙台市青葉区中山3-20-15","lat":38.294327,"lng":140.833237,"src":"gsi_addr","x":195.0,"y":110.0,"tx":195.0,"ty":110.0,"padr":22},{"name":"ヨークベニマル 仙台中山店","cat":"life","url":"https://www.nakayaman.com/post/yorkbenimaru-nakayama-store","voices":[],"note":"","addr":"宮城県仙台市青葉区中山7丁目1-1番60号","lat":38.293734,"lng":140.8351282,"src":"osm:exact","hint":{"anchor":"end"},"x":261.1,"y":275.2,"tx":261.1,"ty":275.2,"padr":22},{"name":"東北電力研究開発センター","cat":"life","url":"#","voices":[],"note":"","addr":"","lat":38.2949933,"lng":140.8357089,"src":"osm:exact","hint":{"anchor":"end"},"x":397.6,"y":215.2,"tx":397.6,"ty":215.2,"padr":22},{"name":"みなみ歯科クリニック","cat":"medical","url":"https://www.nakayaman.com/post/%E3%81%BF%E3%81%AA%E3%81%BF%E6%AD%AF%E7%A7%91%E3%82%AF%E3%83%AA%E3%83%8B%E3%83%83%E3%82%AF","voices":[],"note":"","addr":"仙台市青葉区中山7-2-31","lat":38.2957069,"lng":140.8366632,"src":"osm:exact","hint":{"anchor":"start"},"x":512.7,"y":220.8,"tx":512.7,"ty":220.8,"padr":22},{"name":"カーブス アクロスガーデン中山","cat":"medical","url":"https://www.nakayaman.com/post/%E3%82%AB%E3%83%BC%E3%83%96%E3%82%B9%E3%82%A2%E3%82%AF%E3%83%AD%E3%82%B9%E3%82%AC%E3%83%BC%E3%83%87%E3%83%B3%E4%B8%AD%E5%B1%B1","voices":[],"note":"","addr":"仙台市青葉区中山7-2-31","lat":38.296197,"lng":140.8370282,"src":"osm:partial","hint":{"anchor":"start"},"x":574.2,"y":206.3,"tx":574.2,"ty":206.3,"padr":22},{"name":"ダイシン長命ヶ丘店","cat":"life","url":"https://www.nakayaman.com/post/%E3%83%80%E3%82%A4%E3%82%B7%E3%83%B3%E9%95%B7%E5%91%BD%E3%83%B6%E4%B8%98","voices":[],"note":"","addr":"仙台市泉区南中山1-32-1","lat":38.3009387,"lng":140.830393,"src":"osm:partial","clamped":true,"far_m":650,"far_deg":90,"x":556.6,"y":55.0,"padr":22},{"name":"Friend vividhair","cat":"medical","url":"https://www.nakayaman.com/post/friend-vividhair","voices":[],"note":"","addr":"仙台市泉区南中山2-17-4 南中山中学校隣","lat":38.308353,"lng":140.826447,"src":"gsi_addr","clamped":true,"far_m":1450,"far_deg":90,"x":916.6,"y":55.0,"padr":22},{"name":"七十七銀行中山支店","cat":"life","url":"https://www.nakayaman.com/post/%E4%B8%83%E5%8D%81%E4%B8%83%E4%B8%AD%E5%B1%B1%E6%94%AF%E5%BA%97","voices":[],"note":"","addr":"仙台市青葉区中山4-23-28","lat":38.2942968,"lng":140.8373124,"src":"osm:exact","x":438.1,"y":370.2,"tx":438.1,"ty":370.2,"padr":12},{"name":"ウジエスーパー中山店","cat":"food","url":"https://www.nakayaman.com/post/%E3%82%A6%E3%82%B8%E3%82%A8%E3%82%B9%E3%83%BC%E3%83%91%E3%83%BC%E4%B8%AD%E5%B1%B1","voices":[],"note":"","addr":"仙台市青葉区中山4-22-2","lat":38.2936956,"lng":140.8383588,"src":"osm:partial","x":452.7,"y":482.5,"tx":452.7,"ty":482.5,"padr":22},{"name":"リハビリステーション中山","cat":"medical","url":"https://www.nakayaman.com/post/%E3%83%AA%E3%83%8F%E3%83%93%E3%83%AA%E3%82%B9%E3%83%86%E3%83%BC%E3%82%B7%E3%83%A7%E3%83%B3%E4%B8%AD%E5%B1%B1","voices":[],"note":"","addr":"仙台市青葉区中山6-11-3","lat":38.2949957,"lng":140.8366807,"src":"osm:exact","x":456.4,"y":276.5,"tx":456.4,"ty":276.5,"padr":13},{"name":"志摩整骨院","cat":"medical","url":"https://www.nakayaman.com/post/%E5%BF%97%E6%91%A9%E6%95%B4%E9%AA%A8%E9%99%A2","voices":[],"note":"","addr":"仙台市青葉区中山6-9-3","lat":38.294483,"lng":140.837509,"src":"gsi_addr","x":465.0,"y":368.3,"tx":465.0,"ty":368.3,"padr":12},{"name":"BURB usedclothing","cat":"life","url":"https://www.nakayaman.com/post/burb-used-clothing","voices":[],"note":"","addr":"仙台市青葉区中山6-8-1","lat":38.294231,"lng":140.83812,"src":"gsi_addr","x":481.5,"y":426.3,"tx":481.5,"ty":426.3,"padr":12},{"name":"レストラン KAYA","cat":"food","url":"https://www.nakayaman.com/post/%E3%83%AC%E3%82%B9%E3%83%88%E3%83%A9%E3%83%B3kaya","voices":[{"text":"何回も食べに行ったことがあって、おいしい"}],"note":"","addr":"仙台市青葉区中山6-7-3","lat":38.2942005,"lng":140.8382831,"src":"osm:exact","x":488.8,"y":439.0,"tx":488.8,"ty":439.0,"padr":12},{"name":"中山郵便局","cat":"life","url":"#","voices":[],"note":"","addr":"仙台市青葉区中山6-6-3","lat":38.2940947,"lng":140.8386373,"src":"osm:partial","x":501.6,"y":469.5,"tx":501.6,"ty":469.5,"padr":12},{"name":"中山歯科","cat":"medical","url":"https://www.nakayaman.com/post/_%E4%B8%AD%E5%B1%B1%E6%AD%AF%E7%A7%91","voices":[],"note":"","addr":"仙台市青葉区中山6-6-45","lat":38.2940516,"lng":140.8388235,"src":"osm:exact","x":509.4,"y":484.6,"tx":509.4,"ty":484.6,"padr":12},{"name":"中山中学校","cat":"edu","url":"https://www.nakayaman.com/post/%E4%BB%99%E5%8F%B0%E5%B8%82%E7%AB%8B%E4%B8%AD%E5%B1%B1%E4%B8%AD%E5%AD%A6%E6%A0%A1","voices":[],"note":"","addr":"仙台市青葉区中山6-16-1","lat":38.2963809,"lng":140.8393772,"src":"osm:partial","x":730.5,"y":340.8,"tx":730.5,"ty":340.8,"padr":22},{"name":"佐藤次夫税理士事務所","cat":"life","url":"https://www.nakayaman.com/post/%E4%BD%90%E8%97%A4%E7%B4%80%E5%A4%AB%E7%A8%8E%E7%90%86%E5%A3%AB%E4%BA%8B%E5%8B%99%E6%89%80","voices":[],"note":"","addr":"仙台市青葉区中山5-19-5","lat":38.29281111232315,"lng":140.8414904658582,"src":"approx","x":570.1,"y":748.6,"tx":570.1,"ty":748.6,"padr":12},{"name":"Dogsalon Blanche","cat":"medical","url":"https://www.nakayaman.com/post/dogsalon-blanche","voices":[],"note":"","addr":"仙台市青葉区中山5丁目19-15 4号室","lat":38.293217,"lng":140.840607,"src":"gsi_addr","x":549.6,"y":661.5,"tx":549.6,"ty":661.5,"padr":12},{"name":"中華レストラン とらの子","cat":"food","url":"https://www.nakayaman.com/post/%E4%B8%AD%E8%8F%AF%E3%83%AC%E3%82%B9%E3%83%88%E3%83%A9%E3%83%B3-%E3%81%A8%E3%82%89%E3%81%AE%E5%AD%90","voices":[{"text":"街道市の肉まんがおいしい"},{"text":"チャーハンが大好きでよく行く"},{"text":"ラーメンがおいしい"}],"note":"","addr":"仙台市青葉区中山5-19-13","lat":38.2932002,"lng":140.8408145,"src":"osm:exact","x":560.7,"y":675.9,"tx":560.7,"ty":675.9,"padr":12},{"name":"中山不動産","cat":"life","url":"https://www.nakayaman.com/post/%E4%B8%AD%E5%B1%B1%E4%B8%8D%E5%8B%95%E7%94%A3","voices":[],"note":"","addr":"仙台市青葉区中山5-19-10","lat":38.293124,"lng":140.8409825,"src":"osm:exact","x":564.7,"y":692.4,"tx":564.7,"ty":692.4,"padr":12},{"name":"ダイニングバー 祭","cat":"food","url":"https://www.nakayaman.com/post/dinig-ba-%E7%A5%AD","voices":[],"note":"","addr":"仙台市青葉区中山5-19-9","lat":38.292969,"lng":140.841217,"src":"gsi_addr","x":566.3,"y":719.1,"tx":566.3,"ty":719.1,"padr":12},{"name":"Double Egg5丁目","cat":"food","url":"https://www.nakayaman.com/post/double-egg","voices":[{"text":"オムライスがふわふわでおいしい"},{"text":"オムライスの種類が多くて、ごはんの量もちょうどいい"},{"text":"街道市の日はポテトもあって、全部好き"}],"note":"","addr":"仙台市青葉区中山5-19-5","lat":38.292752887676855,"lng":140.84176753414184,"src":"approx","x":582.1,"y":770.6,"tx":582.1,"ty":770.6,"padr":12},{"name":"中山鍼灸接骨院","cat":"medical","url":"https://www.nakayaman.com/post/%E4%B8%AD%E5%B1%B1%E9%8D%BC%E7%81%B8%E6%8E%A5%E9%AA%A8%E9%99%A2","voices":[],"note":"","addr":"仙台市青葉区中山5-7-1","lat":38.291767,"lng":140.843033,"src":"gsi_addr","x":578.8,"y":926.3,"tx":578.8,"ty":926.3,"padr":12},{"name":"フラワー中山","cat":"life","url":"https://www.nakayaman.com/post/%E3%83%95%E3%83%A9%E3%83%AF%E3%83%BC%E4%B8%AD%E5%B1%B1","voices":[{"text":"きれいなお花がたくさんで、見ているだけで満足"},{"text":"街道市のとき100円くじがひける（あたるとお花のプレゼント）"}],"note":"","addr":"仙台市青葉区中山5-6-3","lat":38.2917065,"lng":140.8431656,"src":"osm:partial","x":582.0,"y":939.4,"tx":582.0,"ty":939.4,"padr":12},{"name":"河村内科外科クリニック","cat":"medical","url":"https://www.nakayaman.com/post/%E6%B2%B3%E6%9D%91%E5%86%85%E7%A7%91%E5%A4%96%E7%A7%91%E3%82%AF%E3%83%AA%E3%83%8B%E3%83%83%E3%82%AF","voices":[],"note":"","addr":"仙台市青葉区中山5-6-1","lat":38.291568,"lng":140.84336,"src":"osm:exact","x":582.5,"y":962.3,"tx":582.5,"ty":962.3,"padr":12},{"name":"ウエルシア薬局","cat":"life","url":"https://www.nakayaman.com/post/welcia-najkayama-store","voices":[{"text":"商品が安い"},{"text":"飲み物やお菓子をたくさん買う"}],"note":"","addr":"仙台市青葉区中山5-2-3","lat":38.291111,"lng":140.843948,"src":"gsi_addr","x":581.1,"y":1034.6,"tx":581.1,"ty":1034.6,"padr":13},{"name":"左官職人早坂組","cat":"life","url":"https://www.nakayaman.com/post/plastererhayasakagroupco-ltd","voices":[],"note":"","addr":"宮城県仙台市青葉区中山5丁目1-6","lat":38.291031,"lng":140.844315,"src":"gsi_addr","x":596.8,"y":1063.9,"tx":596.8,"ty":1063.9,"padr":15},{"name":"河北仙販 中山支店","cat":"life","url":"https://www.nakayaman.com/post/%E6%B2%B3%E5%8C%97%E4%BB%99%E8%B2%A9%E4%B8%AD%E5%B1%B1%E5%BA%97","voices":[],"note":"","addr":"仙台市青葉区中山1-19-3","lat":38.2902072,"lng":140.8452632,"src":"osm:exact","x":587.5,"y":1187.2,"tx":587.5,"ty":1187.2,"padr":22},{"name":"カットショップ NOBU","cat":"medical","url":"https://www.nakayaman.com/post/%E3%82%AB%E3%83%83%E3%83%88%E3%82%B7%E3%83%A7%E3%83%83%E3%83%97nobu","voices":[],"note":"","addr":"仙台市青葉区中山1-12-3","lat":38.2897068,"lng":140.8459678,"src":"osm:exact","x":589.6,"y":1270.2,"tx":589.6,"ty":1270.2,"padr":12},{"name":"梅原表具店","cat":"life","url":"https://www.nakayaman.com/post/%E6%A2%85%E5%8E%9F%E8%A1%A8%E5%85%B7%E5%BA%97","voices":[],"note":"","addr":"仙台市青葉区中山1-12-2","lat":38.289597,"lng":140.846054,"src":"gsi_addr","x":585.9,"y":1284.0,"tx":585.9,"ty":1284.0,"padr":12},{"name":"cake NAO","cat":"food","url":"https://www.nakayaman.com/post/cafe-nao","voices":[{"text":"いろんな種類のケーキがある"},{"text":"ホイップがふわふわ"},{"text":"ケーキ以外も売っていて、お土産にもなる"}],"note":"","addr":"仙台市青葉区中山1-11-5","lat":38.289471887676854,"lng":140.84642153414183,"src":"approx","x":598.0,"y":1316.9,"tx":598.0,"ty":1316.9,"padr":12},{"name":"中山ドライブスクール","cat":"life","url":"#","voices":[],"note":"","addr":"","lat":38.2886513,"lng":140.8484172,"src":"osm:exact","hint":{"anchor":"end"},"x":652.1,"y":1506.2,"tx":652.1,"ty":1506.2,"padr":22},{"name":"ビバホーム荒巻店","cat":"life","url":"https://www.nakayaman.com/post/%E3%83%93%E3%83%90%E3%83%9B%E3%83%BC%E3%83%A0-%E8%8D%92%E5%B7%BB%E5%BA%97","voices":[],"note":"","addr":"仙台市青葉区荒巻本沢2-1-1","lat":38.28764,"lng":140.849121,"src":"gsi_addr","x":613.0,"y":1628.3,"tx":613.0,"ty":1628.3,"padr":22},{"name":"中山市民センター","cat":"edu","url":"https://www.nakayaman.com/post/%E4%B8%AD%E5%B1%B1%E5%B8%82%E6%B0%91%E3%82%BB%E3%83%B3%E3%82%BF%E3%83%BC","voices":[{"text":"児童館の先生がやさしい"}],"note":"","addr":"仙台市青葉区中山3-13-1","lat":38.291759,"lng":140.8371509,"src":"osm:exact","x":223.8,"y":554.8,"tx":223.8,"ty":554.8,"padr":22},{"name":"藤倉設備工業","cat":"life","url":"https://www.nakayaman.com/post/_%E8%97%A4%E5%80%89%E8%A8%AD%E5%82%99","voices":[],"note":"","addr":"仙台市青葉区中山4-13-1","lat":38.2924555,"lng":140.8417797,"src":"osm:partial","x":558.8,"y":794.2,"tx":558.8,"ty":794.2,"padr":12},{"name":"Double Egg4丁目","cat":"food","url":"https://www.nakayaman.com/post/double-egg","voices":[{"text":"オムライスがふわふわでおいしい"},{"text":"オムライスの種類が多くて、ごはんの量もちょうどいい"},{"text":"街道市の日はポテトもあって、全部好き"}],"note":"","addr":"","lat":38.292127334928004,"lng":140.84113496666097,"src":"approx","x":493.5,"y":778.6,"tx":493.5,"ty":778.6,"padr":22},{"name":"柏屋","cat":"life","url":"https://www.nakayaman.com/post/%E6%9F%8F%E5%B1%8B%EF%BC%88%E6%96%87%E5%85%B7%E3%83%BB%E5%8C%96%E7%B2%A7%E5%93%81%EF%BC%89","voices":[{"text":"文房具やお菓子がたくさんある"},{"text":"学校の名札が買える"},{"text":"駄菓子が安く買える"}],"note":"","addr":"仙台市青葉区中山4-5-1","lat":38.2914326,"lng":140.8432048,"src":"osm:exact","x":562.2,"y":962.9,"tx":562.2,"ty":962.9,"padr":12},{"name":"たけむらや","cat":"life","url":"https://www.nakayaman.com/post/%E3%81%9F%E3%81%91%E3%82%80%E3%82%89%E3%82%84","voices":[],"note":"","addr":"仙台市青葉区中山4-2-1","lat":38.2911665,"lng":140.843617,"src":"osm:exact","x":565.6,"y":1009.4,"tx":565.6,"ty":1009.4,"padr":13},{"name":"和泉生花","cat":"life","url":"https://www.nakayaman.com/post/_%E5%92%8C%E6%B3%89%E7%94%9F%E8%8A%B1","voices":[],"note":"","addr":"仙台市青葉区中山2-7-20","lat":38.2897987,"lng":140.8429743,"src":"osm:exact","x":416.6,"y":1073.7,"tx":416.6,"ty":1073.7,"padr":22},{"name":"西原歯科医院","cat":"medical","url":"https://www.nakayaman.com/post/%E8%A5%BF%E5%8E%9F%E6%AD%AF%E7%A7%91%E5%8C%BB%E9%99%A2","voices":[],"note":"","addr":"仙台市青葉区中山2-1-18","lat":38.2891235,"lng":140.8461844,"src":"osm:exact","x":555.6,"y":1328.7,"tx":555.6,"ty":1328.7,"padr":21},{"name":"認定こども園 TOBINOKO","cat":"edu","url":"https://www.nakayaman.com/post/tobinoko","voices":[],"note":"","addr":"仙台市青葉区中山2-17-1","lat":38.2881965,"lng":140.8463918,"src":"osm:exact","hint":{"anchor":"end"},"x":493.4,"y":1412.9,"tx":493.4,"ty":1412.9,"padr":12},{"name":"多夢多夢舎中山工房","cat":"life","url":"https://www.nakayaman.com/post/tamutamushanakayamastudio","voices":[],"note":"","addr":"宮城県仙台市青葉区中山2-18-5","lat":38.2879389,"lng":140.846559,"src":"osm:exact","hint":{"anchor":"end"},"x":482.7,"y":1443.3,"tx":482.7,"ty":1443.3,"padr":12},{"name":"中山小学校","cat":"edu","url":"https://www.nakayaman.com/post/%E4%BB%99%E5%8F%B0%E5%B8%82%E7%AB%8B%E4%B8%AD%E5%B1%B1%E5%B0%8F%E5%AD%A6%E6%A0%A1","voices":[],"note":"","addr":"仙台市青葉区中山1丁目6-1","lat":38.2917789,"lng":140.8503859,"src":"osm:partial","x":1022.8,"y":1390.6,"tx":1022.8,"ty":1390.6,"padr":22},{"name":"サトー商会","cat":"food","url":"https://www.nakayaman.com/post/sato-aramaki","voices":[],"note":"","addr":"仙台市青葉区荒巻本沢1-17-4","lat":38.28932411232315,"lng":140.85040146585817,"src":"approx","hint":{"anchor":"start"},"x":825.9,"y":1580.1,"tx":825.9,"ty":1580.1,"padr":12},{"name":"みなとや","cat":"food","url":"https://www.nakayaman.com/post/minataya","voices":[],"note":"","addr":"仙台市青葉区荒巻本沢1-17-4","lat":38.289265887676855,"lng":140.85067853414182,"src":"approx","x":837.9,"y":1602.1,"tx":837.9,"ty":1602.1,"padr":12},{"name":"中山山の神公園","cat":"place","url":"#","voices":[{"text":"桜がきれい"}],"photos":[{"src":"assets/photos/yamanokami_1","alt":"中山山の神公園のブランコとすべり台と芝生"},{"src":"assets/photos/yamanokami_2","alt":"中山山の神公園の大きな木と芝生広場"}],"note":"","addr":"","lat":38.2884963,"lng":140.841611,"src":"osm:exact","x":229.5,"y":1087.4,"tx":229.5,"ty":1087.4,"padr":22},{"name":"なかやまとびのこ公園","cat":"place","url":"#","voices":[{"text":"広くて、いつでも遊べる"},{"text":"春はさくら、夏は緑、秋は落ち葉がきれい"},{"text":"川みたいなところにおたまじゃくしがいてかわいかった"},{"text":"公園の中の山から、公園全体が見える"}],"photos":[{"src":"assets/photos/tobinoko_1","alt":"なかやまとびのこ公園の東屋とすべり台"},{"src":"assets/photos/tobinoko_2","alt":"なかやまとびのこ公園の石組みの小川"}],"note":"「水の神」","addr":"","lat":38.288639,"lng":140.8458781,"src":"osm:exact","x":498.1,"y":1346.5,"tx":498.1,"ty":1346.5,"padr":22},{"name":"中山鳥瀧不動尊（目の神様）","cat":"place","url":"#","voices":[],"note":"中山のパワースポット。滝の水で目を洗うと目の病が治ると伝わる「目の神様」。","addr":"仙台市青葉区中山6-19-3","lat":38.2956402,"lng":140.8414793,"src":"osm:exact","x":797.5,"y":530.7,"tx":797.5,"ty":530.7,"padr":22},{"name":"おたからや","cat":"life","url":"https://www.nakayaman.com/post/otakaraya","voices":[],"note":"","addr":"仙台市青葉区中山5-19-6","lat":38.292839,"lng":140.841537,"src":"gsi_addr","x":575.1,"y":749.4,"tx":575.1,"ty":749.4,"padr":12},{"name":"お菜とお酒アイリス","cat":"food","url":"https://www.nakayaman.com/post/%E3%82%B9%E3%83%8A%E3%83%83%E3%82%AF%E3%82%A2%E3%82%A4%E3%83%AA%E3%82%B9","voices":[],"note":"","addr":"仙台市青葉区中山5-19-1","lat":38.292582,"lng":140.841927,"src":"osm:exact","x":577.9,"y":793.8,"tx":577.9,"ty":793.8,"padr":12},{"name":"デイサービス はるの風","cat":"medical","url":"https://www.nakayaman.com/post/%E3%83%87%E3%82%A4%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9%E3%81%AF%E3%82%8B%E3%81%AE%E9%A2%A8","voices":[],"note":"","addr":"仙台市青葉区中山5-11-3","lat":38.29216211232315,"lng":140.8423904658582,"src":"approx","x":572.0,"y":855.3,"tx":572.0,"ty":855.3,"padr":12},{"name":"遊季ガーデン","cat":"life","url":"https://www.nakayaman.com/post/%E9%81%8A%E5%B8%8C%E3%82%AC%E3%83%BC%E3%83%87%E3%83%B3%E6%A0%AA%E5%BC%8F%E4%BC%9A%E7%A4%BE","voices":[],"note":"","addr":"仙台市青葉区中山5-11-3-B（2F）","lat":38.29210388767685,"lng":140.84266753414184,"src":"approx","x":584.0,"y":877.3,"tx":584.0,"ty":877.3,"padr":12},{"name":"中杜建設","cat":"life","url":"https://www.nakayaman.com/post/_%E4%B8%AD%E6%9D%9C%E5%BB%BA%E8%A8%AD","voices":[],"note":"","addr":"仙台市青葉区中山5-19-10","lat":38.293044112323145,"lng":140.84095646585817,"src":"approx","x":556.7,"y":696.9,"tx":556.7,"ty":696.9,"padr":12},{"name":"ん daccha とこや","cat":"medical","url":"https://www.nakayaman.com/post/%E3%82%93-daccha-%E3%81%A8%E3%81%93%E3%82%84","voices":[],"note":"","addr":"仙台市青葉区中山5-19-10","lat":38.29298588767685,"lng":140.84123353414182,"src":"approx","x":568.7,"y":718.9,"tx":568.7,"ty":718.9,"padr":12},{"name":"花祭壇","cat":"life","url":"https://www.nakayaman.com/post/%E8%8A%B1%E7%A5%AD%E5%A3%87-%EF%BC%88%E6%9C%AC%E7%A4%BE%EF%BC%89","voices":[],"note":"","addr":"仙台市青葉区中山4-14-35","lat":38.292927,"lng":140.841019,"src":"gsi_addr","x":551.0,"y":709.8,"tx":551.0,"ty":709.8,"padr":12},{"name":"尚絅教会","cat":"life","url":"https://www.nakayaman.com/post/%E6%97%A5%E6%9C%AC%E3%83%91%E3%83%96%E3%83%86%E3%82%B9%E3%83%88%E5%B0%9A%E7%B5%85%E5%8D%94%E4%BC%9A","voices":[],"note":"","addr":"仙台市青葉区中山4-17-25","lat":38.2932675,"lng":140.8395617,"src":"osm:exact","x":490.7,"y":591.5,"tx":490.7,"ty":591.5,"padr":22},{"name":"スクールIE 仙台中山校","cat":"edu","url":"https://www.nakayaman.com/post/ie-school","voices":[],"note":"","addr":"仙台市青葉区中山5-19-17","lat":38.293297,"lng":140.840408,"src":"gsi_addr","x":544.0,"y":642.8,"tx":544.0,"ty":642.8,"padr":12},{"name":"BAKERY&BAKE EndRoll","cat":"food","url":"https://www.nakayaman.com/post/bakery-bake-endroll","voices":[],"note":"","addr":"仙台市青葉区中山1-11-5","lat":38.28953011232315,"lng":140.84614446585817,"src":"approx","x":586.0,"y":1294.9,"tx":586.0,"ty":1294.9,"padr":12},{"name":"商店街モニュメント","cat":"place","url":"#","voices":[],"note":"中山の坂の登り口にあるモニュメントが商店街への目印です！","addr":"","lat":38.2881,"lng":140.84642,"src":"approx","hint":{"anchor":"end"},"x":487.3,"y":1422.1,"tx":487.3,"ty":1422.1,"padr":12},{"name":"たきみち公園","cat":"place","url":"#","voices":[],"photos":[{"src":"assets/photos/takimichi_1","alt":"たきみち公園の桜とすべり台と石碑"},{"src":"assets/photos/takimichi_2","alt":"たきみち公園の桜の木"}],"note":"","addr":"","lat":38.291917,"lng":140.85282,"src":"osm:exact","x":1180.6,"y":1534.0,"tx":1180.6,"ty":1534.0,"padr":22},{"name":"中山の坂の上","cat":"place","url":"#","voices":[],"photos":[{"src":"assets/photos/sakanoue_1","alt":"中山の坂の上から見た市街地の眺め"}],"note":"バス通りでいちばん高いところ（標高155m）。ここから南へ下る坂が「中山の坂」で、坂の上からは市街地が見渡せます。","addr":"","lat":38.29485,"lng":140.836401,"src":"gsi_dem","x":427.8,"y":270.0,"tx":427.8,"ty":270.0,"padr":22}],"roads":[{"cls":"service","name":"","guide_spine":false,"pts":[[344.0,798.3],[353.3,792.3],[360.9,792.7],[364.3,797.5],[364.7,806.7],[358.2,810.4],[350.3,811.1],[346.9,805.6],[344.0,798.3],[321.3,798.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[343.8,717.3],[343.7,706.6],[347.4,698.7],[357.9,694.0],[366.2,693.9],[370.3,699.0],[368.3,735.6],[361.3,738.9],[355.4,739.4],[351.6,739.6],[347.5,736.0],[343.8,717.3],[321.6,718.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[671.5,720.5],[726.8,747.4],[724.9,710.4],[723.2,667.7],[722.4,626.0],[671.1,597.0],[659.6,595.6],[660.9,632.3],[665.1,677.1],[671.5,720.5],[681.1,806.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[572.6,680.2],[644.3,710.6],[650.3,755.9],[579.9,719.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1060.6,1314.0],[1070.9,1320.4],[1119.4,1251.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[565.6,641.1],[575.6,640.1],[622.2,661.5],[628.6,627.8],[586.8,606.1],[561.6,611.3],[565.6,641.1],[572.6,680.2],[579.9,719.4],[598.0,803.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[841.0,995.7],[891.2,994.1],[926.7,992.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[660.9,632.3],[723.2,667.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[665.1,677.1],[724.9,710.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[957.8,1311.1],[942.5,1302.7],[935.1,1295.9],[919.2,1282.0]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1121.5,594.6],[1106.9,612.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[375.5,281.6],[355.8,234.2],[348.2,223.2],[342.5,217.8],[335.0,207.6],[332.9,187.7],[325.0,155.8],[318.8,116.8],[298.9,62.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[282.0,195.1],[250.5,201.3],[221.6,211.7],[213.9,213.6]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1070.8,525.8],[1041.0,553.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[-37.1,376.9],[-30.3,369.1],[-27.6,364.8],[-25.4,359.9],[-11.8,308.2],[4.3,273.3],[25.3,214.5],[42.3,216.9],[60.1,231.6],[80.4,256.6],[86.7,264.4],[89.1,269.8],[91.5,275.8],[95.9,320.7],[99.0,326.4],[102.7,328.9],[106.3,330.2],[113.2,331.3],[130.7,329.5],[137.6,329.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[244.1,-115],[257.2,-96.5],[250.4,-86.1],[236.5,-74.5],[235.2,-67.9],[234.6,-62.4],[239.5,-50.0]]},{"cls":"service","name":"","guide_spine":false,"pts":[[269.8,-78.5],[235.2,-67.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1094.9,564.3],[1073.5,584.0]]},{"cls":"service","name":"","guide_spine":false,"pts":[[950.5,376.2],[907.8,419.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[235.2,-67.9],[218.3,-60.0],[202.9,-93.1],[205.5,-102.2],[197.3,-115]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1032.3,441.5],[983.1,488.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[216.9,-92.2],[223.4,-75.0],[235.2,-67.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[991.8,410.5],[951.6,457.3]]},{"cls":"service","name":"","guide_spine":false,"pts":[[298.2,308.0],[297.4,289.4],[282.0,195.1],[278.4,166.6],[267.4,125.6],[248.8,77.3]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1036.3,476.1],[1043.3,482.9],[1043.1,485.8],[1007.8,521.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1164.9,918.2],[1074.6,935.7],[1052.2,938.7],[1068.4,1004.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1189.3,1212.5],[1194.1,1207.8],[1200.6,1173.0],[1197.8,1168.9],[1122.1,1123.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1144.9,1101.9],[1159.0,1086.9],[1162.6,1089.5],[1190.6,1121.7],[1205.9,1129.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1195.0,1217.5],[1198.9,1211.8],[1209.0,1181.5],[1224.9,1143.0],[1232.0,1144.6],[1291.5,1173.7],[1303.0,1169.1],[1244.8,1130.7],[1238.8,1126.7],[1233.8,1112.4],[1228.3,1106.8],[1226.9,1105.4],[1219.5,1100.9],[1210.1,1096.1],[1197.1,1080.6],[1187.5,1064.7],[1180.0,1056.3],[1179.4,1048.6],[1142.9,994.9],[1136.9,985.5],[1091.3,1000.4],[1068.4,1004.1],[1046.9,1008.9],[1033.9,1013.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1000.8,560.9],[1022.3,539.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1098.4,647.5],[1119.2,626.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1181.8,1014.0],[1203.7,998.6],[1209.7,994.3],[1219.4,1009.6],[1223.4,1016.2],[1229.7,1017.5],[1240.8,1011.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1030.4,591.6],[1055.4,565.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[972.1,525.0],[996.3,504.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1066.7,622.3],[1091.3,599.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[890.5,481.1],[931.2,438.3]]},{"cls":"service","name":"","guide_spine":false,"pts":[[910.1,523.9],[965.5,472.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[736.3,1342.3],[737.0,1365.4],[705.2,1363.7],[677.8,1359.6],[668.7,1369.3],[641.2,1400.8],[621.7,1429.6],[603.0,1446.0],[585.4,1450.4],[570.5,1454.1],[564.5,1455.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1202.3,1588.3],[1217.7,1706.6]]},{"cls":"service","name":"","guide_spine":false,"pts":[[761.2,1433.1],[713.1,1455.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1280.8,1587.2],[1290.3,1667.2],[1300.9,1712.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[793.2,1471.3],[747.6,1488.3],[736.3,1491.7],[712.6,1489.1],[709.6,1483.7],[713.1,1455.7],[710.6,1448.4],[710.5,1442.4],[721.4,1419.8],[724.5,1416.3],[759.5,1398.7],[761.8,1397.3]]},{"cls":"service","name":"","guide_spine":false,"pts":[[705.2,1363.7],[706.1,1393.1],[718.8,1401.3],[720.7,1404.9],[720.1,1413.4],[721.4,1419.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1130.4,1541.8],[1083.0,1512.3],[1111.4,1485.0]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1149.6,1514.2],[1111.4,1485.0],[1106.4,1481.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1376.8,1575.5],[1376.9,1532.8],[1375.7,1518.2],[1380.4,1491.1],[1406,1491.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1182.0,1705.8],[1174.9,1697.9],[1163.2,1681.5],[1158.3,1643.6],[1158.0,1596.3],[1202.3,1588.3],[1245.9,1586.7],[1280.8,1587.2],[1286.1,1587.1],[1290.3,1586.8],[1332.2,1581.4],[1376.8,1575.5],[1406,1574.6]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1124.8,1550.1],[1144.2,1571.5],[1153.6,1569.7],[1166.2,1565.0],[1176.4,1558.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1245.9,1586.7],[1254.9,1669.5],[1262.5,1698.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1332.2,1581.4],[1327.9,1518.5],[1328.9,1505.8],[1330.0,1499.5],[1334.1,1440.7],[1334.8,1434.4],[1382.3,1430.3]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1051.7,1661.4],[1047.3,1662.7],[1018.5,1687.6]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1097.7,1721.9],[1096.6,1748.1],[1093.8,1754.0],[1086.2,1761.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[662.4,1593.4],[663.4,1590.7],[693.5,1516.4],[712.6,1489.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[952.6,1739.5],[953.7,1734.6],[942.1,1684.1],[979.8,1673.8],[985.8,1676.5],[1001.7,1664.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[829.7,1684.5],[830.4,1679.7],[835.6,1664.1],[826.5,1650.4],[825.8,1640.4],[848.0,1609.1],[850.9,1599.5],[864.0,1587.0],[904.1,1594.2],[919.2,1601.0],[913.3,1614.4],[905.3,1629.4],[901.7,1650.3],[897.8,1663.7],[902.3,1680.8],[896.5,1702.9],[895.1,1707.6]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1380.4,1491.1],[1384.6,1435.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1336.5,1658.4],[1290.3,1667.2],[1254.9,1669.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1164.0,1776.3],[1157.3,1788.4],[1162.7,1811.5],[1150.5,1825.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[891.4,1021.8],[891.2,994.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[881.0,1175.7],[849.2,1162.8],[848.2,1160.0],[871.6,1129.2],[811.6,1084.9],[796.5,1064.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1400.9,644.7],[1406,643.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1355.9,488.7],[1369.2,506.0]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1347.0,1038.2],[1329.8,1052.6],[1316.9,1063.1],[1312.8,1068.8],[1311.0,1071.5],[1313.2,1075.4],[1310.6,1079.0],[1290.7,1099.3]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1299.9,1039.7],[1310.9,1050.7],[1310.5,1062.5],[1312.8,1068.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1113.1,774.0],[1124.8,796.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1133.7,741.8],[1140.2,754.8],[1139.9,758.3],[1147.8,769.9],[1151.6,771.2],[1158.3,781.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1224.6,781.8],[1215.6,765.6],[1206.6,760.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1153.1,687.5],[1141.7,692.8],[1133.8,716.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1199.6,646.1],[1172.1,662.4],[1137.8,680.6],[1131.6,679.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1343.6,1078.0],[1351.9,1084.5],[1346.4,1103.6],[1341.9,1110.5],[1337.4,1114.2],[1328.5,1121.2],[1310.6,1134.1],[1305.7,1137.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1199.4,801.3],[1195.4,791.0],[1195.9,787.4],[1192.9,779.1],[1192.3,772.3]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1357.0,1135.4],[1337.4,1114.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1295.8,1015.1],[1260.8,1045.6],[1246.5,1053.9],[1241.3,1054.5],[1218.2,1020.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1160.2,824.6],[1155.5,827.7],[1147.5,816.0],[1144.2,813.1],[1135.4,792.0]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1265.7,940.2],[1270.0,944.2],[1264.7,951.1],[1247.5,961.4],[1221.8,977.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1200.2,740.0],[1202.5,744.9],[1206.1,751.7],[1207.0,759.0],[1206.6,760.9],[1205.9,764.4],[1202.2,769.3],[1197.0,771.7],[1192.3,772.3],[1186.3,771.2],[1179.8,769.3],[1177.0,768.9],[1172.3,771.7],[1158.3,781.2],[1135.4,792.0],[1124.8,796.2],[1113.8,801.8],[1105.7,805.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1238.0,759.9],[1226.4,739.9],[1222.2,735.4],[1215.1,739.1],[1202.5,744.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1215.1,739.1],[1213.7,735.3],[1172.1,662.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1118.4,709.4],[1127.7,713.2],[1133.8,716.2],[1151.4,724.0],[1155.5,728.1],[1172.9,758.7],[1175.5,764.7],[1177.0,768.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1024.5,1853],[1024.4,1851.2],[1025.4,1839.2],[1026.1,1831.4],[1023.9,1814.8],[1017.5,1798.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[309.3,1819.5],[294.5,1840.3],[266.7,1853.7],[262.8,1837.5],[262.6,1835.3],[222.7,1793.8],[179.1,1839.2],[171.1,1853],[159.0,1786.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[126.4,1797.6],[67.2,1809.9],[24.9,1818.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[337.9,1853],[344.6,1849.3]]},{"cls":"service","name":"","guide_spine":false,"pts":[[127.5,1853],[126.6,1836.0],[128.5,1821.3],[126.4,1797.6],[123.5,1781.0]]},{"cls":"service","name":"","guide_spine":false,"pts":[[262.6,1835.3],[285.6,1827.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[232.1,1853],[231.8,1853.3],[262.8,1837.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1406,1810.5],[1397.0,1807.4],[1365.7,1812.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[601.1,1840.8],[601.3,1853]]},{"cls":"service","name":"","guide_spine":false,"pts":[[612.0,1809.0],[627.4,1784.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[580.5,1788.6],[612.0,1809.0],[608.9,1817.8],[594.8,1836.6],[595.2,1840.6]]},{"cls":"service","name":"","guide_spine":false,"pts":[[266.8,1704.5],[238.5,1660.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[405.6,1676.4],[409.0,1661.3],[415.3,1656.2],[423.7,1655.1],[434.1,1659.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[227.2,1725.2],[200.0,1680.2],[201.7,1674.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[358.6,1604.7],[317.5,1622.5],[288.0,1640.8],[280.6,1645.0]]},{"cls":"service","name":"","guide_spine":false,"pts":[[338.9,1667.0],[363.9,1707.3]]},{"cls":"service","name":"","guide_spine":false,"pts":[[368.8,1650.9],[385.8,1680.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1386.1,1678.3],[1381.8,1686.6],[1357.6,1741.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[-115,368.4],[-114.4,369.5],[-96.0,371.1],[-67.1,376.7],[-50.8,380.7],[-43.8,380.0],[-37.1,376.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[456.7,378.2],[422.6,390.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[486.9,461.1],[473.0,465.1],[483.2,506.5],[461.0,512.4],[470.8,549.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[284.5,939.3],[289.3,944.8],[293.7,950.3],[289.9,954.0],[276.0,955.6],[273.5,963.4],[316.6,981.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[754.9,483.7],[741.5,456.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1074.6,935.7],[1091.3,1000.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1228.8,1074.3],[1210.1,1096.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1291.3,1540.8],[1290.3,1586.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1253.8,1755.0],[1280.4,1704.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[419.1,1375.9],[441.1,1355.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[404.9,1828.4],[427.4,1801.3],[432.0,1776.4],[422.1,1769.6],[413.0,1766.8],[379.8,1804.6]]},{"cls":"service","name":"","guide_spine":false,"pts":[[75.1,1845.2],[98.6,1839.5],[126.6,1836.0]]},{"cls":"service","name":"","guide_spine":false,"pts":[[72.5,1830.6],[67.2,1809.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1089.3,1561.0],[1115.8,1562.2],[1124.8,1550.1],[1130.4,1541.8],[1149.6,1514.2],[1172.1,1482.9],[1116.1,1439.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[52.8,1844.4],[44.4,1839.3],[25.2,1839.4],[20.6,1850.8],[20.7,1853]]},{"cls":"service","name":"","guide_spine":false,"pts":[[414.9,1853],[406.9,1847.4],[403.9,1842.0],[409.0,1834.0],[404.9,1828.4],[403.3,1826.0],[379.8,1804.6],[376.7,1802.5],[348.4,1783.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[891.8,1847.8],[891.8,1853.1],[897.6,1853]]},{"cls":"service","name":"","guide_spine":false,"pts":[[316.2,946.2],[310.2,909.6],[290.6,913.7],[283.9,914.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[179.1,1839.2],[187.7,1844.5],[197.7,1850.2],[197.5,1853]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1096.6,1853],[1109.2,1848.1],[1121.8,1841.6],[1125.4,1838.8],[1126.1,1835.9],[1125.3,1832.7],[1122.6,1829.8],[1109.6,1818.1],[1099.8,1823.4],[1098.9,1820.8],[1097.1,1816.6],[1095.2,1812.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1095.2,1812.8],[1110.9,1804.3],[1113.5,1803.9],[1115.3,1805.0],[1123.8,1811.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1122.6,1829.8],[1106.7,1837.3],[1092.0,1844.8],[1086.8,1829.4],[1096.1,1825.3],[1099.8,1823.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1095.2,1812.8],[1070.8,1822.2],[1065.2,1823.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[371.8,1721.4],[390.2,1744.0]]},{"cls":"service","name":"","guide_spine":false,"pts":[[962.4,1372.6],[966.1,1372.0],[984.2,1371.0]]},{"cls":"service","name":"","guide_spine":false,"pts":[[701.1,1849.3],[697.6,1853]]},{"cls":"service","name":"","guide_spine":false,"pts":[[658.6,1819.6],[632.8,1853]]},{"cls":"service","name":"","guide_spine":false,"pts":[[-48.5,497.9],[25.6,515.1],[55.1,510.0],[75.9,509.5],[86.0,511.8],[89.6,514.0],[92.6,517.0],[95.0,520.1],[96.6,523.6],[97.9,531.5],[106.6,557.9],[109.4,578.3],[118.3,601.2],[120.2,605.0],[123.3,613.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[-48.5,497.9],[-41.1,463.4],[-29.2,394.8],[-30.2,388.9],[-33.5,383.4],[-37.1,376.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[-78.1,484.6],[-59.5,408.6]]},{"cls":"service","name":"","guide_spine":false,"pts":[[-57.1,494.2],[-48.5,497.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1080.0,1094.6],[1089.1,1079.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1136.9,985.5],[1167.1,978.8],[1163.1,959.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1242.1,1089.2],[1228.3,1106.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1180.0,1056.3],[1176.1,1054.5],[1172.2,1051.7],[1158.5,1035.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1018.2,832.2],[1008.2,850.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1014.8,854.8],[1029.2,825.6]]},{"cls":"service","name":"","guide_spine":false,"pts":[[945.7,802.1],[926.9,802.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1238.6,399.4],[1224.1,410.3]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1265.2,362.1],[1250.6,371.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[216.6,250.1],[224.9,248.3],[236.4,245.5],[263.9,242.9],[262.0,224.3],[258.0,207.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[250.5,201.3],[252.1,208.6]]},{"cls":"service","name":"","guide_spine":false,"pts":[[262.0,224.3],[236.7,228.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[236.4,245.5],[236.7,228.9],[233.5,214.2],[252.1,208.6],[258.0,207.9],[270.2,207.0],[272.6,209.1],[274.6,213.3],[283.6,270.5],[289.0,286.6],[245.5,288.7],[241.5,272.5],[237.4,257.3],[266.4,254.9],[270.1,271.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[283.6,270.5],[270.1,271.5],[241.5,272.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[181.1,268.4],[213.1,265.1],[218.0,264.3]]},{"cls":"service","name":"","guide_spine":false,"pts":[[430.2,262.7],[428.1,256.9],[426.3,249.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[426.3,249.7],[419.0,252.4],[414.4,253.4],[410.8,252.2],[407.3,249.3],[405.0,246.6],[404.1,243.4],[403.1,240.4],[403.7,237.3],[404.8,234.1],[406.8,231.4],[409.7,229.0],[414.4,227.1],[418.1,226.1],[423.8,223.7],[429.2,221.2],[434.2,219.1],[441.8,216.6],[445.8,214.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[426.3,249.7],[431.7,247.5],[444.6,242.2],[447.8,240.3],[450.3,237.4],[452.2,234.1],[452.8,230.7],[451.7,225.8],[448.9,220.2],[445.8,214.8],[435.7,185.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[465.6,399.1],[435.9,408.1],[417.2,414.9],[398.2,403.0],[369.6,410.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[435.9,408.1],[439.0,420.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[461.5,449.8],[446.4,417.4],[439.0,420.1],[430.2,423.7],[445.8,455.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[307.6,641.8],[314.6,642.7],[317.9,642.8],[320.3,641.7],[321.7,638.7],[324.0,613.1],[326.3,610.8],[333.6,609.1],[396.8,601.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[377.8,641.4],[320.3,641.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[789.0,592.6],[795.8,584.4],[801.0,579.2],[802.9,572.1],[802.1,562.1],[802.7,556.7],[814.4,546.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[801.4,442.6],[771.6,463.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[862.1,622.3],[865.8,605.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[603.8,1587.3],[607.3,1577.7],[607.9,1577.3],[626.4,1556.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[626.4,1556.4],[635.0,1562.9],[641.1,1566.7],[644.8,1568.5],[647.4,1569.5],[651.6,1570.3],[655.3,1569.8],[659.5,1567.7],[662.2,1564.6],[663.8,1562.0],[668.4,1554.7],[676.1,1538.8],[677.7,1533.7],[679.9,1526.8],[691.0,1504.6],[699.5,1488.4],[700.6,1482.0],[700.8,1478.8],[700.9,1474.8],[701.4,1464.9],[700.9,1461.1],[699.3,1457.2],[690.2,1447.9],[686.2,1445.3],[682.6,1443.6],[678.0,1445.0],[668.2,1452.4],[649.0,1468.5],[635.0,1484.5],[633.7,1486.4],[632.1,1488.7],[628.3,1494.3],[626.1,1497.3],[618.8,1507.8],[615.6,1512.7],[611.0,1522.7],[610.7,1528.7],[614.0,1535.3],[617.4,1541.4],[620.3,1546.8],[621.4,1549.2],[622.3,1551.2],[626.4,1556.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[621.4,1549.2],[628.8,1538.9],[630.2,1536.6],[633.9,1530.4],[636.1,1526.7],[637.6,1524.2],[641.2,1518.9],[654.1,1503.9],[669.4,1486.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[649.0,1468.5],[658.4,1476.6],[661.5,1479.4],[669.4,1486.7],[677.3,1493.8],[679.5,1495.7],[681.2,1497.1],[686.4,1501.3],[691.0,1504.6]]},{"cls":"service","name":"","guide_spine":false,"pts":[[633.7,1486.4],[643.9,1494.5],[654.1,1503.9],[662.6,1512.4],[670.1,1519.2],[679.9,1526.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[633.9,1530.4],[649.5,1540.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[668.4,1554.7],[656.4,1544.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[677.7,1533.7],[660.4,1520.7],[654.6,1528.5],[641.2,1518.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[676.1,1538.8],[662.8,1529.7],[656.9,1537.5],[637.6,1524.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[628.3,1494.3],[637.9,1501.6],[639.8,1504.0],[640.1,1507.4],[638.1,1510.8],[635.8,1512.6],[632.5,1514.5],[630.4,1517.2],[629.7,1520.3],[631.3,1522.9],[636.1,1526.7]]},{"cls":"service","name":"","guide_spine":false,"pts":[[618.8,1507.8],[624.1,1512.1],[626.0,1515.0],[625.6,1518.2],[623.3,1520.4],[620.5,1522.1],[618.4,1523.1],[616.8,1525.2],[617.0,1528.4],[619.4,1531.4],[628.8,1538.9]]},{"cls":"service","name":"","guide_spine":false,"pts":[[630.2,1536.6],[663.8,1562.0]]},{"cls":"service","name":"","guide_spine":false,"pts":[[679.5,1495.7],[671.5,1503.8],[662.6,1512.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[671.5,1503.8],[667.4,1499.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[686.4,1501.3],[678.5,1509.9],[670.1,1519.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[678.5,1509.9],[674.7,1506.6]]},{"cls":"service","name":"","guide_spine":false,"pts":[[658.4,1476.6],[651.8,1485.2],[643.9,1494.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[647.0,1481.0],[651.8,1485.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[700.8,1478.8],[693.4,1479.6],[691.0,1480.6],[690.0,1482.2],[689.7,1484.2],[690.8,1486.6],[691.2,1489.1],[690.4,1491.4],[688.1,1493.2],[685.0,1493.8],[681.2,1497.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[700.9,1461.1],[677.3,1493.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[690.2,1447.9],[661.5,1479.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[60.1,231.6],[53.2,242.0],[52.5,243.3],[43.7,263.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[52.5,243.3],[61.4,256.7],[72.4,271.5],[72.9,276.8],[57.8,269.3],[43.7,263.8],[28.7,260.7],[40.7,234.1],[52.5,243.3]]},{"cls":"service","name":"","guide_spine":false,"pts":[[61.4,256.7],[57.8,269.3]]},{"cls":"service","name":"","guide_spine":false,"pts":[[-48.5,497.9],[-53.3,512.9],[-55.3,517.0],[-36.2,524.5],[-32.1,532.1],[-37.1,553.4],[-65.2,544.3],[-55.3,517.0]]},{"cls":"service","name":"","guide_spine":false,"pts":[[-53.3,512.9],[-66.6,505.3],[-72.5,503.4],[-77.9,503.4],[-84.1,510.1],[-115,576.3]]},{"cls":"service","name":"","guide_spine":false,"pts":[[865.0,1031.8],[915.8,1069.4]]},{"cls":"service","name":"","guide_spine":false,"pts":[[820.1,1045.4],[895.8,1100.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[935.9,1205.6],[872.8,1211.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[935.1,1295.9],[957.8,1269.5],[1000.2,1304.8],[1008.8,1306.1]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1308.8,1385.9],[1338.4,1412.6]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1289.7,1472.7],[1330.0,1499.5]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1287.7,1517.3],[1328.9,1505.8]]},{"cls":"service","name":"","guide_spine":false,"pts":[[934.0,361.7],[919.1,375.2]]},{"cls":"service","name":"","guide_spine":false,"pts":[[1335.9,994.5],[1319.6,961.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[123.5,-100.7],[23.8,-79.4],[19.6,-84.2],[18.5,-90.0],[18.3,-104.2],[19.3,-110.9],[36.8,-115]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-115,-66.9],[-101.6,-98.2],[-101.0,-115]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-107.0,-6.6],[-83.0,-56.9],[-72.2,-82.5],[-64.5,-111.8],[-64.6,-115]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-25.1,159.1],[-13.4,84.9],[-8.8,76.8],[11.9,46.4],[18.8,36.8],[45.1,-3.7],[47.8,-8.2],[52.8,-13.3],[144.2,-37.0],[171.1,-45.2],[177.1,-47.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[154.2,1.6],[147.7,-18.3],[144.2,-37.0],[130.7,-69.8],[123.5,-100.7],[118.7,-115]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-31.1,-115],[-31.9,-94.0],[-49.1,-46.3],[-66.9,-13.2],[-70.3,-9.4],[-89.0,-8.8],[-107.0,-6.6],[-115,-5.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-8.8,76.8],[2.6,82.9],[7.0,91.9],[5.5,99.9],[-1.5,164.9],[-25.1,159.1],[-59.6,153.7],[-102.7,140.1],[-115,138.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-115,11.2],[-111.5,10.1],[-100.2,11.4],[-88.4,16.8],[-85.5,22.5],[-91.2,33.8],[-94.5,45.3],[-94.0,55.9],[-96.7,81.0],[-98.1,117.6],[-115,116.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[18.8,36.8],[-4.8,14.8],[-8.8,9.7],[-10.8,4.0],[19.6,-35.9],[26.0,-41.6],[31.9,-44.4],[130.7,-69.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[45.1,-3.7],[58.6,4.9],[64.6,7.1],[147.7,-18.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[403.0,1234.2],[306.5,1231.7],[256.0,1222.5],[192.3,1212.3],[148.8,1201.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[256.1,1182.9],[227.5,1180.3],[183.4,1166.7],[156.7,1162.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[49.2,897.4],[139.1,930.4],[178.2,939.8],[209.6,950.8],[213.0,952.1],[255.2,968.4],[256.1,1044.5],[212.9,1058.7],[209.6,950.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[403.7,1148.0],[296.2,1149.7],[258.0,1144.0],[161.8,1123.3],[160.3,1123.1],[147.2,1121.2],[113.6,1099.3],[106.0,1085.9],[105.7,1067.3],[105.2,1030.3],[106.0,1012.8],[35.7,964.2],[0.5,940.3],[0.3,929.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[156.7,1162.2],[148.8,1201.3],[138.7,1240.4],[145.5,1242.9],[255.5,1259.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[255.5,1289.1],[255.5,1259.7],[256.0,1222.5],[256.1,1182.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[187.4,1102.5],[184.0,1059.2],[178.2,939.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[139.1,930.4],[146.6,1095.7],[168.3,1098.6],[187.4,1102.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[106.0,1012.8],[101.6,962.3],[27.1,909.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[156.7,1162.2],[160.3,1123.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-17.7,941.4],[0.3,929.1],[27.1,909.7],[49.2,897.4],[65.7,888.4],[74.2,884.0],[83.6,878.3],[86.1,873.3],[87.7,869.7],[94.1,856.6],[100.6,840.0],[106.7,799.8],[116.6,759.0],[128.4,724.7],[138.2,689.0],[151.6,650.8],[167.9,614.6],[170.8,603.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[187.4,1102.5],[256.3,1119.7],[258.0,1144.0],[256.1,1182.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[232.4,620.4],[232.8,674.4],[239.9,720.2],[241.7,762.3],[242.6,803.7],[244.7,846.4],[250.1,887.7],[255.7,929.3],[257.0,935.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[250.1,887.7],[161.8,863.5],[100.6,840.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[242.6,803.7],[116.6,759.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[106.7,799.8],[244.7,846.4],[269.1,855.2],[275.4,857.5],[282.8,857.3],[323.4,851.6],[398.8,851.7],[572.2,847.4],[742.8,844.9],[932.2,841.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[239.9,720.2],[138.2,689.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[151.6,650.8],[232.8,674.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[241.7,762.3],[128.4,724.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-115,1748.6],[-98.3,1744.9],[-115,1713.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-115,1675.4],[-96.6,1665.4],[-63.9,1650.8],[-33.7,1634.3],[-1.7,1617.4],[32.6,1599.7],[62.3,1581.2],[93.3,1565.0],[127.5,1547.0],[159.6,1532.1],[186.5,1513.7],[212.5,1498.4],[249.3,1542.6],[259.4,1568.4],[258.5,1605.8],[242.5,1614.2],[186.5,1513.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-113.7,1636.3],[-96.6,1665.4],[-87.3,1684.7],[-63.1,1736.4],[-26.0,1723.6],[-63.9,1650.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[62.3,1581.2],[122.1,1701.5],[87.0,1713.1],[49.2,1628.0],[32.6,1599.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[47.5,1288.6],[43.1,1292.8],[41.7,1294.3],[21.8,1319.5],[-104.7,1455.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[18.1,1365.8],[86.0,1431.1],[96.7,1442.9],[99.3,1450.0],[113.1,1478.9],[82.3,1498.6],[63.9,1507.3],[48.6,1513.0],[17.4,1532.8],[-25.6,1551.6],[-32.5,1555.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[127.5,1547.0],[172.2,1638.3],[147.3,1667.0],[93.3,1565.0],[79.1,1537.8],[76.8,1534.2],[63.9,1507.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[86.0,1431.1],[109.5,1401.8],[42.5,1337.4],[21.8,1319.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[242.5,1614.2],[210.1,1635.1],[159.6,1532.1],[149.2,1517.5],[142.7,1503.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[48.6,1513.0],[30.2,1476.6],[6.6,1450.7],[-28.3,1417.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[17.4,1532.8],[0.3,1493.6],[-51.7,1446.7],[-28.3,1417.1],[-5.5,1390.9],[18.1,1365.8],[42.5,1337.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-115,1421.6],[-76.8,1376.4],[-54.8,1353.2],[-26.7,1323.8],[-3.8,1296.6],[-22.3,1278.4],[-37.0,1268.7],[-67.7,1251.1],[-115,1236.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-54.8,1353.2],[-81.4,1323.7],[-99.2,1316.4],[-115,1312.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-76.8,1376.4],[-107.6,1350.6],[-112.6,1348.8],[-115,1349.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-26.7,1323.8],[-66.6,1290.8],[-79.9,1282.6],[-115,1273.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[82.3,1498.6],[55.4,1447.1],[46.0,1436.9],[-5.5,1390.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-115,1445.3],[-104.7,1455.3],[-64.0,1485.6],[-32.5,1555.2],[-22.8,1578.5],[-17.0,1588.0],[-13.0,1593.7],[-1.7,1617.4],[53.5,1718.9],[12.3,1717.3],[-20.8,1651.5],[-33.7,1634.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[403.2,1141.7],[573.6,1137.4],[752.5,1135.5],[824.0,1133.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[404.6,1337.7],[401.7,1326.3],[392.3,1282.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[404.0,1221.3],[577.9,1215.8],[582.7,1215.5],[586.9,1215.5],[754.2,1210.3],[872.8,1211.1],[874.4,1251.9],[878.8,1295.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[400.9,1191.4],[290.6,1191.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[413.5,1263.7],[419.5,1262.0],[480.6,1258.2],[541.8,1255.0],[575.8,1256.1],[581.8,1258.7],[585.9,1260.1],[751.9,1253.1],[874.4,1251.9],[916.6,1246.3],[926.3,1247.6],[957.8,1269.5],[977.6,1235.6],[995.5,1212.5],[1000.0,1205.5],[1013.5,1184.2],[1016.2,1180.8],[1035.7,1153.4],[1054.9,1123.0],[1078.6,1093.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[297.6,1111.1],[405.9,1102.7],[575.2,1099.1],[751.8,1102.6],[801.2,1096.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[401.9,1178.7],[577.9,1171.2],[755.5,1168.2],[837.8,1166.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[256.1,1044.5],[264.4,1053.2],[283.9,1065.2],[290.4,1067.2],[292.9,1067.2],[404.3,1060.0],[576.8,1059.2],[748.8,1060.1],[772.8,1057.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[379.9,1354.1],[404.6,1337.7],[432.0,1315.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[322.9,771.4],[349.1,770.1],[396.8,764.6],[566.4,760.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[349.5,940.6],[402.2,937.2],[570.5,932.3],[748.4,928.5],[932.8,922.5],[975.8,923.5],[1007.0,926.4],[1017.1,926.4],[1021.3,918.8],[1063.0,832.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[395.3,809.1],[570.6,803.1],[598.0,803.4],[681.1,806.4],[742.9,801.2],[926.9,800.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[341.6,981.2],[398.6,977.5],[572.1,976.0],[748.7,974.1],[924.1,966.9],[983.9,969.1],[1017.2,970.8],[1022.8,1011.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[328.4,893.6],[403.1,894.7],[571.8,890.4],[746.1,886.4],[938.9,881.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[312.4,1021.1],[399.2,1019.5],[575.4,1018.4],[703.0,1013.0],[747.4,1019.7],[782.9,1015.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1128.3,1174.0],[1095.8,1154.6],[1054.9,1123.0],[998.5,1082.3],[937.2,1041.2],[927.6,1034.0],[926.8,1006.1],[926.7,992.2],[924.1,966.9],[932.8,922.5],[938.9,881.9],[932.2,841.9],[926.9,802.4],[926.9,800.5],[927.9,786.9],[924.0,758.7],[925.1,718.7],[924.6,714.4],[905.9,685.3],[896.4,674.6],[871.5,650.6],[838.1,635.8],[788.3,615.6],[772.0,606.1],[737.4,653.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[626.3,299.0],[450.4,351.0],[308.2,395.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1069.2,1257.8],[1000.0,1205.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1126.8,1353.7],[1122.2,1396.2],[1116.1,1439.1],[1106.4,1481.7],[1068.0,1462.3],[972.4,1475.3]]},{"cls":"minor","name":"中山小学校北通線","guide_spine":false,"pts":[[1406,1447.7],[1402.0,1446.5],[1384.6,1435.2],[1382.3,1430.3],[1368.3,1398.7],[1356.3,1339.6],[1352.0,1331.6],[1346.5,1322.8],[1338.4,1316.4],[1304.6,1297.0],[1255.2,1265.0],[1222.9,1244.5],[1197.8,1220.2],[1195.0,1217.5],[1190.8,1213.8],[1189.3,1212.5],[1160.9,1196.3],[1128.3,1174.0],[1107.9,1204.7],[1088.7,1232.9],[1069.2,1257.8],[1045.5,1287.9],[1033.7,1303.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1119.4,1251.2],[1088.7,1232.9],[1016.2,1180.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[655.6,454.5],[694.6,577.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1195.0,1217.5],[1192.5,1220.3],[1151.8,1275.8],[1135.3,1294.3],[1105.2,1337.7],[1126.8,1353.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[630.3,310.9],[674.9,289.8],[709.2,270.5],[740.1,256.6],[779.6,235.4],[810.9,218.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[477.0,435.5],[661.1,379.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[906.6,1334.3],[951.3,1335.6],[958.3,1338.0],[961.6,1338.9],[962.4,1372.6],[962.8,1414.1],[967.5,1470.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[656.4,579.2],[621.8,465.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[465.0,395.8],[587.9,354.8],[646.6,339.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[497.1,498.8],[540.0,485.4],[578.1,473.8],[621.8,465.8],[655.6,454.5],[684.4,447.8],[774.7,396.2],[848.3,356.2],[882.3,339.0],[886.5,338.9],[889.0,338.7],[919.1,375.2],[892.8,405.4],[851.8,440.0],[821.9,469.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[578.1,473.8],[612.0,587.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[488.3,469.2],[674.1,416.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[737.0,574.7],[694.6,577.4],[656.4,579.2],[612.0,587.5],[566.0,591.3],[523.4,590.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[740.2,679.0],[896.4,674.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1045.5,1287.9],[977.6,1235.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[962.4,1372.6],[905.7,1370.5],[818.0,1373.1],[813.0,1342.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[983.4,1204.2],[932.6,1173.3],[871.6,1129.2],[895.8,1100.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[566.0,591.3],[540.0,485.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[932.6,1173.3],[954.0,1144.0],[978.0,1112.0],[998.5,1082.3],[1024.7,1051.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[743.9,719.6],[925.1,718.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[895.8,1100.5],[954.0,1144.0],[1013.5,1184.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[613.6,264.0],[558.0,283.3],[535.6,289.2],[500.9,298.0],[439.7,310.1],[283.3,364.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1068.0,1462.3],[1068.9,1470.0],[1070.4,1508.4],[1002.3,1511.2],[972.4,1475.3],[967.5,1470.6],[915.2,1413.1],[904.1,1400.7],[905.7,1370.5],[906.6,1334.3],[906.4,1292.3],[878.8,1295.4],[755.0,1300.4],[582.9,1303.1],[578.9,1303.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[915.8,1069.4],[978.0,1112.0],[1035.7,1153.4],[1107.9,1204.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[962.8,1414.1],[915.2,1413.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[674.9,289.8],[629.8,205.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[744.2,758.7],[924.0,758.7]]},{"cls":"minor","name":"第三勝山16号線","guide_spine":false,"pts":[[1327.8,-115],[1340.4,-93.4],[1381.2,0.6],[1406,44.3]]},{"cls":"minor","name":"第三勝山16号線","guide_spine":false,"pts":[[1406,50.5],[1404.8,55.4],[1372.9,73.5]]},{"cls":"minor","name":"第三勝山３号線","guide_spine":false,"pts":[[1385.2,-115],[1377.2,-110.6],[1340.4,-93.4],[1296.7,-73.4]]},{"cls":"minor","name":"第三勝山５号線","guide_spine":false,"pts":[[1000.3,286.3],[963.2,311.1],[952.4,318.9],[915.7,342.9],[900.4,327.3],[897.1,324.1],[827.6,161.2],[868.9,138.8],[914.9,113.9]]},{"cls":"minor","name":"荒巻東一団地２号線","guide_spine":false,"pts":[[1199.5,565.9],[1160.3,513.0],[1147.5,496.7],[1109.9,441.2],[1059.8,367.8],[1018.7,315.1],[1000.3,286.3]]},{"cls":"minor","name":"第三勝山18号線","guide_spine":false,"pts":[[1406,-19.9],[1381.2,0.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[481.9,11.6],[436.1,-70.9],[415.2,-115]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[260.6,-115],[274.4,-90.2],[308.4,-0.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[401.3,26.5],[368.1,-33.2],[323.5,-115]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[180.3,-30.6],[186.8,-33.5],[193.6,-36.0],[233.6,-51.7],[239.5,-50.0],[243.5,-48.8],[285.0,59.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[137.6,540.1],[169.4,535.3],[211.5,531.1],[248.6,521.8],[255.7,521.0]]},{"cls":"minor","name":"荒巻東一団地５号線","guide_spine":false,"pts":[[1112.4,214.5],[1214.1,364.9],[1238.6,399.4],[1306.3,499.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[693.0,-115.3],[693.8,-115]]},{"cls":"minor","name":"第三勝山６号線","guide_spine":false,"pts":[[744.3,-115],[791.1,-19.8],[868.9,138.8],[952.4,318.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[627.7,117.2],[566.3,146.4]]},{"cls":"minor","name":"荒巻東一団地８号線","guide_spine":false,"pts":[[1237.3,254.3],[1265.7,233.5],[1257.2,207.5],[1221.1,154.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[165.9,605.7],[161.0,599.3],[146.0,576.3],[137.6,540.1],[127.9,403.2],[125.1,386.2],[137.6,329.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[211.5,531.1],[183.2,317.9]]},{"cls":"minor","name":"荒巻東一団地１号線","guide_spine":false,"pts":[[963.2,311.1],[1074.0,466.8],[1112.7,520.1],[1125.5,536.1],[1170.0,599.2]]},{"cls":"minor","name":"中山七丁目１号線","guide_spine":false,"pts":[[328.1,44.7],[308.4,-0.2],[333.6,-14.2],[368.1,-33.2],[402.6,-51.8],[436.1,-70.9],[471.4,-86.7],[509.9,-107.1],[523.6,-115]]},{"cls":"minor","name":"中山七丁目１号線","guide_spine":false,"pts":[[633.9,-115],[657.2,-77.3],[712.3,26.9],[772.7,126.4],[810.9,218.8],[882.3,339.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[274.4,-90.2],[292.7,-98.8],[317.0,-115]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[712.3,26.9],[675.6,48.8],[641.6,65.0],[609.1,83.2],[554.7,111.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[369.9,-115],[402.6,-51.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[545.6,-115],[589.4,-40.5],[641.6,65.0],[700.5,166.1],[720.2,211.1],[740.1,256.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[505.2,-115],[509.9,-107.1],[555.8,-20.3],[609.1,83.2],[627.7,117.2],[645.6,147.5],[668.7,182.8],[690.2,227.5],[709.2,270.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-115,476.3],[-78.1,484.6],[-57.1,494.2]]},{"cls":"minor","name":"第三勝山７号線","guide_spine":false,"pts":[[854.0,-115],[877.5,-61.3],[954.7,97.0],[1036.4,262.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[692.8,-115],[693.0,-115.3],[755.6,13.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[362.9,37.1],[333.6,-14.2],[292.7,-98.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[645.6,147.5],[583.7,182.6]]},{"cls":"minor","name":"第三勝山９号線","guide_spine":false,"pts":[[954.7,-94.4],[1032.9,60.4],[1112.4,214.5]]},{"cls":"minor","name":"第三勝山11号線","guide_spine":false,"pts":[[1184.1,173.7],[1109.1,25.3],[1037.9,-115]]},{"cls":"minor","name":"荒巻東一団地９号線","guide_spine":false,"pts":[[1074.0,466.8],[1109.9,441.2],[1143.7,417.6],[1181.7,389.8],[1214.1,364.9],[1251.5,337.5],[1284.9,314.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[169.4,535.3],[146.3,328.9]]},{"cls":"minor","name":"第三勝山12号線","guide_spine":false,"pts":[[1221.1,154.1],[1146.1,6.8],[1084.4,-115]]},{"cls":"minor","name":"第三勝山10号線","guide_spine":false,"pts":[[1148.4,195.0],[1069.9,42.8],[992.4,-115]]},{"cls":"minor","name":"荒巻東一団地７号線","guide_spine":false,"pts":[[1333.5,391.4],[1284.9,314.5],[1284.5,313.9],[1237.3,254.3],[1187.6,171.5]]},{"cls":"minor","name":"第三勝山13号線","guide_spine":false,"pts":[[1257.3,132.3],[1182.7,-14.9],[1130.9,-115]]},{"cls":"minor","name":"第三勝山14号線","guide_spine":false,"pts":[[1178.3,-115],[1221.3,-32.3],[1294.4,116.3]]},{"cls":"minor","name":"荒巻東一団地６号線","guide_spine":false,"pts":[[1331.8,457.5],[1265.2,362.1],[1251.5,337.5],[1148.4,195.0]]},{"cls":"minor","name":"第三勝山15号線","guide_spine":false,"pts":[[1226.2,-115],[1260.2,-55.7],[1331.5,94.8]]},{"cls":"minor","name":"第三勝山17号線","guide_spine":false,"pts":[[1406,-51.2],[1377.2,-110.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1209.0,1181.5],[1219.2,1188.6],[1255.5,1215.2],[1275.2,1239.1],[1297.9,1257.1],[1350.2,1288.0],[1338.4,1316.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1164.9,918.2],[1173.2,916.5],[1179.7,914.3],[1186.4,911.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1303.0,1169.1],[1312.1,1164.4],[1318.4,1161.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1122.1,1123.4],[1118.5,1122.8],[1080.0,1094.6],[1078.6,1093.4],[1024.7,1051.7],[974.7,1020.0],[984.2,1008.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1095.8,1154.6],[1122.1,1123.4],[1144.9,1101.9],[1091.1,1053.9],[1039.9,1016.6],[1033.9,1013.9],[1028.9,1011.6],[1022.8,1011.7],[1005.9,1010.4],[984.2,1008.6],[980.4,1004.4],[926.8,1006.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1275.2,1239.1],[1255.2,1265.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[975.1,835.3],[1008.2,850.9],[1014.8,854.8],[1023.7,859.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1018.1,707.8],[1001.0,732.0],[975.9,768.6],[967.9,783.6],[968.2,797.3],[968.4,800.4],[968.6,802.3],[975.1,835.3],[978.0,884.0],[975.8,923.5]]},{"cls":"minor","name":"川平スカイタウン１号線","guide_spine":false,"pts":[[968.2,797.3],[992.8,795.1],[1000.2,798.9],[1011.5,804.9],[1044.2,819.6],[1063.0,832.9],[1074.6,842.3],[1139.6,887.3],[1145.2,888.8],[1160.8,876.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[978.0,884.0],[1014.3,883.9],[1023.7,859.3],[1044.2,819.6],[1057.8,783.9],[1031.7,756.8],[1026.1,755.0],[1000.2,798.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[861.8,512.3],[839.9,587.9],[836.3,612.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[880.6,595.3],[894.1,552.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[698.1,478.1],[741.5,456.4],[779.8,432.8],[788.2,429.1],[796.1,436.4],[801.4,442.6],[821.9,469.8],[861.8,512.3],[894.1,552.8],[922.6,583.8],[928.6,591.2],[927.6,599.9],[924.2,601.7],[905.6,598.0],[880.6,595.3],[839.9,587.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[860.7,370.7],[838.0,390.1],[834.6,408.4],[833.6,422.0],[835.8,425.2],[851.8,440.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1135.3,1294.3],[1173.1,1319.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1126.8,1353.7],[1142.4,1365.8],[1217.5,1422.1],[1289.7,1472.7],[1312.8,1435.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1183.2,1299.6],[1264.4,1355.6],[1308.8,1385.9],[1331.0,1355.0],[1352.0,1331.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[816.9,1466.9],[829.9,1504.0],[851.7,1544.8],[866.2,1581.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1165.1,1332.2],[1244.0,1386.4],[1312.8,1435.8],[1317.8,1436.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[791.2,1395.2],[786.4,1380.2],[786.4,1378.0],[783.8,1341.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1142.4,1365.8],[1165.1,1332.2],[1173.1,1319.2],[1183.2,1299.6],[1204.0,1273.8],[1222.9,1244.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1122.2,1396.2],[1194.3,1450.1],[1287.7,1517.3],[1244.8,1524.7],[1242.6,1524.5],[1238.6,1524.3],[1172.1,1482.9],[1194.3,1450.1],[1217.5,1422.1],[1244.0,1386.4],[1264.4,1355.6],[1286.0,1329.8],[1288.6,1326.1],[1304.6,1297.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[829.9,1504.0],[774.3,1527.4],[768.7,1527.1],[747.6,1488.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1288.6,1326.1],[1331.0,1355.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1204.0,1273.8],[1286.0,1329.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1237.3,1535.8],[1286.1,1587.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[846.3,1457.7],[837.6,1428.1],[829.0,1430.3],[787.2,1440.3],[787.2,1450.9],[793.2,1471.3],[816.9,1466.9],[846.3,1457.7],[866.3,1454.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[401.4,1523.8],[434.4,1518.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[447.3,1618.6],[423.4,1594.5],[424.7,1592.5],[429.6,1589.3],[438.9,1579.5],[443.3,1576.4],[463.7,1566.9],[477.3,1572.3],[490.7,1572.1],[443.7,1547.2],[434.4,1518.3],[426.9,1473.5],[409.4,1409.4],[411.5,1401.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[343.9,1451.2],[347.5,1456.9],[355.1,1486.2],[426.9,1473.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[485.1,1646.5],[482.5,1615.2],[472.8,1607.4],[443.3,1576.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[150.2,1385.7],[153.8,1382.1],[164.1,1368.6],[225.1,1397.8],[287.8,1461.9],[293.1,1490.6],[283.7,1500.5],[280.2,1503.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[436.1,1628.3],[447.3,1618.6],[472.8,1607.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[385.8,1381.1],[411.5,1401.7],[423.1,1407.5],[437.6,1420.2],[457.6,1440.4],[462.5,1446.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[145.5,1242.9],[142.7,1278.6],[141.7,1292.1],[174.4,1299.3],[255.3,1315.7],[265.5,1323.5],[273.7,1335.1],[279.0,1354.0],[277.3,1360.2],[272.1,1367.0],[189.7,1319.5],[171.6,1316.0],[174.4,1299.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1381.2,494.1],[1406,545.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1261.8,527.4],[1299.2,602.3],[1341.1,676.7],[1343.0,681.8],[1371.4,737.4],[1351.8,748.5],[1341.2,753.2],[1320.6,762.0],[1315.1,766.2],[1308.0,772.0],[1298.8,782.9],[1295.6,787.2],[1293.0,790.5],[1313.2,830.8],[1281.8,851.0],[1252.6,784.6],[1278.1,772.2],[1285.9,779.3],[1295.6,787.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1359.6,832.5],[1346.9,816.3],[1320.6,762.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1341.2,753.2],[1322.6,708.8],[1295.4,725.3],[1263.0,738.6],[1278.1,772.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1406,372.4],[1398.8,375.2],[1373.5,400.1],[1343.7,426.9],[1397.5,478.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1397.5,478.2],[1406,490.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1397.5,478.2],[1406,471.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1406,810.9],[1361.4,831.4],[1359.6,832.5],[1317.1,854.8],[1276.8,881.5],[1260.3,883.7],[1183.5,898.0],[1177.7,898.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1295.4,725.3],[1315.1,766.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1345.4,310.8],[1398.8,375.2],[1406,379.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1351.8,748.5],[1377.0,796.1],[1346.9,816.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1406,433.2],[1373.5,400.1],[1346.1,373.0],[1330.8,348.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1308.0,691.4],[1267.9,619.8],[1231.8,548.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1400.9,644.7],[1372.4,660.6],[1341.1,676.7],[1308.0,691.4],[1278.3,708.4],[1252.0,721.3],[1249.3,721.1],[1199.6,646.1],[1174.5,589.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1371.4,737.4],[1406,798.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1380.1,1056.6],[1406,1076.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1406,324.9],[1385.7,296.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1278.3,708.4],[1235.5,636.9],[1204.1,563.9]]},{"cls":"minor","name":"春日団地２号線","guide_spine":false,"pts":[[1406,653.7],[1400.9,644.7],[1362.6,569.5],[1317.1,482.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1406,1022.6],[1366.6,939.1],[1317.1,854.8]]},{"cls":"minor","name":"春日団地１号線","guide_spine":false,"pts":[[1397.5,478.2],[1381.2,494.1],[1369.2,506.0],[1390.5,553.7],[1362.6,569.5],[1329.9,584.1],[1299.2,602.3],[1267.9,619.8],[1235.5,636.9]]},{"cls":"minor","name":"春日団地３号線","guide_spine":false,"pts":[[1406,725.1],[1372.4,660.6],[1329.9,584.1],[1293.1,509.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1406,1115.1],[1394.9,1105.8],[1393.3,1098.6],[1406,1078.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1406,917.7],[1366.6,939.1],[1319.6,961.0],[1276.8,881.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1406,912.4],[1361.4,831.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1243.1,858.5],[1212.0,868.3],[1163.8,880.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1136.6,850.9],[1219.9,809.9],[1243.1,858.5],[1260.3,883.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[772.5,1853],[778.3,1813.3],[780.3,1779.8],[756.0,1780.9],[743.1,1777.7],[725.0,1768.9],[697.7,1751.6],[687.0,1747.8],[678.3,1748.3],[663.1,1760.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[780.3,1779.8],[894.8,1783.7],[896.4,1820.8],[891.8,1847.8],[885.5,1850.0],[868.8,1845.8],[861.8,1847.9],[855.6,1853]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[337.2,1772.8],[349.3,1759.8],[340.3,1742.8],[304.2,1682.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[168.0,1734.4],[184.3,1735.6],[196.5,1735.7],[204.8,1736.2],[227.2,1725.2],[234.1,1721.3],[266.8,1704.5],[270.4,1703.0],[313.3,1780.4],[317.8,1783.7],[328.9,1778.9],[337.2,1772.8],[348.4,1783.7],[390.2,1744.0],[442.4,1699.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[270.4,1703.0],[304.2,1682.7],[338.9,1667.0],[368.8,1650.9],[384.9,1640.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[349.0,1532.8],[363.9,1536.2],[372.1,1540.2],[380.4,1550.0],[387.7,1564.4],[396.0,1580.7],[405.7,1578.0],[410.3,1576.6],[424.7,1592.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[196.5,1735.7],[181.1,1705.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[340.3,1742.8],[358.8,1732.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-115,993.9],[-114.1,997.0],[-113.3,1004.3],[-101.8,1093.8],[-105.8,1151.1],[-102.4,1156.7],[-98.3,1159.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[227.2,315.6],[219.9,316.5],[183.2,317.9],[146.3,328.9],[137.6,329.1],[127.6,284.1]]},{"cls":"minor","name":"第三勝山８号線","guide_spine":false,"pts":[[915.7,-80.0],[994.1,76.3],[1075.8,239.0]]},{"cls":"minor","name":"荒巻東一団地４号線","guide_spine":false,"pts":[[1075.8,239.0],[1181.7,389.8],[1271.8,522.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-27.9,1194.6],[-99.3,1172.6],[-104.4,1171.8]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1406,1270.8],[1380.3,1261.9],[1370.9,1290.7],[1403.8,1301.4],[1406,1292.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[733.9,1609.7],[731.1,1612.5],[706.2,1645.4],[685.6,1667.3],[682.9,1668.4],[679.0,1668.3],[665.6,1666.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[900.4,327.3],[887.3,336.7],[886.5,338.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[399.9,726.0],[549.7,699.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[398.4,690.0],[460.0,678.1],[544.4,664.9]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[397.3,652.6],[451.8,640.4],[460.0,678.1]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1392.2,1348.7],[1359.3,1338.6],[1356.3,1339.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[53.5,1718.9],[69.2,1754.4],[35.0,1764.5],[12.3,1717.3]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-26.0,1723.6],[0.5,1778.4],[-34.0,1793.2],[-63.1,1736.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-98.3,1744.9],[-64.4,1808.4],[-98.8,1820.1],[-115,1790.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[-98.8,1820.1],[-115,1825.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[507.5,148.8],[537.6,237.6]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[458.4,131.5],[465.9,160.7],[507.5,148.8],[537.5,142.5],[530.8,108.2],[526.4,92.8],[524.5,76.1],[521.4,60.2],[515.7,48.8],[506.1,23.8],[444.8,37.5],[412.6,46.9],[423.7,79.5],[429.2,109.2],[435.0,132.1],[444.1,135.2],[458.4,131.5],[530.8,108.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[441.0,18.6],[444.8,37.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[524.5,76.1],[429.2,109.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[515.7,48.8],[423.7,79.5]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[11.9,46.4],[-13.8,22.7],[-20.7,23.9],[-45.1,65.2],[-59.6,153.7]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[420.0,1278.4],[392.3,1282.9],[331.2,1294.0]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[915.8,1069.4],[937.2,1041.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[895.8,1100.5],[915.8,1069.4]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1151.8,1275.8],[1119.4,1251.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[1119.4,1251.2],[1160.9,1196.3]]},{"cls":"minor","name":"荒巻東一団地３号線","guide_spine":false,"pts":[[1036.4,262.3],[1143.7,417.6],[1234.3,546.2]]},{"cls":"minor","name":"","guide_spine":false,"pts":[[622.5,-56.9],[657.2,-77.3]]},{"cls":"mid","name":"荒巻泉線","guide_spine":false,"pts":[[1406,295.6],[1398.3,295.5],[1385.7,296.6],[1369.9,300.4],[1357.3,305.8],[1345.4,310.8],[1338.6,316.0],[1335.1,325.3],[1332.6,334.0],[1331.1,346.7],[1330.8,348.2],[1328.7,358.3],[1329.3,373.9],[1333.5,391.4],[1334.1,404.8],[1333.6,419.4],[1333.3,432.4],[1334.7,443.5],[1331.8,457.5],[1325.0,470.5],[1317.1,482.4],[1306.3,499.2],[1293.1,509.9],[1271.8,522.2],[1261.8,527.4],[1247.0,536.4],[1234.3,546.2],[1231.8,548.1],[1218.8,557.3],[1204.1,563.9],[1199.5,565.9],[1190.9,572.2],[1181.5,578.5],[1174.5,589.7],[1170.0,599.2],[1153.8,630.7],[1142.0,656.6],[1138.3,668.2],[1131.6,679.8],[1122.1,699.1],[1118.4,709.4],[1115.5,718.4],[1109.1,735.8],[1102.5,753.4],[1103.5,769.9],[1103.9,787.5],[1105.7,805.8],[1114.0,820.9],[1124.5,834.3],[1136.6,850.9],[1147.3,862.9],[1160.8,876.9],[1163.8,880.1],[1177.7,898.0],[1186.4,911.2],[1206.5,943.0],[1221.8,977.8],[1232.4,993.7],[1240.8,1011.2],[1249.2,1027.9],[1260.3,1044.8],[1261.3,1046.5],[1270.4,1061.0],[1278.0,1077.3],[1290.7,1099.3],[1295.6,1109.1],[1304.6,1134.4],[1305.7,1137.1],[1311.6,1149.2],[1318.4,1161.5],[1322.0,1165.7],[1329.2,1175.4],[1344.9,1186.6],[1364.1,1192.8],[1373.5,1195.0],[1406,1212.3]]},{"cls":"mid","name":"荒巻泉線","guide_spine":false,"pts":[[1406,1735.9],[1393.3,1753.6],[1386.8,1763.5],[1385.3,1765.5],[1365.7,1812.1],[1355.2,1841.1],[1352.5,1853]]},{"cls":"mid","name":"中山幹線２号線","guide_spine":false,"pts":[[735.3,144.3],[675.6,48.8],[622.5,-56.9],[588.0,-115]]},{"cls":"mid","name":"北山実沢線","guide_spine":false,"pts":[[284.5,939.3],[286.8,936.9],[287.6,935.3],[287.9,933.7],[283.9,914.8],[276.4,864.6],[275.4,857.5],[275.3,851.6],[275.5,848.2],[259.4,628.4],[260.4,619.6],[255.7,521.0],[251.3,489.0],[244.6,446.1],[230.5,326.6],[227.2,315.6],[225.4,303.8],[218.0,264.3],[216.6,250.1],[213.9,213.6],[207.0,138.6],[195.7,91.6],[195.1,81.5],[188.8,13.3],[181.2,-22.9],[180.3,-30.6],[177.1,-47.1],[153.6,-115]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[504.3,537.7],[470.8,549.9],[397.4,575.8],[339.1,595.9],[308.9,610.2],[266.9,628.2],[259.4,628.4],[253.8,626.0],[232.4,620.4],[170.8,603.9],[165.9,605.7],[123.3,613.5],[62.7,625.8],[-6.5,638.5],[-31.7,642.4],[-53.1,642.1],[-71.5,635.0],[-92.6,622.5],[-115,606.7]]},{"cls":"mid","name":"貝ケ森中央幹線","guide_spine":false,"pts":[[217.9,1446.8],[207.7,1455.2],[191.0,1469.9],[176.0,1483.2],[142.7,1503.2],[125.0,1510.4],[79.1,1537.8],[-10.7,1585.2],[-17.0,1588.0],[-24.0,1592.0],[-113.7,1636.3],[-115,1638.2]]},{"cls":"mid","name":"第三勝山１号線","guide_spine":false,"pts":[[1372.9,73.5],[1334.3,9.5],[1296.7,-73.4],[1275.4,-115]]},{"cls":"mid","name":"第三勝山１号線","guide_spine":false,"pts":[[989.1,-115],[954.7,-94.4],[915.7,-80.0],[877.5,-61.3],[839.0,-43.2],[791.1,-19.8],[770.3,-8.9],[759.6,-0.9],[755.8,6.5],[755.6,13.1],[755.3,18.9],[783.7,92.1],[790.2,112.5],[783.7,120.6],[772.7,126.4]]},{"cls":"mid","name":"菖蒲沢橋線","guide_spine":false,"pts":[[472.6,1786.9],[498.4,1749.6],[507.5,1736.2],[519.4,1727.1],[542.6,1715.0],[551.4,1706.9],[558.9,1694.5],[562.5,1685.0],[568.6,1665.8],[570.5,1659.5],[572.3,1650.4],[574.6,1637.0],[586.4,1602.4],[592.5,1584.6]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[592.5,1584.6],[603.8,1587.3],[614.5,1589.7],[617.2,1590.2],[662.4,1593.4],[692.4,1598.0],[712.2,1599.5],[725.3,1603.6],[733.9,1609.7],[747.3,1621.2],[783.2,1652.1],[803.0,1671.5],[813.7,1678.6],[829.7,1684.5],[842.7,1687.7],[895.1,1707.6],[952.6,1739.5],[995.4,1757.1],[1014.3,1766.0],[1026.6,1772.3],[1035.3,1779.3],[1039.7,1784.6],[1049.7,1797.5],[1050.6,1798.7],[1065.2,1823.8],[1079.2,1853]]},{"cls":"mid","name":"通町中山線","guide_spine":false,"pts":[[290.4,1067.2],[294.2,1042.0],[301.5,1019.7],[319.9,1001.9],[330.5,983.8],[337.5,955.6],[335.0,921.9],[328.4,893.6],[323.4,851.6],[321.3,798.2],[322.9,771.4],[321.6,718.5],[307.6,641.8],[308.9,610.2],[303.5,511.3],[294.5,453.6],[287.7,407.5],[283.3,364.5],[275.9,313.5]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[397.4,575.8],[396.8,601.2],[397.3,652.6],[398.4,690.0],[399.9,726.0],[396.8,764.6],[395.3,809.1],[398.8,851.7],[403.1,894.7],[402.2,937.2],[398.6,977.5],[399.2,1019.5],[404.3,1060.0],[405.9,1102.7],[403.2,1141.7],[403.7,1148.0],[401.9,1178.7],[400.9,1191.4],[404.0,1221.3],[403.0,1234.2],[403.8,1248.0],[413.5,1263.7],[420.0,1278.4],[421.6,1289.9],[426.0,1299.5],[432.0,1315.8],[441.1,1355.2],[461.3,1417.6],[464.5,1427.2],[463.4,1441.2],[462.5,1446.4],[471.8,1517.0],[476.0,1533.9],[490.7,1572.1],[496.9,1572.6],[547.1,1580.8],[576.8,1583.9],[578.3,1584.0],[592.5,1584.6]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[906.6,1334.3],[813.0,1342.4],[783.8,1341.7],[760.3,1343.7],[736.3,1342.3],[575.8,1345.5],[570.8,1346.1]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[760.3,1343.7],[755.0,1300.4],[751.9,1253.1],[754.2,1210.3],[755.5,1168.2],[752.5,1135.5],[751.8,1102.6],[748.8,1060.1],[747.4,1019.7],[748.7,974.1],[748.4,928.5],[746.1,886.4],[742.8,844.9],[742.9,801.2],[744.2,758.7],[743.9,719.6],[740.2,679.0],[737.4,653.3],[737.9,606.3],[737.9,580.8],[737.0,574.7],[734.1,559.5],[698.1,478.1],[684.4,447.8],[674.1,416.6],[661.1,379.2],[646.6,339.4],[630.3,310.9],[626.3,299.0],[613.6,264.0],[597.6,221.2],[583.7,182.6],[566.3,146.4],[564.0,137.4],[554.7,111.2],[517.1,-0.6],[471.4,-86.7],[457.7,-115]]},{"cls":"mid","name":"第三勝山２号線","guide_spine":false,"pts":[[800.4,-115],[839.0,-43.2],[914.9,113.9],[1000.3,286.3],[1036.4,262.3],[1075.8,239.0],[1112.4,214.5],[1148.4,195.0],[1184.1,173.7],[1187.6,171.5],[1221.1,154.1],[1257.3,132.3],[1269.8,126.3],[1294.4,116.3],[1296.1,115.3],[1331.5,94.8],[1349.0,87.7],[1372.9,73.5]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[195.1,81.5],[203.8,81.1],[285.0,59.6],[295.3,55.6],[328.1,44.7],[362.9,37.1],[401.3,26.5],[441.0,18.6],[481.9,11.6],[517.1,-0.6],[555.8,-20.3],[589.4,-40.5],[622.5,-56.9]]},{"cls":"mid","name":"川平中山１号線","guide_spine":false,"pts":[[1103.5,769.9],[1092.9,759.7],[1081.4,748.0],[1070.7,739.7],[1053.9,728.8],[1018.1,707.8],[982.1,676.8],[958.8,662.9],[940.0,655.4],[902.4,641.3],[896.2,639.0],[866.0,624.5],[862.1,622.3],[836.3,612.1],[830.7,610.7],[804.7,601.0],[789.0,592.6],[785.5,590.8],[779.1,592.0],[772.0,606.1]]},{"cls":"mid","name":"荒巻本沢街道線","guide_spine":false,"pts":[[747.3,1621.2],[749.5,1618.4],[759.4,1615.0],[805.1,1608.1],[844.8,1588.6],[859.1,1582.2],[866.2,1581.5],[872.4,1582.6],[930.5,1594.1],[945.3,1604.9],[1001.7,1664.1],[1018.5,1687.6],[1050.6,1719.9],[1075.3,1750.4],[1086.2,1761.9],[1090.7,1767.1],[1108.2,1791.6],[1147.6,1822.2],[1150.5,1825.7],[1158.9,1836.2],[1161.6,1841.3],[1163.8,1846.2],[1166.5,1853]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[1182.0,1705.8],[1217.7,1706.6],[1243.0,1701.6],[1262.5,1698.7],[1277.4,1703.2],[1280.4,1704.5],[1293.3,1709.0],[1300.9,1712.1],[1309.1,1716.7],[1336.7,1725.2],[1338.4,1726.2],[1341.1,1727.9],[1357.6,1741.4],[1386.8,1763.5]]},{"cls":"mid","name":"枯木橋","guide_spine":false,"pts":[[342.1,1553.2],[344.1,1548.7],[345.9,1544.2],[349.0,1532.8],[346.1,1520.6],[341.0,1513.9],[333.8,1505.1],[326.6,1493.5],[315.9,1475.9],[315.5,1460.3],[323.5,1454.3],[341.6,1452.3],[343.9,1451.2],[344.0,1447.9],[334.2,1436.4],[316.0,1410.7],[317.3,1384.9],[314.8,1367.8],[320.9,1349.4]]},{"cls":"mid","name":"桜ケ丘団地中央幹線","guide_spine":false,"pts":[[1373.5,1195.0],[1380.4,1181.9],[1406,1148.0]]},{"cls":"mid","name":"手戸住宅線","guide_spine":false,"pts":[[468.6,1813.3],[473.2,1814.3],[542.5,1820.5],[554.7,1823.0],[571.8,1832.2],[586.5,1841.4],[595.2,1840.6],[601.1,1840.8],[610.2,1840.3],[626.1,1853]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[570.5,1659.5],[575.2,1661.4],[590.6,1668.8],[663.1,1760.2],[669.7,1770.3],[681.3,1789.6],[690.9,1798.3],[703.8,1805.7],[717.6,1810.5],[730.3,1813.4],[757.1,1815.9],[778.3,1813.3],[852.5,1814.3],[896.4,1820.8],[907.9,1822.6],[963.1,1825.1],[978.9,1820.3],[992.9,1812.5],[1017.5,1798.2],[1018.0,1797.9],[1030.8,1790.3],[1035.9,1786.9],[1039.7,1784.6]]},{"cls":"mid","name":"貝ケ森１号線","guide_spine":false,"pts":[[-115,1196.4],[-106.0,1198.8],[-58.4,1215.2],[-41.4,1223.5],[-28.6,1230.5],[-7.8,1243.8],[17.4,1263.3],[43.5,1284.4],[47.5,1288.6],[94.2,1337.2],[136.9,1374.6],[150.2,1385.7],[211.3,1438.3],[217.9,1446.8],[224.4,1453.9],[280.2,1503.6],[342.1,1553.2]]},{"cls":"mid","name":"第三勝山３号線","guide_spine":false,"pts":[[1296.7,-73.4],[1260.2,-55.7],[1221.3,-32.3],[1182.7,-14.9],[1146.1,6.8],[1109.1,25.3],[1069.9,42.8],[1032.9,60.4],[994.1,76.3],[954.7,97.0],[914.9,113.9]]},{"cls":"mid","name":"第三勝山４号線","guide_spine":false,"pts":[[899.8,-115],[915.7,-80.0]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[568.4,1490.4],[563.3,1490.1],[560.9,1490.0],[552.5,1484.2],[541.7,1475.1],[533.8,1465.2],[526.4,1451.1],[524.7,1434.7],[461.3,1417.6]]},{"cls":"mid","name":"貝ケ森中山幹線","guide_spine":false,"pts":[[-115,1193.8],[-115.1,1188.4],[-104.4,1171.8],[-98.3,1159.6],[-96.5,1152.4],[-86.8,1093.2],[-77.2,965.6],[-70.5,944.4],[-66.2,922.5],[-57.8,908.8],[-49.3,899.7],[-39.7,890.7],[-29.4,881.1],[-19.8,874.1],[-7.8,870.3],[7.4,868.4],[22.4,868.2],[83.6,878.3],[92.5,880.3],[121.9,888.4],[183.8,911.6],[257.0,935.0],[274.3,944.6],[276.9,945.1],[279.1,944.1],[284.5,939.3]]},{"cls":"mid","name":"","guide_spine":false,"pts":[[427.4,263.8],[375.5,281.6],[298.2,308.0],[289.2,311.2],[275.9,313.5],[241.8,313.3],[227.2,315.6]]},{"cls":"mid","name":"川平二丁目１号線","guide_spine":false,"pts":[[1142.0,656.6],[1119.2,626.7],[1106.9,612.2],[1091.3,599.8],[1073.5,584.0],[1055.4,565.5],[1041.0,553.1],[1022.3,539.1],[1007.8,521.4],[996.3,504.1],[983.1,488.5],[965.5,472.2],[951.6,457.3],[931.2,438.3],[907.8,419.5]]},{"cls":"mid","name":"通町中山線","guide_spine":false,"pts":[[342.1,1553.2],[348.6,1563.1],[350.4,1571.5],[356.8,1599.0],[358.6,1604.7],[365.3,1618.2],[373.3,1628.2],[379.6,1633.5],[384.9,1640.2],[388.5,1644.9],[392.0,1650.4],[396.2,1664.3],[400.0,1671.6],[405.6,1676.4],[430.0,1689.1],[442.4,1699.9],[455.2,1723.1],[458.5,1733.7],[464.9,1754.3],[469.7,1776.8],[472.6,1786.9]]},{"cls":"mid","name":"通町中山線","guide_spine":false,"pts":[[472.6,1786.9],[468.6,1813.3],[462.8,1833.8],[457.3,1853]]},{"cls":"mid","name":"通町中山線","guide_spine":false,"pts":[[320.9,1349.4],[329.4,1313.0],[331.2,1294.0],[330.6,1276.3],[324.2,1258.9],[306.5,1231.7],[296.3,1209.3],[290.6,1191.9],[296.2,1149.7],[297.6,1111.1]]},{"cls":"mid","name":"中山六丁目１号線","guide_spine":false,"pts":[[907.8,419.5],[893.5,406.0],[892.1,404.7],[860.7,370.7],[848.3,356.2],[779.6,235.4],[735.3,144.3]]},{"cls":"major","name":"大衡仙台線","guide_spine":false,"pts":[[1406,1620.2],[1229.5,1853]]},{"cls":"major","name":"大衡仙台線","guide_spine":false,"pts":[[1218.1,1853],[1406,1604.7]]},{"cls":"spine","name":"中山幹線１号線","guide_spine":true,"pts":[[772.7,126.4],[755.0,136.2],[735.3,144.3],[700.5,166.1],[687.8,174.4],[668.7,182.8],[648.0,193.0],[629.8,205.2],[597.6,221.2],[537.6,237.6],[430.2,262.7],[427.4,263.8],[439.7,310.1],[450.4,351.0],[456.7,378.2],[465.0,395.8],[465.6,399.1],[477.0,435.5],[486.9,461.1],[488.3,469.2],[497.1,498.8],[504.3,537.7],[523.4,590.7],[544.4,664.9],[549.7,699.9],[563.3,746.3],[566.4,760.0],[571.1,777.3],[570.6,803.1],[572.2,847.4],[571.8,890.4],[570.5,932.3],[572.1,976.0],[575.4,1018.4],[577.6,1051.3],[576.8,1059.2],[575.2,1099.1],[573.6,1137.4],[577.9,1171.2],[577.6,1179.3],[582.7,1215.5],[581.2,1253.3],[581.8,1258.7],[582.5,1268.7],[582.3,1273.6],[578.9,1303.2],[578.4,1311.9],[570.8,1346.1],[569.4,1386.8],[567.3,1436.3],[564.5,1455.9],[568.4,1490.4],[569.7,1502.4],[591.0,1562.5],[593.6,1574.3],[592.5,1584.6]]},{"cls":"path","name":"","guide_spine":false,"pts":[[-19.4,1197.2],[-27.9,1194.6]]},{"cls":"path","name":"","guide_spine":false,"pts":[[95.2,1332.5],[108.3,1234.7],[115.4,1233.8],[134.8,1239.1],[138.7,1240.4]]},{"cls":"path","name":"","guide_spine":false,"pts":[[298.9,62.5],[295.3,55.6]]},{"cls":"path","name":"","guide_spine":false,"pts":[[172.2,1638.3],[195.5,1641.2],[210.1,1635.1]]},{"cls":"path","name":"","guide_spine":false,"pts":[[-26.0,1723.6],[-7.2,1719.8],[12.3,1717.3]]},{"cls":"path","name":"","guide_spine":false,"pts":[[53.5,1718.9],[69.8,1718.3],[87.0,1713.1]]},{"cls":"path","name":"","guide_spine":false,"pts":[[-98.3,1744.9],[-86.0,1743.1],[-63.1,1736.4]]},{"cls":"path","name":"","guide_spine":false,"pts":[[109.5,1401.8],[133.6,1378.0],[136.9,1374.6],[139.6,1371.7]]},{"cls":"path","name":"","guide_spine":false,"pts":[[122.1,1701.5],[128.4,1688.3],[132.5,1678.3],[147.3,1667.0]]},{"cls":"path","name":"","guide_spine":false,"pts":[[113.1,1478.9],[123.4,1506.1]]},{"cls":"path","name":"","guide_spine":false,"pts":[[-3.8,1296.6],[21.8,1319.5]]},{"cls":"path","name":"","guide_spine":false,"pts":[[-24.3,1225.8],[-19.4,1197.2],[-12.7,1174.1],[6.7,1148.4],[3.0,1144.6]]},{"cls":"path","name":"","guide_spine":false,"pts":[[273.5,949.9],[273.3,951.1],[257.6,947.6],[255.2,968.4]]},{"cls":"path","name":"","guide_spine":false,"pts":[[1406,1628.0],[1379.8,1661.8],[1338.9,1719.6],[1330.6,1728.6],[1275.9,1802.9],[1267.3,1815.6],[1244.2,1840.7],[1237.8,1853]]},{"cls":"path","name":"","guide_spine":false,"pts":[[1406,1592.8],[1376.3,1624.3],[1306.0,1727.9],[1261.7,1785.1],[1210.8,1853]]},{"cls":"path","name":"","guide_spine":false,"pts":[[905.6,598.0],[900.5,625.8],[896.2,639.0]]},{"cls":"path","name":"","guide_spine":false,"pts":[[983.4,1204.2],[995.5,1212.5]]},{"cls":"path","name":"","guide_spine":false,"pts":[[797.9,1372.6],[786.4,1378.0],[772.0,1387.8],[762.9,1393.1],[759.5,1398.7]]},{"cls":"path","name":"","guide_spine":false,"pts":[[1317.8,1436.6],[1334.1,1440.7]]},{"cls":"path","name":"","guide_spine":false,"pts":[[1242.6,1524.5],[1242.7,1527.9],[1237.3,1535.8]]},{"cls":"path","name":"","guide_spine":false,"pts":[[168.3,1098.6],[161.8,1123.3]]},{"cls":"path","name":"","guide_spine":false,"pts":[[212.9,1058.7],[207.5,1062.0],[184.0,1059.2]]},{"cls":"path","name":"","guide_spine":false,"pts":[[1338.4,1726.2],[1328.0,1736.7],[1278.2,1804.5],[1275.9,1802.9]]},{"cls":"path","name":"","guide_spine":false,"pts":[[1406,1768.5],[1393.3,1753.6]]},{"cls":"path","name":"","guide_spine":false,"pts":[[35.0,1764.5],[0.5,1778.4]]},{"cls":"path","name":"","guide_spine":false,"pts":[[-34.0,1793.2],[-64.4,1808.4]]},{"cls":"path","name":"","guide_spine":false,"pts":[[537.5,142.5],[547.9,139.9],[564.0,137.4]]},{"cls":"path","name":"","guide_spine":false,"pts":[[-115,1632.0],[-110.6,1627.9],[-105.4,1622.8],[-91.1,1615.1],[-85.2,1614.2],[-27.4,1587.3],[-25.7,1585.8],[-25.0,1582.8],[-25.9,1580.1],[-22.8,1578.5],[-20.2,1577.3],[-18.5,1580.3],[-16.4,1581.2],[-13.5,1580.7]]},{"cls":"path","name":"","guide_spine":false,"pts":[[-13.5,1580.7],[-10.7,1585.2],[-7.0,1591.1],[-9.7,1592.4],[-13.0,1593.7],[-17.0,1595.4],[-20.9,1597.2],[-24.0,1592.0],[-27.4,1587.3]]},{"cls":"path","name":"","guide_spine":false,"pts":[[1406,1194.5],[1391.2,1187.0],[1385.1,1184.0],[1380.4,1181.9],[1376.8,1180.3],[1374.5,1179.3],[1370.2,1181.2],[1366.9,1187.0],[1364.1,1192.8],[1362.3,1197.4],[1361.5,1199.8],[1406,1221.4]]},{"cls":"path","name":"","guide_spine":false,"pts":[[908.5,-115],[920.5,-93.2],[926.9,-89.2],[980.6,-115]]},{"cls":"path","name":"","guide_spine":false,"pts":[[1071.5,1853],[1061.4,1831.0],[1051.5,1807.7],[1046.8,1801.1],[1035.9,1786.9],[1032.4,1782.8],[1024.3,1776.0],[1012.7,1770.6],[984.1,1757.1],[967.7,1751.0],[913.1,1722.3],[868.6,1702.5],[834.5,1691.6],[809.8,1682.7],[798.8,1674.8],[792.4,1667.8],[783.1,1657.4],[761.3,1639.4],[742.8,1622.9],[731.1,1612.5],[716.0,1605.6],[700.8,1603.3],[686.3,1602.7],[666.2,1599.7],[644.9,1597.1],[623.1,1596.4],[617.6,1596.5],[610.9,1596.2],[601.8,1599.8],[592.9,1607.2],[590.3,1605.4],[586.4,1602.4],[581.9,1599.1],[579.7,1597.4],[575.8,1590.9],[576.1,1589.8],[576.8,1583.9],[577.1,1579.7],[577.1,1576.6],[582.3,1573.2],[583.1,1558.6],[581.8,1553.0],[578.2,1542.0],[566.4,1516.7],[563.0,1506.7],[563.3,1490.1],[561.8,1483.5],[557.7,1466.8],[559.3,1450.5],[561.5,1436.8],[559.9,1415.8],[564.4,1382.9],[564.3,1357.2],[568.3,1338.5],[572.7,1322.3],[574.1,1312.9],[574.2,1302.9],[577.0,1269.4],[575.8,1256.1],[574.9,1243.3],[577.9,1215.8],[572.4,1179.6],[577.6,1179.3],[582.2,1179.2],[586.9,1215.5],[585.9,1260.1],[586.5,1268.6],[583.4,1296.5],[582.9,1303.1],[582.3,1313.7],[581.1,1326.8],[576.4,1342.8],[575.8,1345.5],[573.6,1354.7],[573.2,1392.7],[573.2,1403.2],[574.4,1412.5],[574.8,1426.2],[572.7,1441.5],[570.5,1454.1],[569.8,1462.7],[572.2,1475.9],[574.4,1492.4],[576.2,1503.9],[585.3,1527.9],[598.7,1561.2],[604.2,1574.4],[607.3,1577.7],[609.4,1579.9],[616.7,1584.3],[643.6,1588.1],[663.4,1590.7],[678.3,1593.5],[698.7,1594.9],[712.9,1595.4],[728.1,1600.8],[737.7,1608.5],[749.5,1618.4],[755.5,1623.9],[768.9,1635.0],[790.6,1653.1],[804.6,1667.1],[816.1,1674.8],[830.4,1679.7],[863.2,1689.0],[896.5,1702.9],[953.7,1734.6],[958.7,1737.2],[981.8,1746.6],[1009.8,1759.6],[1025.3,1766.4],[1032.8,1771.0],[1041.2,1779.1],[1047.4,1787.2],[1053.7,1796.7],[1063.1,1808.4],[1070.8,1822.2],[1075.8,1831.6],[1086.4,1853]]},{"cls":"path","name":"","guide_spine":false,"pts":[[1046.8,1801.1],[1050.6,1798.7],[1053.7,1796.7]]},{"cls":"path","name":"","guide_spine":false,"pts":[[617.6,1596.5],[617.2,1590.2],[616.7,1584.3]]},{"cls":"path","name":"","guide_spine":false,"pts":[[577.0,1269.4],[582.5,1268.7],[586.5,1268.6]]},{"cls":"path","name":"","guide_spine":false,"pts":[[464.0,1853],[465.0,1849.8],[468.4,1837.2],[472.4,1821.6],[473.2,1814.3],[473.0,1808.6],[477.3,1790.2],[483.8,1780.3],[496.7,1762.4],[504.8,1747.8],[510.5,1739.6],[520.0,1731.5],[527.0,1727.9],[538.1,1723.1],[552.9,1713.8],[560.5,1703.6],[566.1,1690.5],[568.0,1680.8],[571.7,1669.9],[575.2,1661.4],[577.0,1652.1],[578.8,1640.7],[579.1,1638.5],[579.9,1633.6],[584.4,1619.7],[592.9,1607.2]]},{"cls":"path","name":"","guide_spine":false,"pts":[[-107.8,1189.7],[-115.1,1188.4],[-115,1187.6]]},{"cls":"path","name":"","guide_spine":false,"pts":[[1205.9,1129.8],[1223.8,1140.9],[1224.9,1143.0]]},{"cls":"path","name":"","guide_spine":false,"pts":[[1001.0,732.0],[1027.2,750.2],[1035.0,753.6],[1063.1,783.9],[1050.4,813.7],[1053.4,820.0],[1076.3,839.1],[1126.8,874.2],[1141.6,884.1],[1147.3,884.6],[1153.5,880.0],[1153.6,874.4]]},{"cls":"path","name":"","guide_spine":false,"pts":[[945.7,802.1],[968.6,802.3]]},{"cls":"path","name":"","guide_spine":false,"pts":[[1160.3,513.0],[1125.5,536.1]]},{"cls":"path","name":"","guide_spine":false,"pts":[[1147.5,496.7],[1112.7,520.1]]},{"cls":"path","name":"","guide_spine":false,"pts":[[1284.5,313.9],[1294.6,306.5]]},{"cls":"path","name":"","guide_spine":false,"pts":[[426.3,249.7],[418.1,226.1]]},{"cls":"path","name":"","guide_spine":false,"pts":[[431.7,247.5],[423.8,223.7]]},{"cls":"path","name":"","guide_spine":false,"pts":[[355.4,739.4],[350.2,745.7],[347.9,750.1],[349.1,770.1]]},{"cls":"path","name":"","guide_spine":false,"pts":[[788.2,429.1],[774.7,396.2]]},{"cls":"path","name":"","guide_spine":false,"pts":[[500.9,298.0],[498.9,286.6]]},{"cls":"path","name":"","guide_spine":false,"pts":[[535.6,289.2],[532.9,280.1]]},{"cls":"path","name":"","guide_spine":false,"pts":[[558.0,283.3],[555.2,276.4]]},{"cls":"path","name":"","guide_spine":false,"pts":[[587.9,354.8],[586.6,346.6]]},{"cls":"path","name":"通町中山線","guide_spine":false,"pts":[[297.6,1111.1],[292.5,1071.3],[292.9,1067.2]]},{"cls":"path","name":"","guide_spine":false,"pts":[[665.6,1666.1],[661.0,1667.4],[636.4,1667.1],[627.6,1665.8],[611.9,1659.5],[593.2,1646.4],[579.1,1638.5]]},{"cls":"path","name":"","guide_spine":false,"pts":[[145.8,-115],[170.1,-47.8],[171.1,-45.2],[172.6,-39.9],[183.1,13.4],[190.7,91.5],[190.9,93.1],[208.7,177.7],[213.1,265.1],[220.3,304.6],[220.5,306.9],[217.6,312.3],[219.9,316.5],[224.2,323.4],[225.9,327.0]]},{"cls":"path","name":"","guide_spine":false,"pts":[[161.3,-115],[186.8,-33.5],[196.6,22.7],[203.5,77.0],[203.8,81.1],[203.9,84.5],[204.2,92.1],[221.1,208.5],[221.6,211.7],[222.0,213.8],[225.0,246.0],[224.9,248.3],[224.9,251.5],[233.9,302.2],[234.1,304.8],[240.9,309.5],[241.8,313.3],[243.4,318.4],[236.2,319.7],[235.4,321.3],[236.8,325.5]]},{"cls":"path","name":"","guide_spine":false,"pts":[[190.7,91.5],[195.7,91.6],[204.2,92.1]]},{"cls":"path","name":"","guide_spine":false,"pts":[[220.3,304.6],[225.4,303.8],[233.9,302.2]]},{"cls":"path","name":"","guide_spine":false,"pts":[[225.9,327.0],[230.5,326.6],[236.8,325.5]]},{"cls":"path","name":"","guide_spine":false,"pts":[[269.2,852.6],[269.2,851.4],[269.4,793.0],[265.1,719.6],[256.7,658.1],[253.4,631.3],[253.8,626.0],[254.4,621.6]]},{"cls":"path","name":"","guide_spine":false,"pts":[[-115,1181.9],[-105.6,1163.0],[-102.4,1156.7],[-100.6,1152.5],[-99.5,1148.8],[-81.4,964.0],[-75.5,942.3],[-71.1,922.5],[-60.2,904.0],[-48.6,892.3],[-40.9,885.0],[-27.3,872.6],[-13.7,866.1],[-1.6,864.1],[13.6,863.9],[24.6,862.8],[42.6,863.5],[80.3,873.0],[82.9,872.8],[86.1,873.3],[91.1,873.9],[94.1,874.5],[136.6,889.8],[178.7,903.7],[226.2,922.3],[253.0,928.4],[255.7,929.3],[260.6,931.7],[271.6,938.1],[280.1,933.3],[281.6,930.8],[277.6,905.6],[269.7,861.2],[269.1,855.2],[269.2,852.6]]},{"cls":"path","name":"","guide_spine":false,"pts":[[225.9,327.0],[248.5,519.2],[248.6,521.8],[248.7,524.9],[254.4,565.8],[254.6,619.8],[254.4,621.6]]},{"cls":"path","name":"","guide_spine":false,"pts":[[236.8,325.5],[247.2,426.0],[261.8,517.3],[267.9,620.0],[267.4,623.5],[266.9,628.2],[266.5,634.1],[274.1,709.8],[282.7,837.3],[282.4,851.4],[282.5,853.8],[282.8,857.3],[283.3,860.5],[290.1,907.1],[290.6,913.7],[291.2,919.2],[294.2,935.2],[290.6,942.6],[289.3,944.8],[285.4,947.9],[280.1,950.2],[275.9,950.6],[273.5,949.9],[262.4,944.5],[248.2,938.1],[193.0,920.8],[151.0,908.0],[90.3,886.1],[86.7,885.2],[82.3,886.6],[74.2,884.0],[65.5,880.9],[63.8,877.9],[60.4,876.3],[27.0,873.4],[16.0,873.3],[7.6,873.8],[-1.4,874.2],[-12.6,877.3],[-19.6,880.4],[-26.5,884.8],[-35.7,893.4],[-44.9,902.4],[-50.6,908.1],[-57.6,917.6],[-61.6,927.9],[-64.7,941.8],[-65.7,946.5],[-72.3,969.3],[-73.5,982.0],[-78.5,1052.3],[-87.3,1124.4],[-90.2,1151.4],[-97.0,1167.9],[-99.3,1172.6],[-101.6,1176.7],[-107.8,1189.7]]},{"cls":"path","name":"","guide_spine":false,"pts":[[94.1,874.5],[92.5,880.3],[90.3,886.1]]},{"cls":"path","name":"","guide_spine":false,"pts":[[282.4,851.4],[275.3,851.6],[269.2,851.4]]},{"cls":"path","name":"","guide_spine":false,"pts":[[267.9,620.0],[260.4,619.6],[254.6,619.8]]},{"cls":"path","name":"","guide_spine":false,"pts":[[-107.8,1189.7],[-104.2,1191.4],[-102.7,1192.1],[-72.0,1202.2],[-48.8,1213.3],[-34.6,1219.9],[-24.3,1225.8],[-3.3,1240.9],[17.8,1257.4],[47.3,1280.8],[47.9,1281.5],[62.9,1299.5],[69.2,1302.4],[82.0,1314.8],[86.2,1323.9],[95.2,1332.5],[139.6,1371.7],[151.5,1380.5],[153.8,1382.1],[156.2,1384.0],[214.5,1435.5],[228.0,1450.3],[281.8,1498.8],[283.7,1500.5],[286.3,1502.6],[344.1,1548.7]]},{"cls":"path","name":"","guide_spine":false,"pts":[[206.6,1442.1],[211.3,1438.3],[214.5,1435.5]]},{"cls":"path","name":"","guide_spine":false,"pts":[[204.7,1450.6],[207.4,1448.5],[208.5,1445.1],[206.6,1442.1]]},{"cls":"path","name":"","guide_spine":false,"pts":[[204.7,1450.6],[207.7,1455.2],[210.4,1459.0],[213.8,1456.6],[217.1,1456.6],[219.4,1458.8],[224.4,1453.9],[228.0,1450.3]]},{"cls":"path","name":"","guide_spine":false,"pts":[[206.6,1442.1],[133.6,1378.0],[45.0,1294.4],[43.1,1292.8],[41.4,1291.2],[39.0,1289.0],[-9.7,1248.2],[-22.0,1241.2],[-40.3,1232.2],[-58.1,1223.6],[-107.2,1205.1],[-114.8,1203.3],[-115,1203.6]]},{"cls":"path","name":"","guide_spine":false,"pts":[[47.3,1280.8],[43.5,1284.4],[39.0,1289.0]]},{"cls":"path","name":"","guide_spine":false,"pts":[[-104.2,1191.4],[-106.0,1198.8],[-107.2,1205.1]]},{"cls":"path","name":"","guide_spine":false,"pts":[[204.7,1450.6],[188.4,1464.0],[176.9,1474.5],[158.6,1489.8],[123.4,1506.1],[79.8,1532.5],[76.8,1534.2],[73.5,1535.9],[-13.5,1580.7]]}],"rivers":[{"name":"","pts":[[1176.3,943.8],[1178.2,966.2],[1174.1,996.2],[1176.8,1013.0],[1196.5,1033.0],[1209.0,1053.6],[1252.5,1058.7],[1251.0,1085.3],[1258.7,1099.5],[1279.3,1133.2]]},{"name":"","pts":[[1176.3,943.8],[1164.1,902.2]]},{"name":"","pts":[[1279.3,1133.2],[1301.0,1156.3]]},{"name":"","pts":[[1301.0,1156.3],[1309.7,1171.7],[1301.5,1201.0],[1331.7,1235.3],[1377.1,1254.1],[1406.2,1251.0]]},{"name":"梅田川","pts":[[303.7,1489.4],[337.1,1534.6],[355.6,1542.3],[362.1,1554.5],[375.8,1563.7],[408.8,1623.0],[469.3,1663.2],[483.4,1671.6],[494.1,1663.4],[506.7,1661.3],[523.2,1635.4],[561.1,1640.3],[621.1,1672.9],[676.4,1676.4],[704.4,1724.9],[761.6,1754.1],[864.2,1752.7],[921.9,1788.1],[939.1,1790.9],[988.9,1770.0],[1010.2,1775.2],[1021.4,1782.8],[1030.2,1800.0],[1034.9,1851.4]]},{"name":"梅田川","pts":[[-112.5,942.2],[-91.1,943.4],[-13.8,974.2],[75.7,1052.6],[97.3,1124.3],[130.9,1147.3],[135.3,1157.0],[134.7,1183.9],[121.5,1253.6],[141.1,1328.7],[203.0,1343.7],[234.4,1370.9],[261.1,1390.5],[282.5,1398.2],[290.0,1405.9],[303.2,1443.8],[303.7,1489.4]]}],"parks":[{"name":"たきみち公園","pts":[[1134.8,1541.1],[1131.1,1547.4],[1173.7,1550.5],[1183.7,1542.2],[1197.7,1536.0],[1217.8,1533.8],[1228.5,1531.6],[1233.3,1527.7],[1238.4,1526.1],[1189.4,1494.8],[1177.8,1508.2],[1165.8,1501.9],[1157.7,1511.5],[1154.7,1510.4],[1134.8,1541.1]]},{"name":"中山とびのこ公園","pts":[[521.2,1264.9],[527.8,1286.5],[527.5,1313.1],[522.2,1332.9],[521.4,1356.9],[530.3,1374.5],[526.7,1431.2],[468.4,1415.9],[450.8,1362.7],[443.4,1326.1],[436.5,1297.5],[456.0,1292.3],[456.3,1279.9],[475.1,1274.5],[499.8,1273.1],[513.3,1266.9],[521.2,1264.9]]},{"name":"うどう沼公園","pts":[[161.8,44.8],[127.0,57.0],[125.8,64.4],[125.4,77.8],[131.9,89.2],[145.0,119.7],[155.7,135.6],[170.8,138.7],[179.4,141.9],[183.6,147.1],[187.0,147.5],[199.4,154.8],[205.7,193.6],[111.3,226.5],[115.3,252.1],[99.4,255.6],[101.3,267.7],[93.7,270.5],[89.7,256.1],[23.6,180.3],[25.8,92.3],[15.3,81.4],[60.8,19.3],[70.8,25.0],[152.4,2.7],[161.8,44.8]]},{"name":"中山山の神公園","pts":[[187.8,1062.5],[189.6,1095.9],[193.5,1100.5],[263.5,1117.4],[258.2,1068.5],[252.9,1066.8],[217.7,1082.5],[204.8,1082.0],[204.8,1064.3],[187.8,1062.5]]}],"waters":[{"name":"","pts":[[79.9,221.1],[88.1,221.0],[106.0,213.5],[134.4,204.8],[182.3,184.4],[189.0,178.6],[189.0,171.2],[181.4,160.0],[176.2,155.5],[156.9,147.6],[148.0,142.1],[140.6,125.3],[128.0,103.1],[124.6,90.1],[116.8,74.3],[119.1,61.0],[102.1,58.7],[80.0,94.3],[66.5,106.5],[59.0,114.5],[65.3,129.7],[87.6,153.1],[95.1,161.7],[83.0,195.6],[76.0,213.4],[79.9,221.1]]}],"sando":[[[905.5,598.0],[900.5,625.8]],[[900.5,625.8],[896.3,639.1]],[[788.2,429.1],[774.6,396.2]]],"busway":[[[772.7,126.4],[755.0,136.2],[735.3,144.3],[700.5,166.1],[687.8,174.4],[668.7,182.8],[648.0,193.0],[629.8,205.2],[597.6,221.2],[537.6,237.6],[430.2,262.7],[427.4,263.8],[439.7,310.1],[450.4,351.0],[456.7,378.2],[465.0,395.8],[465.6,399.1],[477.0,435.5],[486.9,461.1],[488.3,469.2],[497.1,498.8],[504.3,537.7],[523.4,590.7],[544.4,664.9],[549.7,699.9],[563.3,746.3],[566.4,760.0],[571.1,777.3],[570.6,803.1],[572.2,847.4],[571.8,890.4],[570.5,932.3],[572.1,976.0],[575.4,1018.4],[577.6,1051.3],[576.8,1059.2],[575.2,1099.1],[573.6,1137.4],[577.9,1171.2],[577.6,1179.3],[582.7,1215.5],[581.2,1253.3],[581.8,1258.7],[582.5,1268.7],[582.3,1273.6],[578.9,1303.2],[578.4,1311.9],[570.8,1346.1],[569.4,1386.8],[567.3,1436.3],[564.5,1455.9],[568.4,1490.4],[569.7,1502.4],[591.0,1562.5],[593.6,1574.3],[592.5,1584.6]]],"exits":[{"x":588.0,"y":-60,"text":"↑ 至 南中山","anchor":"middle"},{"x":1391,"y":283.6,"text":"至 泉中央 →","anchor":"end"},{"x":457.3,"y":1833,"text":"↓ 至 北山","anchor":"middle"}],"zones":[],"signals":[[1143.4,655.1],[197.0,80.3],[227.9,316.1],[261.5,630.3],[591.7,1585.3],[734.1,146.7],[580.1,1253.5],[570.0,805.5],[278.0,848.2],[1232.4,543.7],[615.4,1587.3],[583.8,1603.2],[576.4,1585.4],[580.9,1273.1],[220.8,317.0],[229.4,326.8],[242.3,314.6],[205.4,78.6],[198.5,89.9],[226.4,304.6],[255.6,628.7],[268.9,628.9],[279.4,865.2],[278.3,851.7],[261.0,621.8]]};
 document.getElementById('infoAsOf').textContent = 'このマップの情報は' + GEO.meta.info_as_of + '時点の情報です。';
 const partner = (GEO.meta.partner_logos || []).find(x => x.name === '宮城大学' && x.status === 'approved' && x.src);
 if (partner) {
@@ -421,6 +460,10 @@ const NS = 'http://www.w3.org/2000/svg';
 const W = GEO.meta.W, H = GEO.meta.H, PAD = 115;
 const svg = document.getElementById('map');
 svg.setAttribute('viewBox', (-PAD)+' '+(-PAD)+' '+(W+2*PAD)+' '+(H+2*PAD));
+const compassHud = document.getElementById('compassHud');
+const northAngle = Number(GEO.meta.north_screen_deg || 0);
+compassHud.style.setProperty('--north-rotation', northAngle+'deg');
+compassHud.dataset.northAngle = northAngle.toFixed(4);
 
 const QS = new URLSearchParams(location.search);
 const IS_EDIT = QS.get('edit') === '1';
@@ -441,7 +484,7 @@ function polyClosed(pts){ return poly(pts)+'Z'; }
 const defs = el('defs', {}, svg);
 el('path', {id:'starShape', d:'M0,-10 L2.8,-3.3 L10,-3.1 L4.5,1.3 L6.4,8.2 L0,4.2 L-6.4,8.2 L-4.5,1.3 L-10,-3.1 L-2.8,-3.3 Z'}, defs);
 
-el('rect', {x:-PAD, y:-PAD, width:W+2*PAD, height:H+2*PAD, fill:'var(--paper)'}, svg);
+el('rect', {x:-PAD, y:-PAD, width:W+2*PAD, height:H+2*PAD, fill:'var(--map-ground)'}, svg);
 const gWater = el('g', {}, svg);
 const gRoads = el('g', {}, svg);
 const gNames = el('g', {}, svg);
@@ -453,64 +496,80 @@ GEO.parks.forEach(p => el('path', {d:polyClosed(p.pts), class:'park'}, gWater));
 GEO.waters.forEach(w => el('path', {d:polyClosed(w.pts), class:'water'}, gWater));
 GEO.rivers.forEach(r => el('path', {d:poly(r.pts), class:'river', 'stroke-width':9}, gWater));
 
-const roadsSorted = GEO.roads;
-roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-c', 'stroke-width':9}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-f', 'stroke-width':5.5}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-c', 'stroke-width':21}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-f', 'stroke-width':13.5}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-c', 'stroke-width':38}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-f', 'stroke-width':27}, gRoads); });
-const mainStreet = roadsSorted.filter(r => r.guide_spine);
-mainStreet.forEach(r => el('path', {d:poly(r.pts), class:'road-main-c', 'stroke-width':48}, gRoads));
-mainStreet.forEach(r => el('path', {d:poly(r.pts), class:'road-main-f', 'stroke-width':34}, gRoads));
-GEO.sando.forEach(s => el('path', {d:poly(s), class:'sando', 'stroke-width':3}, gRoads));
+const ROAD_DRAW_ORDER = ['service','minor','mid','major','spine'];
+const ROAD_WIDTHS = {
+  spine:{fill:30, casing:36}, major:{fill:22, casing:27}, mid:{fill:14, casing:18},
+  minor:{fill:9, casing:12}, service:{fill:5, casing:6.5}, path:{fill:3},
+};
+function displayRoadClass(r){ return r.guide_spine ? 'spine' : r.cls; }
+function combinedRoadD(cls){
+  return GEO.roads.filter(r => displayRoadClass(r) === cls).map(r => poly(r.pts)).join('');
+}
+const buswayD = (GEO.busway||[]).map(seg => poly(seg)).join('');
+if (buswayD) el('path', {d:buswayD, class:'busway-band', 'stroke-width':120, 'data-road-width':120}, gRoads);
+/* 全classのcasingを先に敷き、その上へ全classのfillを敷く。 */
+ROAD_DRAW_ORDER.forEach(cls => {
+  const d = combinedRoadD(cls);
+  if (d) el('path', {d, class:'road-'+cls+'-c', 'stroke-width':ROAD_WIDTHS[cls].casing,
+    'data-road-width':ROAD_WIDTHS[cls].casing}, gRoads);
+});
+ROAD_DRAW_ORDER.forEach(cls => {
+  const d = combinedRoadD(cls);
+  if (d) el('path', {d, class:'road-'+cls+'-f', 'stroke-width':ROAD_WIDTHS[cls].fill,
+    'data-road-width':ROAD_WIDTHS[cls].fill}, gRoads);
+});
+const pathD = combinedRoadD('path');
+if (pathD) el('path', {d:pathD, class:'road-path-f', 'stroke-width':ROAD_WIDTHS.path.fill,
+  'data-road-width':ROAD_WIDTHS.path.fill}, gRoads);
+GEO.sando.forEach(s => el('path', {d:poly(s), class:'sando', 'stroke-width':3, 'data-road-width':3}, gRoads));
 
-/* 信号機 (OSM実データ11箇所 + 振興組合の位置把握FB3箇所) */
+/* 信号機 (signals_raw.json の canvas 内全数) */
 (GEO.signals||[]).forEach(p => {
-  const g = el('g', {transform:'translate('+p[0]+','+p[1]+')'}, gRoads);
+  const g = el('g', {class:'signal', transform:'translate('+p[0]+','+p[1]+')'}, gRoads);
   el('rect', {x:-11, y:-5.5, width:22, height:11, rx:5.5, fill:'#fffdf5', stroke:'var(--ink)', 'stroke-width':1.5}, g);
   el('circle', {cx:-6, cy:0, r:2.7, fill:'#e4574d'}, g);
   el('circle', {cx:0,  cy:0, r:2.7, fill:'#f0c93f'}, g);
   el('circle', {cx:6,  cy:0, r:2.7, fill:'#57b06a'}, g);
 });
+gRoads.dataset.nodeCount = gRoads.querySelectorAll('*').length;
 
-/* 道路名 (実名・表示域内に実在する道路のみ) */
-const ROADLBL = [
-  {match:'中山幹線１号線', text:'中山バス通り', dy:-18, targetY:1455},
-  {match:'荒巻本沢街道線', text:'荒巻本沢街道', dy:-11},
-  {match:'通町中山線', text:'通町中山線', dy:-11, targetY:900, size:13},
-  {match:'北山実沢線', text:'北山実沢線', dy:-11, size:13},
-  {match:'荒巻泉線', text:'荒巻泉線', dy:-11, targetY:740, size:13},
-];
-const usedLbl = new Set();
-ROADLBL.forEach((rl, i) => {
-  let best = null;
-  GEO.roads.forEach(r => {
-    if (!r.name || r.name.indexOf(rl.match) < 0) return;
-    const len = r.pts.reduce((a,p,j)=> j? a+Math.hypot(p[0]-r.pts[j-1][0], p[1]-r.pts[j-1][1]) : 0, 0);
-    if (!best || len > best.len) best = {r, len};
-  });
-  if (!best || best.len < 150 || usedLbl.has(rl.text)) return;
-  usedLbl.add(rl.text);
-  let pts = best.r.pts;
-  if (pts[0][1] > pts[pts.length-1][1]) pts = pts.slice().reverse();
-  // targetY指定時: そのy付近を通る位置にラベルを置く (店ラベルとの被り回避)
-  let offsetPct = 42;
-  if (rl.targetY !== undefined){
-    let acc = 0, hit = null;
-    for (let k = 1; k < pts.length; k++){
-      const seg = Math.hypot(pts[k][0]-pts[k-1][0], pts[k][1]-pts[k-1][1]);
-      if (hit === null && ((pts[k-1][1] <= rl.targetY && rl.targetY <= pts[k][1]) || (pts[k][1] <= rl.targetY && rl.targetY <= pts[k-1][1]))){
-        hit = acc + seg / 2;
-      }
-      acc += seg;
-    }
-    if (hit !== null) offsetPct = Math.max(6, Math.min(82, hit / acc * 100));
+/* 道路名: 実網から最長の同名線を選び、バス通りは750m間隔で反復する。 */
+function lineLength(pts){
+  return pts.reduce((sum,p,i) => i ? sum + Math.hypot(p[0]-pts[i-1][0], p[1]-pts[i-1][1]) : 0, 0);
+}
+function readableRoadPoints(pts){
+  if (pts.length < 2) return pts;
+  const first=pts[0], last=pts[pts.length-1];
+  const reverse = Math.abs(last[0]-first[0]) >= Math.abs(last[1]-first[1])
+    ? last[0] < first[0] : last[1] < first[1];
+  return reverse ? pts.slice().reverse() : pts;
+}
+let roadLabelId = 0;
+function addRoadLabel(pts, text, startOffset, tier, dy=-11){
+  const id = 'roadLabelPath'+(roadLabelId++);
+  el('path', {id, d:poly(readableRoadPoints(pts)), fill:'none'}, defs);
+  const t = el('text', {class:'roadname roadname-'+tier, 'data-screen-font':10, dy}, gNames);
+  const tp = el('textPath', {href:'#'+id, startOffset, 'text-anchor':'middle'}, t);
+  tp.textContent = text;
+}
+(GEO.busway||[]).forEach(seg => {
+  const len = lineLength(seg);
+  if (len < 80) return;
+  if (len < 600){ addRoadLabel(seg, '中山バス通り', len/2, 'tier2', -18); return; }
+  for (let offset=375; offset<len-90; offset+=750){
+    addRoadLabel(seg, '中山バス通り', offset, 'tier2', -18);
   }
-  const p = el('path', {id:'rl'+i, d:poly(pts), fill:'none'}, defs);
-  const t = el('text', {class:'roadname', 'font-size':rl.size || 16.5, dy:rl.dy}, gNames);
-  const tp = el('textPath', {href:'#rl'+i, startOffset:offsetPct+'%'}, t);
-  tp.textContent = rl.text;
+});
+const namedRoads = new Map();
+GEO.roads.forEach(r => {
+  if (!r.name || displayRoadClass(r) === 'spine') return;
+  const len = lineLength(r.pts), prior = namedRoads.get(r.name);
+  if (!prior || len > prior.len) namedRoads.set(r.name, {r, len});
+});
+Array.from(namedRoads.values()).sort((a,b)=>b.len-a.len).forEach(({r,len}) => {
+  if (len < 90) return;
+  const tier = ['minor','service','path'].includes(displayRoadClass(r)) ? 'tier3' : 'tier2';
+  addRoadLabel(r.pts, r.name, '50%', tier);
 });
 GEO.parks.forEach(p => {
   // 店舗(SPOTS)として星＋ラベルを持つ公園は二重表示しない
@@ -548,15 +607,8 @@ GEO.waters.forEach(w => {
   t.textContent = x.text;
 });
 
-/* 方位・スケール */
+/* スケール（方位は画面固定HUDで表示） */
 (() => {
-  const g = el('g', {transform:'translate('+(W-30)+','+(20)+')'}, gDeco);
-  const rot = GEO.meta.proj.rot_deg;
-  const a = el('g', {transform:'rotate('+rot+')'}, g);
-  el('path', {d:'M0,14 L0,-16', stroke:'var(--ink-soft)', 'stroke-width':2.5}, a);
-  el('path', {d:'M0,-16 L-6,-4 L6,-4 Z', fill:'var(--accent)', stroke:'var(--ink-soft)', 'stroke-width':1}, a);
-  const t = el('text', {x:0, y:-24, class:'deco', 'font-size':15, 'text-anchor':'middle', transform:'rotate('+rot+')'}, g);
-  t.textContent = 'N';
   const sb = el('g', {transform:'translate('+(W-165)+','+(H-6)+')'}, gDeco);
   el('path', {d:'M0,0 L100,0 M0,-5 L0,5 M100,-5 L100,5', stroke:'var(--ink-soft)', 'stroke-width':2}, sb);
   const st = el('text', {x:50, y:-8, class:'deco', 'font-size':13, 'text-anchor':'middle'}, sb);
@@ -579,11 +631,18 @@ function busXAtY(y){
 }
 function distToBus(s){ return Math.abs(s.x - busXAtY(s.y)); }
 
-const FS = 16.5, LABEL_GAP = 20, LABEL_MIN_Y_GAP = 40;
-function estW(name){
+function screenScale(){
+  const rect = svg.getBoundingClientRect();
+  return Math.max(.001, rect.width / svg.viewBox.baseVal.width);
+}
+function labelScreenPx(s){ return isAnchorLabel(s) ? 15 : 12; }
+function labelMapFont(s){ return labelScreenPx(s) / screenScale(); }
+function labelGapMap(){ return 18 / screenScale(); }
+function labelMinYGap(){ return 28 / screenScale(); }
+function estW(name, fs){
   let w = 0;
   for (const ch of name) w += ch.charCodeAt(0) < 256 ? 0.56 : 1.02;
-  return w * FS;
+  return w * fs;
 }
 function preferredLabelSide(s){
   const h = s.hint || {};
@@ -592,10 +651,10 @@ function preferredLabelSide(s){
   return s.x >= busXAtY(s.y) ? 1 : -1;
 }
 function labelCandidate(s, index, side){
-  const w = estW(s.name);
-  const lx = s.x + side * LABEL_GAP;
+  const fs = labelMapFont(s), gap = labelGapMap(), w = estW(s.name, fs);
+  const lx = s.x + side * gap;
   const x0 = side > 0 ? lx : lx - w;
-  return {s, index, side, lx, x0, x1:x0+w, ly:s.y, y0:s.y-FS*.62, y1:s.y+FS*.62};
+  return {s, index, side, fs, gap, lx, x0, x1:x0+w, ly:s.y, y0:s.y-fs*.62, y1:s.y+fs*.62};
 }
 function overflowPenalty(box){
   const left = -PAD + 12, right = W + PAD - 12;
@@ -607,9 +666,10 @@ function overflowPenalty(box){
  */
 function solveOrderedColumn(boxes){
   boxes.sort((a,b) => a.s.y-b.s.y || a.index-b.index);
+  const minGap = labelMinYGap();
   const blocks = [];
   boxes.forEach((box, i) => {
-    const target = box.s.y - i * LABEL_MIN_Y_GAP;
+    const target = box.s.y - i * minGap;
     blocks.push({start:i, end:i, sum:target, count:1, mean:target});
     while (blocks.length > 1 && blocks[blocks.length-2].mean > blocks[blocks.length-1].mean){
       const b = blocks.pop(), a = blocks.pop();
@@ -620,17 +680,18 @@ function solveOrderedColumn(boxes){
   });
   const solved = new Array(boxes.length);
   blocks.forEach(block => {
-    for (let i=block.start; i<=block.end; i++) solved[i] = block.mean + i * LABEL_MIN_Y_GAP;
+    for (let i=block.start; i<=block.end; i++) solved[i] = block.mean + i * minGap;
   });
-  const minY = -PAD + FS, maxY = H + PAD - FS;
+  const maxFont = boxes.reduce((max,box)=>Math.max(max,box.fs), 0);
+  const minY = -PAD + maxFont, maxY = H + PAD - maxFont;
   let shift = solved.length && solved[0] < minY ? minY-solved[0] : 0;
   if (solved.length && solved[solved.length-1] + shift > maxY){
     shift += maxY - (solved[solved.length-1] + shift);
   }
   boxes.forEach((box, i) => {
     box.ly = solved[i] + shift;
-    box.y0 = box.ly - FS*.62;
-    box.y1 = box.ly + FS*.62;
+    box.y0 = box.ly - box.fs*.62;
+    box.y1 = box.ly + box.fs*.62;
   });
 }
 function shiftLabelBox(box, dx){
@@ -691,6 +752,8 @@ function layoutLabels(){
     const s = box.s;
     s.anchor = box.side > 0 ? 'start' : 'end';
     s.labelSide = box.side;
+    s.labelFont = box.fs;
+    s.labelGap = box.gap;
     s.lx = +box.lx.toFixed(1);
     s.ly = +box.ly.toFixed(1);
     s.labelBox = {x0:box.x0, x1:box.x1, y0:box.y0, y1:box.y1};
@@ -707,6 +770,7 @@ function labelPriority(s){
   if (s.url && /^https:\/\//.test(s.url)) return 1;
   return 0;
 }
+function isAnchorLabel(s){ return isPrimaryLabel(s) || (s.voices||[]).length > 0; }
 function paddedBoxesOverlap(a, b, padX, padY){
   return a.x0-padX < b.x1+padX && a.x1+padX > b.x0-padX &&
     a.y0-padY < b.y1+padY && a.y1+padY > b.y0-padY;
@@ -714,14 +778,16 @@ function paddedBoxesOverlap(a, b, padX, padY){
 function updateLabelVisibility(){
   const matching = GEO.shops.map((s,index)=>({s,index})).filter(item => matchesFilter(item.s));
   const filtering = query.length > 0 || voiceOnly || activeCats.size > 0;
-  const showAll = zoom >= ZMAX || (filtering && matching.length <= 12);
-  const padY = showAll ? 0 : Math.max(0, (ZMAX-zoom) * .16);
+  const showAll = zoom >= 265 || (filtering && matching.length <= 12);
+  const padY = showAll ? 0 : Math.max(0, (265-zoom) * .16);
   const padX = padY * .45;
   const accepted = [], visible = new Set();
   matching.sort((a,b) => labelPriority(b.s)-labelPriority(a.s) ||
     Number(isPrimaryLabel(b.s))-Number(isPrimaryLabel(a.s)) || a.index-b.index);
   matching.forEach(item => {
     const force = showAll || item.index === selectedIndex;
+    if (!showAll && Math.abs(item.s.ly-item.s.y) > 120) return;
+    if (!force && svg.dataset.tier === 'tier1' && !isAnchorLabel(item.s)) return;
     const conflict = !force && accepted.some(other =>
       paddedBoxesOverlap(item.s.labelBox, other.s.labelBox, padX, padY));
     if (conflict) return;
@@ -738,13 +804,19 @@ function updateLabelVisibility(){
   return {visible:visible.size, total:GEO.shops.length};
 }
 function updateSelectedMarker(){
+  let selectedHit = null;
   document.querySelectorAll('.hit').forEach(h => {
     const idx = +h.dataset.i, on = idx === selectedIndex;
     const s = GEO.shops[idx], star = h.querySelector('.star');
     h.classList.toggle('selected', on);
     h.setAttribute('aria-pressed', on ? 'true' : 'false');
-    if (star) star.setAttribute('transform', 'scale('+(starSize(s) * (on ? 1.18 : 1))+')');
+    if (star) star.setAttribute('transform', 'scale('+(starSize(s) * (on ? 1.35 : 1))+')');
+    if (on) selectedHit = h;
   });
+  if (selectedHit){
+    gShops.appendChild(selectedHit);
+    lastFocusHit = selectedHit;
+  }
 }
 function setSelectedShop(s){
   selectedIndex = s ? GEO.shops.indexOf(s) : -1;
@@ -755,18 +827,20 @@ function drawShops(){
   gShops.replaceChildren(); gLead.replaceChildren();
   layoutLabels();
   GEO.shops.forEach((s, idx) => {
-    const primary = isPrimaryLabel(s);
+    const primary = isAnchorLabel(s), scale = screenScale(), halo = 4.5 / scale;
     if (s.clamped && s.far_m > 0){
       const rad = (s.far_deg||0) * Math.PI/180;
       const ex = s.x + 30*Math.cos(rad), ey = s.y - 30*Math.sin(rad);
-      el('path', {d:'M'+s.x+','+s.y+' L'+ex+','+ey, class:'faraway '+(primary?'primary':'detail'), 'marker-end':''}, gLead);
-      el('path', {d:'M'+ex+','+ey+' l'+(-7*Math.cos(rad-0.5))+','+(7*Math.sin(rad-0.5))+' M'+ex+','+ey+' l'+(-7*Math.cos(rad+0.5))+','+(7*Math.sin(rad+0.5)), class:'faraway '+(primary?'primary':'detail')}, gLead);
+      el('path', {d:'M'+s.x+','+s.y+' L'+ex+','+ey, class:'faraway '+(primary?'primary':'detail'),
+        'marker-end':'', 'data-label-i':idx}, gLead);
+      el('path', {d:'M'+ex+','+ey+' l'+(-7*Math.cos(rad-0.5))+','+(7*Math.sin(rad-0.5))+' M'+ex+','+ey+' l'+(-7*Math.cos(rad+0.5))+','+(7*Math.sin(rad+0.5)),
+        class:'faraway '+(primary?'primary':'detail'), 'data-label-i':idx}, gLead);
     }
     const hasVoices = (s.voices||[]).length > 0;
     const g = el('g', {class:'hit'+(idx===selectedIndex?' selected':''), tabindex:0, role:'button',
       'aria-pressed':idx===selectedIndex?'true':'false', 'data-i':idx,
       'aria-label':s.name+(hasVoices?'、こどもの声あり':'')}, gShops);
-    el('circle', {cx:s.x, cy:s.y, r:s.padr || 22, class:'pad'}, g);  // タップ領域 (隣の星と重ならない半径)
+    el('circle', {cx:s.x, cy:s.y, r:Math.max(s.padr||0, 24/scale), class:'pad'}, g);
     if (IS_DEBUG && s.tx !== undefined && Math.hypot(s.x-s.tx, s.y-s.ty) > .1){
       // 固定星の不変条件に違反した場合だけ、真位置との差を可視化する。
       el('path', {d:'M'+(s.tx-5)+','+(s.ty-5)+' L'+(s.tx+5)+','+(s.ty+5)+' M'+(s.tx-5)+','+(s.ty+5)+' L'+(s.tx+5)+','+(s.ty-5), stroke:'#d13030', 'stroke-width':1.6, fill:'none'}, g);
@@ -775,7 +849,7 @@ function drawShops(){
     const marker = el('g', {class:'marker', transform:'translate('+s.x+','+s.y+')'}, g);
     el('circle', {cx:0, cy:0, r:16, class:'selected-ring'}, marker);
     const st = el('use', {href:'#starShape', x:0, y:0, class:'star '+s.cat,
-      transform:'scale('+(starSize(s) * (idx===selectedIndex?1.18:1))+')'}, marker);
+      transform:'scale('+(starSize(s) * (idx===selectedIndex?1.35:1))+')'}, marker);
     if (hasVoices){
       const bx = s.x + 13;
       const by = s.y - 13;
@@ -789,16 +863,21 @@ function drawShops(){
       const c = {'osm:exact':'#2e9e44','gsi_dem':'#176b58','osm:partial':'#d1a520','gsi_addr':'#2e6fd1','approx':'#d13030'}[s.src]||'#888';
       el('circle', {cx:s.x, cy:s.y, r:14, fill:'none', stroke:c, 'stroke-width':2, 'stroke-dasharray':'3 3'}, g);
     }
-    if (Math.abs(s.ly-s.y) > 3 || Math.abs(s.lx-(s.x+s.labelSide*LABEL_GAP)) > 3){
+    if (Math.abs(s.ly-s.y) > 3 || Math.abs(s.lx-(s.x+s.labelSide*s.labelGap)) > 3){
       el('path', {d:'M'+s.x+','+s.y+' L'+(s.lx-s.labelSide*4)+','+s.ly,
-        class:'label-leader', 'data-label-i':idx}, gLead);
+        class:'label-leader', 'stroke-width':1.3/scale, 'data-label-i':idx}, gLead);
     }
-    const t = el('text', {x:s.lx, y:s.ly+FS*0.35, class:'shoplabel '+(primary?'primary b':'detail'),
-      'font-size':FS, 'text-anchor':s.anchor, 'data-label-i':idx}, g);
+    const t = el('text', {x:s.lx, y:s.ly+s.labelFont*0.35, class:'shoplabel '+(primary?'primary b':'detail'),
+      'font-size':s.labelFont, 'text-anchor':s.anchor, 'data-label-i':idx,
+      'data-screen-font':labelScreenPx(s)}, g);
+    t.style.strokeWidth = halo+'px';
     t.textContent = s.name;
     if (s.clamped && s.far_m > 0){
-      const ft = el('text', {x:s.lx, y:s.ly+FS*0.35+15, class:'shoplabel '+(primary?'primary':'detail'), 'font-size':10.5,
-        'text-anchor':s.anchor, opacity:.8, 'data-label-i':idx}, g);
+      const farFont = 10/scale;
+      const ft = el('text', {x:s.lx, y:s.ly+s.labelFont*0.35+14/scale,
+        class:'shoplabel '+(primary?'primary':'detail'), 'font-size':farFont,
+        'text-anchor':s.anchor, opacity:.8, 'data-label-i':idx, 'data-screen-font':10}, g);
+      ft.style.strokeWidth = halo+'px';
       ft.textContent = '実際は約'+(s.far_m>=1000? (s.far_m/1000).toFixed(1)+'km':(s.far_m+'m'))+'先';
     }
   });
@@ -820,11 +899,12 @@ Object.keys(CATS).forEach(k => {
     const on = b.getAttribute('aria-pressed') === 'true';
     b.setAttribute('aria-pressed', on?'false':'true');
     if (on) activeCats.delete(k); else activeCats.add(k);
-    hideDetail();
+    peekDetail();
     applyFilter();
   });
   filtersDiv.appendChild(b);
 });
+filtersDiv.addEventListener('click', event => event.stopPropagation());
 const voiceFilter = document.createElement('button');
 voiceFilter.className = 'chip voice-filter'; voiceFilter.setAttribute('aria-pressed','false');
 voiceFilter.type = 'button';
@@ -835,13 +915,14 @@ voiceFilter.appendChild(voiceIcon); voiceFilter.appendChild(voiceLabel);
 voiceFilter.addEventListener('click', () => {
   voiceOnly = !voiceOnly;
   voiceFilter.setAttribute('aria-pressed', voiceOnly ? 'true' : 'false');
-  hideDetail();
+  peekDetail();
   applyFilter();
 });
 filtersDiv.appendChild(voiceFilter);
+document.querySelector('.searchbar').addEventListener('click', event => event.stopPropagation());
 document.getElementById('q').addEventListener('input', e => {
   query = e.target.value.trim().toLowerCase();
-  hideDetail();
+  peekDetail();
   applyFilter({fromSearch:true});
 });
 function norm(s){ return s.toLowerCase().replace(/[ァ-ン]/g, m=>String.fromCharCode(m.charCodeAt(0)-0x60)); }
@@ -880,14 +961,12 @@ function applyFilter({fromSearch=false} = {}){
       searchOpenedList = false;
       focusShopOnMap(matched[0], true);
     } else if (enough && matched.length > 1){
-      setSelectedShop(null);
       renderList(null, '検索結果');
       listpanel.classList.add('show');
       searchOpenedList = true;
     } else if (enough && matched.length === 0){
       listpanel.classList.remove('show');
       searchOpenedList = false;
-      setSelectedShop(null);
     } else if (searchOpenedList){
       listpanel.classList.remove('show');
       searchOpenedList = false;
@@ -907,8 +986,8 @@ const detailTitle = document.getElementById('detailTitle');
 const detailHandle = detailPanel.querySelector('.detail-handle');
 let pinned = null, lastFocusHit = null;
 let detailShops = [], detailIndex = -1, detailScrollFrame = 0;
-const DETAIL_SNAP_RATIOS = [.66, .90];
-let detailSnapIndex = 0, detailDrag = null;
+const DETAIL_SNAP_RATIOS = [.28, .66, .90];
+let detailSnapIndex = 1, detailDrag = null;
 function isMobileDetail(){ return window.matchMedia('(max-width:759px)').matches; }
 function updateDetailHeightAria(height){
   const pct = Math.round(height / Math.max(1, window.innerHeight) * 100);
@@ -926,6 +1005,8 @@ function setDetailSnap(index){
   if (!isMobileDetail()) return;
   detailSnapIndex = Math.max(0, Math.min(DETAIL_SNAP_RATIOS.length - 1, index));
   setDetailHeight(window.innerHeight * DETAIL_SNAP_RATIOS[detailSnapIndex]);
+  const open = detailPanel.getAttribute('aria-hidden') === 'false';
+  document.body.classList.toggle('detail-peek', open && detailSnapIndex === 0);
 }
 detailHandle.addEventListener('pointerdown', event => {
   if (!isMobileDetail() || event.button !== 0) return;
@@ -990,8 +1071,8 @@ function placeBubble(box, px, py){
 }
 function focusShopOnMap(s, openDetail){
   const fx = (s.x + PAD) / (W + 2*PAD), fy = (s.y + PAD) / (H + 2*PAD);
-  viewport.scrollLeft = fx * wrap.offsetWidth - viewport.clientWidth/2;
-  viewport.scrollTop = fy * wrap.offsetHeight - viewport.clientHeight/2;
+  viewport.scrollLeft = wrap.offsetLeft + fx * wrap.offsetWidth - viewport.clientWidth/2;
+  viewport.scrollTop = wrap.offsetTop + fy * wrap.offsetHeight - viewport.clientHeight/2;
   setSelectedShop(s);
   if (openDetail){
     pinned = s;
@@ -1223,7 +1304,8 @@ function showDetail(s, focusClose){
   document.getElementById('listpanel').classList.remove('show');
   searchOpenedList = false;
   hideChooser();
-  if (isMobileDetail()) setDetailSnap(0);
+  document.body.classList.remove('detail-peek');
+  if (isMobileDetail()) setDetailSnap(1);
   document.body.classList.add('detail-open');
   detailPanel.inert = false;
   detailPanel.setAttribute('aria-hidden', 'false');
@@ -1235,6 +1317,7 @@ function hideDetail(restoreFocus){
   closePhotoLightbox(false);
   const wasOpen = detailPanel.getAttribute('aria-hidden') === 'false';
   document.body.classList.remove('detail-open');
+  document.body.classList.remove('detail-peek');
   detailPanel.inert = true;
   detailPanel.setAttribute('aria-hidden', 'true');
   if (restoreFocus && wasOpen && lastFocusHit){ try{ lastFocusHit.focus(); }catch(e){} }
@@ -1242,13 +1325,32 @@ function hideDetail(restoreFocus){
   detailIndex = -1;
   setSelectedShop(null);
 }
+function peekDetail(){
+  const isOpen = detailPanel.getAttribute('aria-hidden') === 'false';
+  if (isOpen && isMobileDetail()){
+    document.body.classList.add('detail-peek');
+    setDetailSnap(0);
+  }
+  hideChooser();
+}
 function hideChooser(){ chooser.classList.remove('show'); }
-function nearby(s){
-  return GEO.shops.filter(o => Math.hypot(o.x-s.x, o.y-s.y) < 22);
+function svgPointFromClient(clientX, clientY){
+  const vb = svg.viewBox.baseVal, rect = svg.getBoundingClientRect();
+  return {
+    x:vb.x + (clientX-rect.left) / rect.width * vb.width,
+    y:vb.y + (clientY-rect.top) / rect.height * vb.height,
+  };
+}
+function hitCandidatesAt(clientX, clientY){
+  const point = svgPointFromClient(clientX, clientY);
+  const radius = 24 / screenScale();
+  return GEO.shops.filter(matchesFilter).map(s => ({s, d:Math.hypot(s.x-point.x, s.y-point.y)}))
+    .filter(item => item.d <= radius).sort((a,b)=>a.d-b.d).map(item=>item.s);
 }
 function showChooser(list, s){
   chooser.replaceChildren();
-  setSelectedShop(null);
+  pinned = s;
+  setSelectedShop(s);
   const t = document.createElement('div'); t.className='ctitle'; t.textContent='どのお店？'; chooser.appendChild(t);
   list.forEach(o => {
     const b = document.createElement('button'); b.className='copt';
@@ -1263,13 +1365,20 @@ function showChooser(list, s){
   chooser.classList.add('show');
   const first = chooser.querySelector('.copt'); if (first) first.focus();
 }
-gShops.addEventListener('click', e => {
-  const h = e.target.closest('.hit'); if (!h) return;
+svg.addEventListener('click', e => {
+  if (performance.now() < suppressMapClickUntil){ e.stopPropagation(); return; }
+  const candidates = hitCandidatesAt(e.clientX, e.clientY);
+  const directHit = e.target.closest && e.target.closest('.hit');
+  if (directHit){
+    const directShop = GEO.shops[+directHit.dataset.i];
+    if (directShop && matchesFilter(directShop) && !candidates.includes(directShop)) candidates.unshift(directShop);
+  }
+  if (!candidates.length) return;
   e.stopPropagation();
-  lastFocusHit = h;
-  const s = GEO.shops[+h.dataset.i];
-  const nb = nearby(s).filter(o => matchesFilter(o));
-  if (nb.length > 1){ showChooser(nb, s); } else { pinned = s; showDetail(s, false); }
+  const s = candidates[0];
+  lastFocusHit = gShops.querySelector('.hit[data-i="'+GEO.shops.indexOf(s)+'"]');
+  if (candidates.length > 1){ showChooser(candidates, s); }
+  else { pinned = s; setSelectedShop(s); showDetail(s, false); }
 });
 gShops.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -1310,32 +1419,140 @@ document.addEventListener('keydown', e => {
 /* ---------- ズーム (中心点を維持) ---------- */
 const wrap = document.getElementById('mapwrap');
 const ZMIN = 95, ZMAX = 420;
-let zoom = window.innerWidth >= 760 ? 108 : 175;
-function applyZoom(keepCenter){
-  const vp = viewport;
-  const cx = keepCenter ? (vp.scrollLeft + vp.clientWidth/2) / wrap.offsetWidth : null;
-  const cy = keepCenter ? (vp.scrollTop + vp.clientHeight/2) / wrap.offsetHeight : null;
-  wrap.style.width = zoom+'%'; wrap.style.maxWidth = 'none';
-  if (keepCenter){
-    vp.scrollLeft = cx * wrap.offsetWidth - vp.clientWidth/2;
-    vp.scrollTop  = cy * wrap.offsetHeight - vp.clientHeight/2;
-  }
-  updateLabelVisibility();
-  hideDetail(); hideChooser();
-  document.getElementById('zin').disabled  = zoom >= ZMAX;
+let zoom = 240;
+let suppressMapClickUntil = 0;
+function zoomTier(){ return zoom < 140 ? 'tier1' : (zoom < 265 ? 'tier2' : 'tier3'); }
+function updateMapScaleStyling(){
+  const scale = screenScale();
+  const k = Math.pow(zoom/175, -.3);
+  svg.dataset.tier = zoomTier();
+  svg.dataset.zoom = String(zoom);
+  gRoads.dataset.strokeK = k.toFixed(6);
+  gRoads.querySelectorAll('[data-road-width]').forEach(path => {
+    path.setAttribute('stroke-width', (Number(path.dataset.roadWidth) * k).toFixed(3));
+  });
+  gNames.querySelectorAll('.roadname').forEach(name => {
+    name.setAttribute('font-size', (10/scale).toFixed(3));
+    name.style.strokeWidth = (4.5/scale)+'px';
+  });
+}
+function updateZoomButtons(){
+  document.getElementById('zin').disabled = zoom >= ZMAX;
   document.getElementById('zout').disabled = zoom <= ZMIN;
 }
-document.getElementById('zin').addEventListener('click', () => { zoom = Math.min(zoom+45, ZMAX); applyZoom(true); });
-document.getElementById('zout').addEventListener('click', () => { zoom = Math.max(zoom-45, ZMIN); applyZoom(true); });
+function applyZoom(keepCenter, {refreshShops=true, peek=true} = {}){
+  const vp = viewport;
+  const cx = keepCenter ? (vp.scrollLeft + vp.clientWidth/2 - wrap.offsetLeft) / wrap.offsetWidth : null;
+  const cy = keepCenter ? (vp.scrollTop + vp.clientHeight/2 - wrap.offsetTop) / wrap.offsetHeight : null;
+  wrap.style.width = zoom+'%'; wrap.style.maxWidth = 'none';
+  if (keepCenter){
+    vp.scrollLeft = wrap.offsetLeft + cx * wrap.offsetWidth - vp.clientWidth/2;
+    vp.scrollTop  = wrap.offsetTop + cy * wrap.offsetHeight - vp.clientHeight/2;
+  }
+  updateMapScaleStyling();
+  if (refreshShops) drawShops();
+  if (peek) peekDetail();
+  updateZoomButtons();
+}
+function zoomAtViewportPoint(localX, localY, nextZoom, options){
+  const fx = (viewport.scrollLeft + localX - wrap.offsetLeft) / Math.max(1, wrap.offsetWidth);
+  const fy = (viewport.scrollTop + localY - wrap.offsetTop) / Math.max(1, wrap.offsetHeight);
+  zoom = Math.max(ZMIN, Math.min(ZMAX, nextZoom));
+  applyZoom(false, options);
+  viewport.scrollLeft = wrap.offsetLeft + fx * wrap.offsetWidth - localX;
+  viewport.scrollTop = wrap.offsetTop + fy * wrap.offsetHeight - localY;
+}
+const zoomControls = document.querySelector('.zoomctl');
+zoomControls.addEventListener('click', event => event.stopPropagation());
+document.getElementById('zin').addEventListener('click', () => {
+  zoom = Math.min(zoom+45, ZMAX); svg.dataset.lastZoomInput = 'button-in'; applyZoom(true);
+});
+document.getElementById('zout').addEventListener('click', () => {
+  zoom = Math.max(zoom-45, ZMIN); svg.dataset.lastZoomInput = 'button-out'; applyZoom(true);
+});
+
+/* 1指のネイティブpanを保ち、2ポインタが揃った時だけ独自pinchへ切り替える。 */
+const activeMapPointers = new Map();
+let pinchState = null, lastTap = null;
+function pointerPair(){ return Array.from(activeMapPointers.values()).slice(0,2); }
+function viewportLocalMidpoint(a, b){
+  const rect = viewport.getBoundingClientRect();
+  return {x:(a.x+b.x)/2-rect.left, y:(a.y+b.y)/2-rect.top};
+}
+function beginPinch(){
+  const pair = pointerPair();
+  if (pair.length < 2) return;
+  const mid = viewportLocalMidpoint(pair[0], pair[1]);
+  const distance = Math.max(1, Math.hypot(pair[1].x-pair[0].x, pair[1].y-pair[0].y));
+  pinchState = {
+    startZoom:zoom, startDistance:distance,
+    anchorX:(viewport.scrollLeft+mid.x-wrap.offsetLeft)/Math.max(1,wrap.offsetWidth),
+    anchorY:(viewport.scrollTop+mid.y-wrap.offsetTop)/Math.max(1,wrap.offsetHeight),
+  };
+  svg.dataset.pinchGestureCount = String((Number(svg.dataset.pinchGestureCount)||0)+1);
+  suppressMapClickUntil = performance.now()+500;
+  peekDetail();
+}
+viewport.addEventListener('pointerdown', event => {
+  if (event.pointerType !== 'touch') return;
+  activeMapPointers.set(event.pointerId, {x:event.clientX, y:event.clientY,
+    startX:event.clientX, startY:event.clientY, moved:false});
+  if (activeMapPointers.size === 2) beginPinch();
+}, {passive:true});
+viewport.addEventListener('pointermove', event => {
+  const item = activeMapPointers.get(event.pointerId);
+  if (!item) return;
+  item.x = event.clientX; item.y = event.clientY;
+  if (Math.hypot(item.x-item.startX, item.y-item.startY) > 8) item.moved = true;
+  if (activeMapPointers.size < 2 || !pinchState) return;
+  event.preventDefault();
+  const pair = pointerPair();
+  const distance = Math.max(1, Math.hypot(pair[1].x-pair[0].x, pair[1].y-pair[0].y));
+  const mid = viewportLocalMidpoint(pair[0], pair[1]);
+  zoom = Math.max(ZMIN, Math.min(ZMAX, pinchState.startZoom * distance/pinchState.startDistance));
+  applyZoom(false, {refreshShops:false, peek:false});
+  viewport.scrollLeft = wrap.offsetLeft + pinchState.anchorX * wrap.offsetWidth - mid.x;
+  viewport.scrollTop = wrap.offsetTop + pinchState.anchorY * wrap.offsetHeight - mid.y;
+  svg.dataset.lastZoomInput = 'pinch';
+  svg.dataset.pinchMoveCount = String((Number(svg.dataset.pinchMoveCount)||0)+1);
+}, {passive:false});
+function finishMapPointer(event){
+  const item = activeMapPointers.get(event.pointerId);
+  if (!item) return;
+  const wasPinch = !!pinchState || activeMapPointers.size >= 2;
+  activeMapPointers.delete(event.pointerId);
+  if (wasPinch && activeMapPointers.size < 2){
+    pinchState = null;
+    suppressMapClickUntil = performance.now()+450;
+    applyZoom(false, {refreshShops:true, peek:true});
+    return;
+  }
+  if (event.type !== 'pointerup' || item.moved || performance.now() < suppressMapClickUntil) return;
+  const now = performance.now();
+  if (lastTap && now-lastTap.time <= 300 && Math.hypot(item.x-lastTap.x,item.y-lastTap.y) <= 24){
+    const rect = viewport.getBoundingClientRect();
+    suppressMapClickUntil = now+450;
+    svg.dataset.lastZoomInput = 'double-tap';
+    svg.dataset.doubleTapCount = String((Number(svg.dataset.doubleTapCount)||0)+1);
+    zoomAtViewportPoint(item.x-rect.left, item.y-rect.top, zoom+45, {refreshShops:true, peek:true});
+    lastTap = null;
+  } else {
+    lastTap = {time:now, x:item.x, y:item.y};
+  }
+}
+viewport.addEventListener('pointerup', finishMapPointer, {passive:true});
+viewport.addEventListener('pointercancel', finishMapPointer, {passive:true});
 window.addEventListener('resize', () => {
   hideChooser();
   if (isMobileDetail()) setDetailSnap(detailSnapIndex);
   else {
     detailPanel.style.removeProperty('height');
     detailPanel.classList.remove('is-resizing');
+    document.body.classList.remove('detail-peek');
     detailDrag = null;
   }
   if (detailIndex >= 0) requestAnimationFrame(() => detailRail.scrollTo({left:detailIndex * detailRail.clientWidth, behavior:'auto'}));
+  requestAnimationFrame(() => applyZoom(true, {refreshShops:true, peek:false}));
 });
 
 /* ---------- お店一覧パネル ---------- */
@@ -1420,14 +1637,16 @@ if (IS_EDIT){
   });
 }
 
-drawShops();
 applyZoom(false);
 /* 初期表示は商店街の密集帯を中心に */
 requestAnimationFrame(() => {
   const vp = viewport;
-  const cx = (busXAtY(H*0.45) + PAD) / (W + 2*PAD);
-  vp.scrollLeft = wrap.offsetWidth * cx - vp.clientWidth / 2;
-  vp.scrollTop = wrap.offsetHeight * 0.22;
+  const initialY = 850;
+  const cx = (busXAtY(initialY) + PAD) / (W + 2*PAD);
+  const cy = (initialY + PAD) / (H + 2*PAD);
+  vp.scrollLeft = wrap.offsetLeft + wrap.offsetWidth * cx - vp.clientWidth / 2;
+  vp.scrollTop = wrap.offsetTop + wrap.offsetHeight * cy - vp.clientHeight / 2;
+  svg.dataset.initialCenterY = String(initialY);
 });
 </script>
 </body>
