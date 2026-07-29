@@ -18,22 +18,24 @@
   "gsi_title": "宮城県仙台市青葉区中山五丁目１９番１号"
  },
  {
-  "name": "デイサービス はるの風",
-  "cat": "medical",
-  "url": "https://www.nakayaman.com/post/%E3%83%87%E3%82%A4%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9%E3%81%AF%E3%82%8B%E3%81%AE%E9%A2%A8",
+ "name": "デイサービス はるの風",
+ "cat": "medical",
+ "url": "https://www.nakayaman.com/post/%E3%83%87%E3%82%A4%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9%E3%81%AF%E3%82%8B%E3%81%AE%E9%A2%A8",
   "address": "仙台市青葉区中山5-11-3",
   "lat": 38.292133,
   "lng": 140.842529,
-  "gsi_title": "宮城県仙台市青葉区中山五丁目１１番３号"
+  "src": "approx",
+  "coord_basis": "nakayaman.com掲載住所（中山5-11-3）と紙マップの描画位置"
  },
  {
-  "name": "遊季ガーデン",
-  "cat": "life",
-  "url": "https://www.nakayaman.com/post/%E9%81%8A%E5%B8%8C%E3%82%AC%E3%83%BC%E3%83%87%E3%83%B3%E6%A0%AA%E5%BC%8F%E4%BC%9A%E7%A4%BE",
-  "address": "仙台市青葉区中山5-11-3",
+ "name": "遊季ガーデン",
+ "cat": "life",
+ "url": "https://www.nakayaman.com/post/%E9%81%8A%E5%B8%8C%E3%82%AC%E3%83%BC%E3%83%87%E3%83%B3%E6%A0%AA%E5%BC%8F%E4%BC%9A%E7%A4%BE",
+  "address": "仙台市青葉区中山5-11-3-B（2F）",
   "lat": 38.292133,
   "lng": 140.842529,
-  "gsi_title": "宮城県仙台市青葉区中山五丁目１１番３号"
+  "src": "approx",
+  "coord_basis": "公式ページのB（2F）表記と号レベル座標"
  },
  {
   "name": "中杜建設",

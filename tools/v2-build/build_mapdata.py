@@ -48,6 +48,15 @@ def project(lat, lng):
     y = x0 * math.sin(ROT) + y0 * math.cos(ROT)
     return (x, y)
 
+def unproject(x, y):
+    """投影後のメートル座標を緯度経度へ戻す。"""
+    inv = -ROT
+    x0 = x * math.cos(inv) - y * math.sin(inv)
+    y0 = x * math.sin(inv) + y * math.cos(inv)
+    lng = LON0 + x0 / (111320 * COSF)
+    lat = LAT0 + (-y0) / 111320
+    return (lat, lng)
+
 def unproject_expr():
     """JS側 逆変換用の定数"""
     return {'lat0': LAT0, 'lon0': LON0, 'cosf': COSF, 'rot_deg': 46.4}
@@ -94,7 +103,7 @@ COORD_OVERRIDE = {
     'Double Egg 5丁目': ('gsi_addr', None, None),  # None→GSI値を使う
     '志摩整骨院': ('gsi_addr', None, None),        # OSM同名ノードは西側で紙と不整合
     '中山鳥瀧不動尊（目の神様）': ('osm:exact', 38.2956402, 140.8414793),  # 平田稲荷神社と同一境内
-    # みなとや: OSM同名ノードは250m東の別施設疑い。公式住所1-17-4(GSI号レベル解決)を採用
+    # みなとや: OSM同名ノードは250m東の別施設疑い。後段で振興組合掲載の1-17-4へ補正
     'みなとや': ('gsi_addr', None, None),
 }
 
@@ -156,19 +165,35 @@ for a in new_geo.values():
         continue
     shops.append({'name': NEW_DISPLAY.get(a['name'], a['name']), 'cat': a['cat'], 'url': a['url'],
                   'voices': [], 'note': '', 'addr': a['address'],
-                  'lat': a['lat'], 'lng': a['lng'], 'src': 'gsi_addr'})
+                  'lat': a['lat'], 'lng': a['lng'], 'src': a.get('src', 'gsi_addr')})
 
-# 同一住所ビルの店の「表示位置」だけ少しずらす (lat/lngの実座標は汚染しない・Codex R2指摘)
-from collections import defaultdict
-by_pos = defaultdict(list)
-for sh in shops:
-    by_pos[(round(sh['lat'], 5), round(sh['lng'], 5))].append(sh)
-for pos, group in by_pos.items():
-    if len(group) > 1:
-        # 縦(通り沿い)方向のみに分散 — 横に散らすと通りの反対側へ渡ってラベル列が壊れる
-        for i, sh in enumerate(group):
-            sh['disp_dx'] = 0.0
-            sh['disp_dy'] = round((i - (len(group) - 1) / 2.0) * 14.0, 1)
+# 同一住所で個別ピンが確認できなかった組だけ、紙マップの上下順を実座標へ焼き込む。
+# 星の描画座標を後段で動かさず、推定点そのものを lat/lng + src=approx として明示する。
+def set_approx_pair(upper_name, lower_name):
+    upper = next(s for s in shops if s['name'] == upper_name)
+    lower = next(s for s in shops if s['name'] == lower_name)
+    ux, uy = project(upper['lat'], upper['lng'])
+    lx, ly = project(lower['lat'], lower['lng'])
+    cx, cy = (ux + lx) / 2, (uy + ly) / 2
+    for sh, dx, dy in ((upper, -6.0, -11.0), (lower, 6.0, 11.0)):
+        sh['lat'], sh['lng'] = unproject(cx + dx, cy + dy)
+        sh['src'] = 'approx'
+
+set_approx_pair('BAKERY&BAKE EndRoll', 'cake NAO')
+set_approx_pair('佐藤次夫税理士事務所', 'Double Egg5丁目')
+# 振興組合掲載の荒巻本沢1-17-4由来の共通中心へ戻し、紙マップ順で近接2点化。
+for _name in ('サトー商会', 'みなとや'):
+    _shop = next(s for s in shops if s['name'] == _name)
+    _shop['addr'] = '仙台市青葉区荒巻本沢1-17-4'
+    _shop['lat'], _shop['lng'] = 38.289295, 140.85054
+set_approx_pair('サトー商会', 'みなとや')
+
+# 振興組合掲載の中山5-11-3由来の共通中心へ戻し、紙マップ順ではるの風を上にする。
+for _name in ('デイサービス はるの風', '遊季ガーデン'):
+    _shop = next(s for s in shops if s['name'] == _name)
+    _shop['lat'], _shop['lng'] = 38.292133, 140.842529
+set_approx_pair('デイサービス はるの風', '遊季ガーデン')
+set_approx_pair('中杜建設', 'ん daccha とこや')
 
 # モニュメント (紙マップ: 坂の登り口・多夢多夢舎の東の道路沿い) — 位置は概算
 shops.append({'name': '商店街モニュメント', 'cat': 'place', 'url': '#', 'voices': [],
@@ -219,7 +244,7 @@ raw = json.load(open(P('osm_raw2.json'), encoding='utf-8'))
 oq3 = json.load(open(P('oq3.json'), encoding='utf-8'))
 
 # 遠隔店 (コア域から0.8km以上): 縁クランプ + 距離表記で扱う
-OUTLIERS = {'ダイシン長命ヶ丘店', 'Friend vividhair', 'みなとや', 'サトー商会'}
+OUTLIERS = {'ダイシン長命ヶ丘店', 'Friend vividhair'}
 
 # 表示範囲: コア店舗の投影bbox + マージン
 pts = [project(s['lat'], s['lng']) for s in shops if s['name'] not in OUTLIERS]
@@ -401,8 +426,6 @@ for sh in shops:
 EDGE = 55  # 縁クランプ位置
 for sh in shops:
     x, y = project(sh['lat'], sh['lng'])
-    x += sh.pop('disp_dx', 0.0)
-    y += sh.pop('disp_dy', 0.0)
     if sh['name'] in OUTLIERS:
         cx, cy = max(minx + EDGE, min(maxx - EDGE, x)), max(miny + EDGE, min(maxy - EDGE, y))
         dist = math.hypot(x - cx, y - cy)
@@ -413,6 +436,9 @@ for sh in shops:
             sh['far_deg'] = round(ang)
             x, y = cx, cy
     sh['x'], sh['y'] = round(x - minx, 1), round(y - miny, 1)
+    if not sh.get('clamped'):
+        # 固定星の不変条件。tx/ty は検査用に同値を保持し、表示座標を後処理で動かさない。
+        sh['tx'], sh['ty'] = sh['x'], sh['y']
 
 def wobble(x, y, amp=2.3):
     """手描き風の揺らぎをビルド時に焼き込む (SVGフィルタのラスタライズ負荷を回避)"""
@@ -462,110 +488,8 @@ meta = {'W': W, 'H': H, 'proj': unproject_expr(), 'minx': round(minx, 2), 'miny'
             'status': 'approved' if MIYAGI_UNIVERSITY_LOGO_SRC else 'permission_pending',
         }]}
 
-# ---------------- 密集部の星間隔スプレッド ----------------
-# 位置関係(並び順・通りの側)は不変のまま、通り沿い方向に最小26px間隔を確保する。
-# 真の座標は lat/lng に保持。表示をずらした星は tx/ty に真の表示位置を記録 (?debug=1で可視)。
-_bus_shifted = sorted((p for seg in busway for p in seg), key=lambda p: p[1])
-def _busx(y):
-    if not _bus_shifted:
-        return W / 2
-    if y <= _bus_shifted[0][1]:
-        return _bus_shifted[0][0]
-    if y >= _bus_shifted[-1][1]:
-        return _bus_shifted[-1][0]
-    for k in range(1, len(_bus_shifted)):
-        if _bus_shifted[k][1] >= y:
-            lo, hi = _bus_shifted[k - 1], _bus_shifted[k]
-            t = (y - lo[1]) / ((hi[1] - lo[1]) or 1e-9)
-            return lo[0] + t * (hi[0] - lo[0])
-    return _bus_shifted[-1][0]
-
-MINGAP_STAR = 40  # 店名を星の真横へ置いても上下で重ならない表示間隔
-# 帯幅160px: 通り近傍の店(ドライブスクール等)も同じ順序保存スプレッドに含め、
-# 列だけ動いて近傍店と表示順が逆転する事故を防ぐ
-for _side in (-1, 1):
-    col = [sh for sh in shops
-           if not sh.get('clamped')
-           and 240 < sh['y'] < 1560
-           and abs(sh['x'] - _busx(sh['y'])) < 160
-           and ((sh['x'] - _busx(sh['y'])) <= 0) == (_side < 0)]
-    col.sort(key=lambda s: s['y'])
-    ys = [s['y'] for s in col]
-    for i in range(1, len(ys)):
-        if ys[i] < ys[i - 1] + MINGAP_STAR:
-            ys[i] = ys[i - 1] + MINGAP_STAR
-    for i in range(len(ys) - 2, -1, -1):
-        if ys[i] > ys[i + 1] - MINGAP_STAR:
-            ys[i] = ys[i + 1] - MINGAP_STAR
-    for _ in range(4):
-        for i in range(len(ys)):
-            lo = ys[i - 1] + MINGAP_STAR if i else -1e9
-            hi = ys[i + 1] - MINGAP_STAR if i < len(ys) - 1 else 1e9
-            ys[i] = max(lo, min(hi, col[i]['y']))
-    for s_, ny in zip(col, ys):
-        if abs(ny - s_['y']) > 2:
-            s_['tx'], s_['ty'] = s_['x'], s_['y']       # 真の表示位置を保持
-            s_['x'] = round(s_['x'] + (_busx(ny) - _busx(s_['y'])), 1)  # 通りのカーブに追従
-            s_['y'] = round(ny, 1)
-
-# 道路拡幅に伴う横方向クリアランス: 通り沿いの星は中心線から最低28px離す
-# (道路を挟んで向かい合う店の間に「道路の余白」を作る・ボスFB 2026-07-04)
-MINOFF_STAR = 42  # 主要道路38px幅(半径19)+星半径10+余白
-for sh in shops:
-    if sh.get('clamped') or not (240 < sh['y'] < 1460):
-        continue
-    bx0 = _busx(sh['y'])
-    dx0 = sh['x'] - bx0
-    if abs(dx0) < 95 and abs(dx0) < MINOFF_STAR:
-        if 'tx' not in sh:
-            sh['tx'], sh['ty'] = sh['x'], sh['y']
-        side_ = -1 if dx0 <= 0 else 1
-        sh['x'] = round(bx0 + side_ * MINOFF_STAR, 1)
-
-# 全道路クリアランス: 路面店の星が「どの道路とも」被らない位置へ押し出す
-# (OSM座標は店頭=道路縁に載りがち・ボスFB 2026-07-04)
-ROAD_HALF = {'major': 19.0, 'mid': 10.5, 'minor': 4.5}
-CLEAR_NEED = 14.0  # 星半径10 + 余白4
-
-def _road_half(r):
-    if r.get('guide_spine'):
-        return 24.0
-    return ROAD_HALF[r['cls']]
-
-def _clear_roads_once():
-    changed = 0
-    for sh in shops:
-        if sh.get('clamped'):
-            continue
-        for r in roads:
-            need = _road_half(r) + CLEAR_NEED
-            pts_ = r['pts']
-            for k in range(1, len(pts_)):
-                ax, ay = pts_[k - 1]
-                bx2, by2 = pts_[k]
-                vx, vy = bx2 - ax, by2 - ay
-                L2 = vx * vx + vy * vy
-                if L2 < 1e-9:
-                    continue
-                t = max(0.0, min(1.0, ((sh['x'] - ax) * vx + (sh['y'] - ay) * vy) / L2))
-                cx, cy = ax + t * vx, ay + t * vy
-                dx, dy = sh['x'] - cx, sh['y'] - cy
-                d = math.hypot(dx, dy)
-                if d >= need:
-                    continue
-                if d < 1e-6:  # 道路の真上: 法線方向へ
-                    nl = math.hypot(vx, vy)
-                    dx, dy, d = -vy / nl, vx / nl, 1.0
-                if 'tx' not in sh:
-                    sh['tx'], sh['ty'] = sh['x'], sh['y']
-                sh['x'] = round(cx + dx / d * need, 1)
-                sh['y'] = round(cy + dy / d * need, 1)
-                changed += 1
-    return changed
-
-for _it in range(4):
-    if _clear_roads_once() == 0:
-        break
+# ---------------- 星は実座標へ固定 ----------------
+# 密集部でも星・ゾーンは展開しない。可読性はテンプレート側のラベル配置と段階表示で解く。
 
 # タップ領域は隣の星と重ならない半径に (最小12・最大22)
 for sh in shops:
@@ -578,8 +502,7 @@ for sh in shops:
 if ARGS.preview:
     slope_top = next(sh for sh in shops if sh['name'] == '中山の坂の上')
     slope_top['x'], slope_top['y'], slope_top['padr'] = 427.8, 270.0, 22
-    slope_top.pop('tx', None)
-    slope_top.pop('ty', None)
+    slope_top['tx'], slope_top['ty'] = slope_top['x'], slope_top['y']
 
 # ---------------- 信号機 (OSM実データ + 支給マップFB) ----------------
 signals = []
@@ -615,48 +538,14 @@ for _name, _mode in _signal_landmarks:
         # 支給図で施設直下にある交差路へ合わせる。
         _sx, _sy = _shop_x + 6, _shop_y + 57
     else:
-        _sx, _sy = _busx(_shop_y), _shop_y
+        _sx, _sy = _bus_x_at_y(_shop_y + miny) - minx, _shop_y
     if all(math.hypot(_sx - gx, _sy - gy) >= 30 for gx, gy in signals):
         signals.append([round(_sx, 1), round(_sy, 1)])
 print('signals:', len(signals))
 
-# ---------------- 密集区画の自動検出 (チェーン距離36px・5店以上 → タップで区画一覧) ----------------
-_parent = list(range(len(shops)))
-def _find(a):
-    while _parent[a] != a:
-        _parent[a] = _parent[_parent[a]]
-        a = _parent[a]
-    return a
-def _true_xy(sh):
-    return (sh.get('tx', sh['x']), sh.get('ty', sh['y']))  # 区画判定はスプレッド前の真の密集で
-for _i in range(len(shops)):
-    for _j in range(_i + 1, len(shops)):
-        if shops[_i].get('clamped') or shops[_j].get('clamped'):
-            continue
-        ax, ay = _true_xy(shops[_i])
-        bx_, by_ = _true_xy(shops[_j])
-        if math.hypot(ax - bx_, ay - by_) < 36:
-            ra, rb = _find(_i), _find(_j)
-            if ra != rb:
-                _parent[ra] = rb
-_groups = defaultdict(list)
-for _i in range(len(shops)):
-    _groups[_find(_i)].append(_i)
+# 旧来の密集ゾーン展開は廃止。星は固定し、ラベルだけをブラウザ側で整理する。
 zones = []
-for _members in _groups.values():
-    if len(_members) < 5:
-        continue
-    xs_ = [shops[i]['x'] for i in _members]   # 枠は表示座標で描く
-    ys_ = [shops[i]['y'] for i in _members]
-    gaps_ = sorted(min(math.hypot(shops[i]['x'] - shops[j]['x'], shops[i]['y'] - shops[j]['y'])
-                       for j in _members if j != i) for i in _members)  # ズーム判定も表示座標で
-    names_ = {shops[i]['name'] for i in _members}
-    zname = '5丁目19番かいわい' if 'ダイニングバー 祭' in names_ else 'この区画'
-    zones.append({'name': zname, 'members': sorted(_members, key=lambda i: shops[i]['y']),
-                  'x0': round(min(xs_) - 16), 'y0': round(min(ys_) - 16),
-                  'x1': round(max(xs_) + 16), 'y1': round(max(ys_) + 16),
-                  'gap': round(gaps_[len(gaps_) // 2], 1)})
-print('zones:', [(len(z['members']), z['gap']) for z in zones])
+print('zones:', zones)
 
 data = {'meta': meta, 'shops': shops, 'roads': roads, 'rivers': rivers,
         'parks': parks, 'waters': waters, 'sando': sando, 'busway': busway, 'exits': exits,

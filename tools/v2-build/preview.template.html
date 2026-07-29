@@ -71,6 +71,8 @@
   .searchbar input:focus{ border-color:var(--accent); }
   #searchstatus{ min-width:5.5em; font-size:.78rem; font-weight:700; color:var(--voice); white-space:nowrap; }
   #searchstatus.empty{ color:#b3562e; }
+  .label-hint{ flex:0 0 auto; padding:4px 12px 6px; border-bottom:1px dashed rgba(122,92,59,.28);
+    background:var(--paper); color:var(--ink-soft); font-size:.72rem; font-weight:700; text-align:center; }
   @media(max-width:759px){
     header{ padding-bottom:7px; }
     header p{ display:none; }
@@ -119,6 +121,8 @@
   .voice-badge .dot{ fill:var(--voice); }
   .shoplabel{ font-family:'Yusei Magic',sans-serif; fill:var(--ink); font-weight:700;
     paint-order:stroke; stroke:var(--paper); stroke-width:7px; stroke-linejoin:round; }
+  .label-leader{ fill:none; stroke:rgba(122,92,59,.62); stroke-width:1.3; stroke-dasharray:3 3; pointer-events:none; }
+  .shoplabel.label-hidden, .label-leader.label-hidden{ display:none; }
   .shoplabel.b{ font-weight:700; }
   .shoplabel.detail{ opacity:1; }
   .hit.selected .shoplabel{ fill:#9a4f28; stroke:#fffaf0; stroke-width:9px; }
@@ -139,7 +143,7 @@
   .detail-panel{ position:fixed; inset:0 0 0 auto; z-index:37; width:min(400px,calc(100vw - 24px)); height:100dvh;
     display:flex; flex-direction:column; overflow:hidden; background:#fffaf0; border-left:3px solid #d8c4a0;
     box-shadow:-18px 0 42px rgba(80,60,30,.28); transform:translateX(104%);
-    transition:transform .28s cubic-bezier(.22,.78,.28,1); }
+    transition:transform .28s cubic-bezier(.22,.78,.28,1), height .22s cubic-bezier(.22,.78,.28,1); }
   body.detail-open .detail-panel{ transform:translateX(0); }
   .detail-handle{ display:none; }
   .detail-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 16px 8px;
@@ -162,13 +166,13 @@
   .detail-card h2{ margin-top:13px; padding-right:6px; font-family:'Yusei Magic',sans-serif; font-size:1.42rem;
     line-height:1.35; letter-spacing:.01em; }
   .detail-gallery{ display:grid; gap:8px; margin-top:14px; }
-  .detail-photo-main{ position:relative; display:block; width:100%; aspect-ratio:16/9; overflow:hidden; padding:0;
+  .detail-photo-main{ position:relative; display:block; width:100%; aspect-ratio:16/6.5; overflow:hidden; padding:0;
     border:2px solid var(--photo-rule); border-radius:14px; background:var(--paper-deep); cursor:zoom-in;
     transition:transform var(--dur-photo) var(--ease-photo); }
   .detail-photo-main picture, .detail-photo-main img{ display:block; width:100%; height:100%; }
   .detail-photo-main img{ object-fit:cover; opacity:1; }
   .detail-photo-thumbs{ display:flex; flex-wrap:wrap; gap:8px; }
-  .detail-photo-thumb{ position:relative; flex:0 0 68px; width:68px; height:52px; min-width:44px; min-height:44px;
+  .detail-photo-thumb{ position:relative; flex:0 0 62px; width:62px; height:46px; min-width:44px; min-height:44px;
     overflow:hidden; padding:0; border:2px solid transparent; border-radius:9px; background:var(--paper-deep); cursor:pointer;
     transition:transform var(--dur-photo) var(--ease-photo), opacity var(--dur-photo) var(--ease-photo); }
   .detail-photo-thumb picture, .detail-photo-thumb img{ display:block; width:100%; height:100%; }
@@ -305,24 +309,32 @@
   .lrow .lvoice::before{ content:"···"; position:relative; top:-2px; font-size:8px; font-weight:700; }
   .lrow .laddr{ grid-column:2 / 4; font-size:.7rem; line-height:1.4; color:var(--ink-soft); text-align:left; }
   @media(max-width:759px){
-    .detail-panel{ inset:auto 0 0; width:100%; height:min(52dvh,520px); min-height:min(330px,calc(100dvh - 120px));
+    .detail-panel{ inset:auto 0 0; width:100%; height:66dvh; min-height:min(330px,calc(100dvh - 120px)); max-height:90dvh;
       border:3px solid #d8c4a0; border-bottom:0;
       border-radius:22px 22px 0 0; box-shadow:0 -18px 42px rgba(80,60,30,.28); transform:translateY(104%); }
     body.detail-open .detail-panel{ transform:translateY(0); }
-    .detail-handle{ display:block; width:44px; height:4px; margin:8px auto 0; border-radius:999px; background:#d8c4a0; }
+    .detail-panel.is-resizing{ transition:none; user-select:none; }
+    .detail-handle{ display:block; position:relative; flex:0 0 24px; width:100%; height:24px; margin:0;
+      border-radius:20px 20px 0 0; background:transparent; cursor:ns-resize; touch-action:none; }
+    .detail-handle::before{ content:""; position:absolute; left:50%; top:7px; width:46px; height:5px;
+      transform:translateX(-50%); border-radius:999px; background:#d8c4a0; }
+    .detail-handle:focus-visible{ outline:3px solid rgba(201,123,61,.45); outline-offset:-4px; }
     .detail-head{ padding:6px 14px 5px; }
     .detail-guide{ font-size:.68rem; }
-    .detail-card{ padding:16px 18px 14px; }
-    .detail-card h2{ font-size:1.18rem; margin-top:9px; }
+    .detail-card{ padding:12px 18px 14px; }
+    .detail-card h2{ font-size:1.18rem; margin-top:7px; }
     .detail-address{ margin-top:7px; font-size:.76rem; }
-    .detail-statuses{ margin-top:9px; }
+    .detail-gallery{ position:relative; margin-top:10px; }
+    .detail-photo-thumbs{ position:absolute; left:7px; bottom:7px; z-index:2; gap:6px; padding:3px;
+      border-radius:11px; background:rgba(255,250,240,.84); backdrop-filter:blur(2px); }
+    .detail-statuses{ margin-top:7px; }
     .detail-status{ min-height:30px; padding:5px 9px; font-size:.68rem; }
     button.detail-status{ min-height:44px; }
-    .detail-note{ margin-top:12px; padding:10px 12px; font-size:.8rem; line-height:1.65; }
+    .detail-note{ margin-top:8px; padding:10px 12px; font-size:.8rem; line-height:1.65; }
     .detail-voice-block{ margin-top:14px; }
     .detail-voice{ padding:8px 10px 8px 26px; font-size:.76rem; }
     .detail-link{ min-height:44px; margin-top:14px; }
-    .detail-nav{ padding:8px 12px calc(9px + env(safe-area-inset-bottom)); }
+    .detail-nav{ padding:2px 12px calc(4px + env(safe-area-inset-bottom)); }
     body.detail-open .zoomctl, body.detail-open #listbtn{ opacity:0; pointer-events:none; }
   }
   @media(prefers-reduced-motion:reduce){
@@ -336,11 +348,12 @@
 
 <header>
   <h1>なかやま商店街マップ <small>実測デジタル版</small></h1>
-  <p>道路も星印も実際の位置準拠（OpenStreetMap・国土地理院データ）。星をタップすると画面内でお店の詳細を確認でき、左右スライドで次のお店へ移れます。※密集部の星は見やすさのため通り沿いに間隔を少し広げています</p>
+  <p>道路も星印も実際の位置準拠（OpenStreetMap・国土地理院データ）。星をタップすると画面内でお店の詳細を確認でき、左右スライドで次のお店へ移れます。店名は重なりを避け、ズームに応じて順に表示します。</p>
 </header>
 
 <div class="filters" id="filters"></div>
 <div class="searchbar"><input id="q" type="search" placeholder="お店をさがす（例：ケーキ）" aria-label="お店を検索"><span id="searchstatus" role="status" aria-live="polite"></span></div>
+<p class="label-hint" id="labelHint">ズームすると店名が出ます</p>
 
 <div id="viewport">
   <div id="mapwrap">
@@ -359,7 +372,8 @@
   <div id="listrows"></div>
 </div>
 <aside class="detail-panel" id="detailPanel" role="dialog" aria-modal="false" aria-labelledby="detailTitle" aria-hidden="true" inert>
-  <span class="detail-handle" aria-hidden="true"></span>
+  <span class="detail-handle" role="separator" aria-orientation="horizontal" tabindex="0"
+    aria-label="お店の詳細の高さを変える" aria-valuemin="66" aria-valuemax="90" aria-valuenow="66"></span>
   <div class="detail-head">
     <div class="detail-head-copy">
       <span class="detail-eyebrow">お店の詳細</span>
@@ -425,8 +439,7 @@ function polyClosed(pts){ return poly(pts)+'Z'; }
 
 /* ---------- 静的レイヤ (揺らぎはビルド時に座標へ焼き込み済・フィルタ不使用) ---------- */
 const defs = el('defs', {}, svg);
-defs.innerHTML = `
-  <path id="starShape" d="M0,-10 L2.8,-3.3 L10,-3.1 L4.5,1.3 L6.4,8.2 L0,4.2 L-6.4,8.2 L-4.5,1.3 L-10,-3.1 L-2.8,-3.3 Z"/>`;
+el('path', {id:'starShape', d:'M0,-10 L2.8,-3.3 L10,-3.1 L4.5,1.3 L6.4,8.2 L0,4.2 L-6.4,8.2 L-4.5,1.3 L-10,-3.1 L-2.8,-3.3 Z'}, defs);
 
 el('rect', {x:-PAD, y:-PAD, width:W+2*PAD, height:H+2*PAD, fill:'var(--paper)'}, svg);
 const gWater = el('g', {}, svg);
@@ -566,7 +579,7 @@ function busXAtY(y){
 }
 function distToBus(s){ return Math.abs(s.x - busXAtY(s.y)); }
 
-const FS = 16.5, LABEL_GAP = 20;
+const FS = 16.5, LABEL_GAP = 20, LABEL_MIN_Y_GAP = 40;
 function estW(name){
   let w = 0;
   for (const ch of name) w += ch.charCodeAt(0) < 256 ? 0.56 : 1.02;
@@ -578,11 +591,50 @@ function preferredLabelSide(s){
   if (h.anchor === 'end') return -1;
   return s.x >= busXAtY(s.y) ? 1 : -1;
 }
-function labelCandidate(s, side){
+function labelCandidate(s, index, side){
   const w = estW(s.name);
   const lx = s.x + side * LABEL_GAP;
   const x0 = side > 0 ? lx : lx - w;
-  return {s, side, lx, x0, x1:x0+w, y0:s.y-FS*.62, y1:s.y+FS*.62};
+  return {s, index, side, lx, x0, x1:x0+w, ly:s.y, y0:s.y-FS*.62, y1:s.y+FS*.62};
+}
+function overflowPenalty(box){
+  const left = -PAD + 12, right = W + PAD - 12;
+  return Math.max(0, left-box.x0) + Math.max(0, box.x1-right);
+}
+/*
+ * 1次元VPSC相当: y-i*gap を単調回帰(PAVA)し、隣接間隔と真y順を同時に守る。
+ * PAVAは二乗変位和を最小化するため、星から必要以上にラベルを離さない。
+ */
+function solveOrderedColumn(boxes){
+  boxes.sort((a,b) => a.s.y-b.s.y || a.index-b.index);
+  const blocks = [];
+  boxes.forEach((box, i) => {
+    const target = box.s.y - i * LABEL_MIN_Y_GAP;
+    blocks.push({start:i, end:i, sum:target, count:1, mean:target});
+    while (blocks.length > 1 && blocks[blocks.length-2].mean > blocks[blocks.length-1].mean){
+      const b = blocks.pop(), a = blocks.pop();
+      const merged = {start:a.start, end:b.end, sum:a.sum+b.sum, count:a.count+b.count};
+      merged.mean = merged.sum / merged.count;
+      blocks.push(merged);
+    }
+  });
+  const solved = new Array(boxes.length);
+  blocks.forEach(block => {
+    for (let i=block.start; i<=block.end; i++) solved[i] = block.mean + i * LABEL_MIN_Y_GAP;
+  });
+  const minY = -PAD + FS, maxY = H + PAD - FS;
+  let shift = solved.length && solved[0] < minY ? minY-solved[0] : 0;
+  if (solved.length && solved[solved.length-1] + shift > maxY){
+    shift += maxY - (solved[solved.length-1] + shift);
+  }
+  boxes.forEach((box, i) => {
+    box.ly = solved[i] + shift;
+    box.y0 = box.ly - FS*.62;
+    box.y1 = box.ly + FS*.62;
+  });
+}
+function shiftLabelBox(box, dx){
+  box.lx += dx; box.x0 += dx; box.x1 += dx;
 }
 function resolveHorizontalOverlaps(boxes){
   for (let pass=0; pass<12; pass++){
@@ -597,15 +649,10 @@ function resolveHorizontalOverlaps(boxes){
         const target = A.side > 0
           ? (A.s.x >= B.s.x ? A : B)
           : (A.s.x <= B.s.x ? A : B);
-        const shift = target.side * delta;
-        target.lx += shift; target.x0 += shift; target.x1 += shift;
+        shiftLabelBox(target, target.side * delta);
       } else {
         const shift = delta / 2;
-        [A, B].forEach(box => {
-          box.lx += box.side * shift;
-          box.x0 += box.side * shift;
-          box.x1 += box.side * shift;
-        });
+        [A, B].forEach(box => shiftLabelBox(box, box.side * shift));
       }
       moved = true;
     }
@@ -619,55 +666,34 @@ function resolveHorizontalOverlaps(boxes){
           ? Math.max(0, other.x + 12 - box.x0)
           : -Math.max(0, box.x1 - (other.x - 12));
         if (!shift) return;
-        box.lx += shift; box.x0 += shift; box.x1 += shift;
+        shiftLabelBox(box, shift);
         moved = true;
       });
     });
     if (!moved) break;
   }
+  const left = -PAD + 12, right = W + PAD - 12;
+  boxes.forEach(box => {
+    if (box.x0 < left) shiftLabelBox(box, left-box.x0);
+    if (box.x1 > right) shiftLabelBox(box, right-box.x1);
+  });
 }
 function layoutLabels(){
-  const parent = GEO.shops.map((_, i) => i);
-  const find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
-  const unite = (a, b) => { a=find(a); b=find(b); if (a!==b) parent[a]=b; };
-  for (let i=0; i<GEO.shops.length; i++) for (let j=i+1; j<GEO.shops.length; j++){
-    if (Math.abs(GEO.shops[i].y - GEO.shops[j].y) < FS * 1.24) unite(i, j);
-  }
-  const groups = new Map();
-  GEO.shops.forEach((_, i) => {
-    const root = find(i);
-    if (!groups.has(root)) groups.set(root, []);
-    groups.get(root).push(i);
+  const boxes = GEO.shops.map((s, index) => {
+    const preferred = preferredLabelSide(s);
+    const first = labelCandidate(s, index, preferred);
+    const alternate = labelCandidate(s, index, -preferred);
+    return overflowPenalty(alternate) + 2 < overflowPenalty(first) ? alternate : first;
   });
-  groups.forEach(indices => {
-    let best = null;
-    for (let mask=0; mask<(1<<indices.length); mask++){
-      const boxes = indices.map((idx, bit) => labelCandidate(GEO.shops[idx], (mask & (1<<bit)) ? 1 : -1));
-      resolveHorizontalOverlaps(boxes);
-      let score = 0;
-      boxes.forEach((box, bit) => {
-        if (box.x0 < -PAD+12) score += (-PAD+12-box.x0) * 10000;
-        if (box.x1 > W+PAD-12) score += (box.x1-(W+PAD-12)) * 10000;
-        if (box.side !== preferredLabelSide(GEO.shops[indices[bit]])) score += 1;
-        score += Math.max(0, Math.abs(box.lx-box.s.x)-LABEL_GAP) * .1;
-        GEO.shops.forEach((other, oi) => {
-          if (oi === indices[bit]) return;
-          if (other.x > box.x0-10 && other.x < box.x1+10 && other.y > box.y0-10 && other.y < box.y1+10) score += 1000;
-        });
-      });
-      for (let a=0; a<boxes.length; a++) for (let b=a+1; b<boxes.length; b++){
-        const ox = Math.min(boxes[a].x1, boxes[b].x1) - Math.max(boxes[a].x0, boxes[b].x0);
-        const oy = Math.min(boxes[a].y1, boxes[b].y1) - Math.max(boxes[a].y0, boxes[b].y0);
-        if (ox > 0 && oy > 0) score += 100000 + ox * oy;
-      }
-      if (!best || score < best.score) best = {score, boxes};
-    }
-    indices.forEach((idx, i) => {
-      const s = GEO.shops[idx], box = best.boxes[i];
-      s.anchor = box.side > 0 ? 'start' : 'end';
-      s.lx = box.lx;
-      s.ly = s.y;
-    });
+  [-1, 1].forEach(side => solveOrderedColumn(boxes.filter(box => box.side === side)));
+  resolveHorizontalOverlaps(boxes);
+  boxes.forEach(box => {
+    const s = box.s;
+    s.anchor = box.side > 0 ? 'start' : 'end';
+    s.labelSide = box.side;
+    s.lx = +box.lx.toFixed(1);
+    s.ly = +box.ly.toFixed(1);
+    s.labelBox = {x0:box.x0, x1:box.x1, y0:box.y0, y1:box.y1};
   });
 }
 
@@ -675,6 +701,41 @@ let selectedIndex = -1;
 function starSize(s){ return s.name.indexOf('公園')>=0 || s.cat==='place' ? 1.15 : 1; }
 function isPrimaryLabel(s){
   return s.cat === 'place' || /郵便局|中学校|小学校|市民センター|不動尊|ドライブスクール|ヨークベニマル/.test(s.name);
+}
+function labelPriority(s){
+  if ((s.voices||[]).length) return 2;
+  if (s.url && /^https:\/\//.test(s.url)) return 1;
+  return 0;
+}
+function paddedBoxesOverlap(a, b, padX, padY){
+  return a.x0-padX < b.x1+padX && a.x1+padX > b.x0-padX &&
+    a.y0-padY < b.y1+padY && a.y1+padY > b.y0-padY;
+}
+function updateLabelVisibility(){
+  const matching = GEO.shops.map((s,index)=>({s,index})).filter(item => matchesFilter(item.s));
+  const filtering = query.length > 0 || voiceOnly || activeCats.size > 0;
+  const showAll = zoom >= ZMAX || (filtering && matching.length <= 12);
+  const padY = showAll ? 0 : Math.max(0, (ZMAX-zoom) * .16);
+  const padX = padY * .45;
+  const accepted = [], visible = new Set();
+  matching.sort((a,b) => labelPriority(b.s)-labelPriority(a.s) ||
+    Number(isPrimaryLabel(b.s))-Number(isPrimaryLabel(a.s)) || a.index-b.index);
+  matching.forEach(item => {
+    const force = showAll || item.index === selectedIndex;
+    const conflict = !force && accepted.some(other =>
+      paddedBoxesOverlap(item.s.labelBox, other.s.labelBox, padX, padY));
+    if (conflict) return;
+    accepted.push(item);
+    visible.add(item.index);
+  });
+  document.querySelectorAll('[data-label-i]').forEach(node => {
+    node.classList.toggle('label-hidden', !visible.has(+node.dataset.labelI));
+  });
+  const hint = document.getElementById('labelHint');
+  if (hint) hint.textContent = visible.size === GEO.shops.length
+    ? 'すべての店名を表示中'
+    : 'ズームすると店名が出ます（'+visible.size+' / '+GEO.shops.length+'）';
+  return {visible:visible.size, total:GEO.shops.length};
 }
 function updateSelectedMarker(){
   document.querySelectorAll('.hit').forEach(h => {
@@ -688,9 +749,10 @@ function updateSelectedMarker(){
 function setSelectedShop(s){
   selectedIndex = s ? GEO.shops.indexOf(s) : -1;
   updateSelectedMarker();
+  updateLabelVisibility();
 }
 function drawShops(){
-  gShops.innerHTML = ''; gLead.innerHTML = '';
+  gShops.replaceChildren(); gLead.replaceChildren();
   layoutLabels();
   GEO.shops.forEach((s, idx) => {
     const primary = isPrimaryLabel(s);
@@ -705,8 +767,8 @@ function drawShops(){
       'aria-pressed':idx===selectedIndex?'true':'false', 'data-i':idx,
       'aria-label':s.name+(hasVoices?'、こどもの声あり':'')}, gShops);
     el('circle', {cx:s.x, cy:s.y, r:s.padr || 22, class:'pad'}, g);  // タップ領域 (隣の星と重ならない半径)
-    if (IS_DEBUG && s.tx !== undefined){
-      // スプレッド表示された星の真の位置を可視化
+    if (IS_DEBUG && s.tx !== undefined && Math.hypot(s.x-s.tx, s.y-s.ty) > .1){
+      // 固定星の不変条件に違反した場合だけ、真位置との差を可視化する。
       el('path', {d:'M'+(s.tx-5)+','+(s.ty-5)+' L'+(s.tx+5)+','+(s.ty+5)+' M'+(s.tx-5)+','+(s.ty+5)+' L'+(s.tx+5)+','+(s.ty-5), stroke:'#d13030', 'stroke-width':1.6, fill:'none'}, g);
       el('path', {d:'M'+s.tx+','+s.ty+' L'+s.x+','+s.y, stroke:'rgba(209,48,48,.5)', 'stroke-width':1, 'stroke-dasharray':'2 2', fill:'none'}, g);
     }
@@ -727,12 +789,16 @@ function drawShops(){
       const c = {'osm:exact':'#2e9e44','gsi_dem':'#176b58','osm:partial':'#d1a520','gsi_addr':'#2e6fd1','approx':'#d13030'}[s.src]||'#888';
       el('circle', {cx:s.x, cy:s.y, r:14, fill:'none', stroke:c, 'stroke-width':2, 'stroke-dasharray':'3 3'}, g);
     }
+    if (Math.abs(s.ly-s.y) > 3 || Math.abs(s.lx-(s.x+s.labelSide*LABEL_GAP)) > 3){
+      el('path', {d:'M'+s.x+','+s.y+' L'+(s.lx-s.labelSide*4)+','+s.ly,
+        class:'label-leader', 'data-label-i':idx}, gLead);
+    }
     const t = el('text', {x:s.lx, y:s.ly+FS*0.35, class:'shoplabel '+(primary?'primary b':'detail'),
-      'font-size':FS, 'text-anchor':s.anchor}, g);
+      'font-size':FS, 'text-anchor':s.anchor, 'data-label-i':idx}, g);
     t.textContent = s.name;
     if (s.clamped && s.far_m > 0){
       const ft = el('text', {x:s.lx, y:s.ly+FS*0.35+15, class:'shoplabel '+(primary?'primary':'detail'), 'font-size':10.5,
-        'text-anchor':s.anchor, opacity:.8}, g);
+        'text-anchor':s.anchor, opacity:.8, 'data-label-i':idx}, g);
       ft.textContent = '実際は約'+(s.far_m>=1000? (s.far_m/1000).toFixed(1)+'km':(s.far_m+'m'))+'先';
     }
   });
@@ -799,6 +865,7 @@ function applyFilter({fromSearch=false} = {}){
     h.classList.toggle('glowing', !!glow);
     h.setAttribute('tabindex', ok ? 0 : -1);
   });
+  updateLabelVisibility();
   const status = document.getElementById('searchstatus');
   const filtering = query.length > 0 || voiceOnly || activeCats.size > 0;
   status.textContent = filtering ? (matched.length ? matched.length+'件' : '見つかりません') : '';
@@ -837,8 +904,72 @@ const detailPrev = document.getElementById('detailPrev');
 const detailNext = document.getElementById('detailNext');
 const detailCount = document.getElementById('detailCount');
 const detailTitle = document.getElementById('detailTitle');
+const detailHandle = detailPanel.querySelector('.detail-handle');
 let pinned = null, lastFocusHit = null;
 let detailShops = [], detailIndex = -1, detailScrollFrame = 0;
+const DETAIL_SNAP_RATIOS = [.66, .90];
+let detailSnapIndex = 0, detailDrag = null;
+function isMobileDetail(){ return window.matchMedia('(max-width:759px)').matches; }
+function updateDetailHeightAria(height){
+  const pct = Math.round(height / Math.max(1, window.innerHeight) * 100);
+  detailHandle.setAttribute('aria-valuenow', String(pct));
+  detailHandle.setAttribute('aria-valuetext', pct + '%');
+}
+function setDetailHeight(height){
+  const min = window.innerHeight * DETAIL_SNAP_RATIOS[0];
+  const max = window.innerHeight * DETAIL_SNAP_RATIOS[DETAIL_SNAP_RATIOS.length - 1];
+  const next = Math.max(min, Math.min(max, height));
+  detailPanel.style.height = Math.round(next) + 'px';
+  updateDetailHeightAria(next);
+}
+function setDetailSnap(index){
+  if (!isMobileDetail()) return;
+  detailSnapIndex = Math.max(0, Math.min(DETAIL_SNAP_RATIOS.length - 1, index));
+  setDetailHeight(window.innerHeight * DETAIL_SNAP_RATIOS[detailSnapIndex]);
+}
+detailHandle.addEventListener('pointerdown', event => {
+  if (!isMobileDetail() || event.button !== 0) return;
+  detailDrag = {
+    pointerId: event.pointerId,
+    startY: event.clientY,
+    startHeight: detailPanel.getBoundingClientRect().height,
+  };
+  detailPanel.classList.add('is-resizing');
+  detailHandle.setPointerCapture(event.pointerId);
+  event.preventDefault();
+  event.stopPropagation();
+});
+detailHandle.addEventListener('pointermove', event => {
+  if (!detailDrag || event.pointerId !== detailDrag.pointerId) return;
+  setDetailHeight(detailDrag.startHeight + detailDrag.startY - event.clientY);
+  event.preventDefault();
+  event.stopPropagation();
+});
+function finishDetailDrag(event){
+  if (!detailDrag || event.pointerId !== detailDrag.pointerId) return;
+  const pointerId = detailDrag.pointerId;
+  detailDrag = null;
+  if (detailHandle.hasPointerCapture(pointerId)) detailHandle.releasePointerCapture(pointerId);
+  detailPanel.classList.remove('is-resizing');
+  const ratio = detailPanel.getBoundingClientRect().height / Math.max(1, window.innerHeight);
+  detailSnapIndex = DETAIL_SNAP_RATIOS.reduce((best, value, index) =>
+    Math.abs(value - ratio) < Math.abs(DETAIL_SNAP_RATIOS[best] - ratio) ? index : best, 0);
+  setDetailSnap(detailSnapIndex);
+  event.preventDefault();
+  event.stopPropagation();
+}
+detailHandle.addEventListener('pointerup', finishDetailDrag);
+detailHandle.addEventListener('pointercancel', finishDetailDrag);
+detailHandle.addEventListener('keydown', event => {
+  if (!isMobileDetail()) return;
+  let next = detailSnapIndex;
+  if (event.key === 'ArrowUp' || event.key === 'PageUp' || event.key === 'End') next = DETAIL_SNAP_RATIOS.length - 1;
+  else if (event.key === 'ArrowDown' || event.key === 'PageDown' || event.key === 'Home') next = 0;
+  else return;
+  event.preventDefault();
+  event.stopPropagation();
+  setDetailSnap(next);
+});
 function svgToWrap(x, y){
   const vb = svg.viewBox.baseVal, r = svg.getBoundingClientRect(), wr = mapwrap.getBoundingClientRect();
   return [ (x - vb.x) / vb.width * r.width + (r.left - wr.left),
@@ -1092,6 +1223,7 @@ function showDetail(s, focusClose){
   document.getElementById('listpanel').classList.remove('show');
   searchOpenedList = false;
   hideChooser();
+  if (isMobileDetail()) setDetailSnap(0);
   document.body.classList.add('detail-open');
   detailPanel.inert = false;
   detailPanel.setAttribute('aria-hidden', 'false');
@@ -1115,7 +1247,7 @@ function nearby(s){
   return GEO.shops.filter(o => Math.hypot(o.x-s.x, o.y-s.y) < 22);
 }
 function showChooser(list, s){
-  chooser.innerHTML = '';
+  chooser.replaceChildren();
   setSelectedShop(null);
   const t = document.createElement('div'); t.className='ctitle'; t.textContent='どのお店？'; chooser.appendChild(t);
   list.forEach(o => {
@@ -1188,6 +1320,7 @@ function applyZoom(keepCenter){
     vp.scrollLeft = cx * wrap.offsetWidth - vp.clientWidth/2;
     vp.scrollTop  = cy * wrap.offsetHeight - vp.clientHeight/2;
   }
+  updateLabelVisibility();
   hideDetail(); hideChooser();
   document.getElementById('zin').disabled  = zoom >= ZMAX;
   document.getElementById('zout').disabled = zoom <= ZMIN;
@@ -1196,6 +1329,12 @@ document.getElementById('zin').addEventListener('click', () => { zoom = Math.min
 document.getElementById('zout').addEventListener('click', () => { zoom = Math.max(zoom-45, ZMIN); applyZoom(true); });
 window.addEventListener('resize', () => {
   hideChooser();
+  if (isMobileDetail()) setDetailSnap(detailSnapIndex);
+  else {
+    detailPanel.style.removeProperty('height');
+    detailPanel.classList.remove('is-resizing');
+    detailDrag = null;
+  }
   if (detailIndex >= 0) requestAnimationFrame(() => detailRail.scrollTo({left:detailIndex * detailRail.clientWidth, behavior:'auto'}));
 });
 
@@ -1206,7 +1345,7 @@ let listCtx = {members: null, title: null};  // 一覧の現在文脈 (区画絞
 function renderList(memberIdx, title){
   if (!listrows) return;
   if (arguments.length > 0){ listCtx = {members: memberIdx, title: title || null}; }
-  listrows.innerHTML = '';
+  listrows.replaceChildren();
   let src = GEO.shops;
   if (Array.isArray(listCtx.members)) src = listCtx.members.map(i => GEO.shops[i]);
   const visible = src.filter(matchesFilter);
