@@ -1,0 +1,4 @@
+.tmp-runtime/
+.handoff-receipts/
+.task-*-handoff-manifest.json
+tools/v2-build/_trace_gmap.png
