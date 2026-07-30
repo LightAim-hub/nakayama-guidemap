@@ -408,13 +408,32 @@ mainStreet.forEach(r => el('path', {d:poly(r.pts), class:'road-main-c', 'stroke-
 mainStreet.forEach(r => el('path', {d:poly(r.pts), class:'road-main-f', 'stroke-width':13}, gRoads));
 GEO.sando.forEach(s => el('path', {d:poly(s), class:'sando', 'stroke-width':3}, gRoads));
 
-/* 信号機 (OSM実データ11箇所 + 振興組合の位置把握FB3箇所) */
-(GEO.signals||[]).forEach(p => {
-  const g = el('g', {transform:'translate('+p[0]+','+p[1]+')'}, gRoads);
-  el('rect', {x:-11, y:-5.5, width:22, height:11, rx:5.5, fill:'#fffdf5', stroke:'var(--ink)', 'stroke-width':1.5}, g);
-  el('circle', {cx:-6, cy:0, r:2.7, fill:'#e4574d'}, g);
-  el('circle', {cx:0,  cy:0, r:2.7, fill:'#f0c93f'}, g);
-  el('circle', {cx:6,  cy:0, r:2.7, fill:'#57b06a'}, g);
+/* 信号機。GEO.signals の OSM 座標は保持し、描画位置だけ道路方向へ補正する。 */
+function pointSegmentInfo(p, a, b){
+  const dx=b[0]-a[0], dy=b[1]-a[1], den=dx*dx+dy*dy;
+  const t=den ? Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/den)) : 0;
+  const qx=a[0]+t*dx, qy=a[1]+t*dy, len=Math.hypot(dx,dy)||1;
+  return {distance:Math.hypot(p[0]-qx,p[1]-qy), ux:dx/len, uy:dy/len};
+}
+function nearestRoadUnit(p){
+  let best={distance:Infinity,ux:0,uy:1};
+  GEO.roads.forEach(r => r.pts.slice(1).forEach((b,i) => {
+    const hit=pointSegmentInfo(p,r.pts[i],b);
+    if (hit.distance < best.distance) best=hit;
+  }));
+  return best;
+}
+const SIGNAL_SHIFT_BY_KEY = new Map([['580.9,1273.1',-11.5]]);
+const signalEntries = (GEO.signals||[]).map((p,idx) => {
+  const shiftM=SIGNAL_SHIFT_BY_KEY.get(p[0]+','+p[1])||0;
+  const road=nearestRoadUnit(p), x=p[0]+road.ux*shiftM, y=p[1]+road.uy*shiftM;
+  const g=el('g',{class:'signal-icon','data-i':idx,'data-shift-m':shiftM,
+    transform:'translate('+x+','+y+')'},gRoads);
+  el('rect',{x:-11,y:-5.5,width:22,height:11,rx:5.5,fill:'#fffdf5',stroke:'var(--ink)','stroke-width':1.5},g);
+  el('circle',{cx:-6,cy:0,r:2.7,fill:'#e4574d'},g);
+  el('circle',{cx:0,cy:0,r:2.7,fill:'#f0c93f'},g);
+  el('circle',{cx:6,cy:0,r:2.7,fill:'#57b06a'},g);
+  return {p,g,x,y,shiftM};
 });
 
 /* 道路名 (実名・表示域内に実在する道路のみ) */
@@ -531,6 +550,7 @@ const ROAD_WIDTHS = {
 };
 const MIN_STAR_PX = 6, MAX_STAR_PX = 11, STAR_ROAD_RATIO = .60;
 const LABEL_OWNER_RATIO = .79;
+const VOICE_BADGE_WIDTH_PX = 13, VOICE_BADGE_HEIGHT_PX = 11, VOICE_BADGE_GAP_PX = 3;
 function preferredLabelSide(s){
   const h = s.hint || {};
   if (h.anchor === 'start') return 1;
@@ -542,8 +562,9 @@ function labelPriority(s){
   if (s.url && s.url !== '#') return 2;
   return 1;
 }
-function layoutLabels(scale, entries, starCenters){
+function layoutLabels(scale, entries, starCenters, symbolKeepOut){
   if (entries && starCenters && scale > 0){
+    const mapKeepOut = symbolKeepOut || [];
     const viewport = document.querySelector('#viewport');
     const viewportRect = viewport && viewport.getBoundingClientRect();
     const keepOut = ['#listbtn', '.zoomctl', '#editbar', '#srcinfo']
@@ -564,6 +585,9 @@ function layoutLabels(scale, entries, starCenters){
         Math.min(clipped.right, blocked.right) - Math.max(clipped.left, blocked.left) >= 1 &&
         Math.min(clipped.bottom, blocked.bottom) - Math.max(clipped.top, blocked.top) >= 1);
     };
+    const overlapsMapSymbol = rect => mapKeepOut.some(blocked =>
+      Math.min(rect.right,blocked.right)-Math.max(rect.left,blocked.left) > .05 &&
+      Math.min(rect.bottom,blocked.bottom)-Math.max(rect.top,blocked.top) > .05);
     entries.forEach(hideLabel);
     entries.sort((a,b) => labelPriority(b.s)-labelPriority(a.s) ||
       Number(isPrimaryLabel(b.s))-Number(isPrimaryLabel(a.s)) || a.s.y-b.s.y || a.idx-b.idx);
@@ -575,7 +599,7 @@ function layoutLabels(scale, entries, starCenters){
         if (!labelAnchorBelongsToOwnStar(entry, starCenters) ||
             !labelBelongsToOwnStar(entry, mainRect, starCenters)) continue;
         const rect = labelRect(entry);
-        if (overlapsKeepOut(rect)) continue;
+        if (overlapsKeepOut(rect) || overlapsMapSymbol(rect)) continue;
         if (!kept.some(other => labelsCollide(rect, other))){
           entry.s.labelVisible = true;
           kept.push(rect);
@@ -617,6 +641,14 @@ function updateRoadWidths(scale){
     if (cls === 'main') mainPx = fillMap * scale;
   });
   return mainPx;
+}
+function updateSignalStyles(scale, mainRoadPx){
+  const targetPx=Math.max(14,Math.min(1.4*mainRoadPx,26));
+  const signalScale=targetPx/(22*scale);
+  signalEntries.forEach(entry => {
+    entry.g.setAttribute('transform','translate('+entry.x+','+entry.y+') scale('+signalScale+')');
+    entry.g.dataset.widthPx=targetPx.toFixed(2);
+  });
 }
 function setLabelPosition(entry, candidate, scale){
   const s = entry.s, main = entry.main, distance = entry.distance;
@@ -705,6 +737,70 @@ function labelAnchorBelongsToOwnStar(entry, starCenters){
   }
   return !Number.isFinite(nearestOther) || ownDistance + .01 < nearestOther;
 }
+function rectsOverlap(a,b){
+  return Math.min(a.right,b.right)-Math.max(a.left,b.left) > .05 &&
+    Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top) > .05;
+}
+function voiceBadgeAngles(side){
+  const base=side>0 ? Math.PI : 0, step=Math.PI/12, out=[base];
+  for (let i=1;i<12;i++){ out.push(base+i*step,base-i*step); }
+  out.push(base+Math.PI);
+  return out;
+}
+function layoutVoiceBadges(scale, entries, starCenters){
+  const starRects=new Map(entries.map(entry => [entry.idx,entry.star.getBoundingClientRect()]));
+  const nearestStarDistance=entry => {
+    const own=starCenters.get(entry.idx);
+    return Math.min(...[...starCenters].filter(([idx])=>idx!==entry.idx)
+      .map(([,p])=>Math.hypot(p.x-own.x,p.y-own.y)));
+  };
+  const voiceEntries=entries.filter(entry => (entry.s.voices||[]).length)
+    .sort((a,b)=>nearestStarDistance(a)-nearestStarDistance(b) || a.idx-b.idx);
+  const placed=[];
+  voiceEntries.forEach(entry => {
+    const vg=entry.badge, shape=vg&&vg.querySelector('.voice-badge-shape');
+    const own=starCenters.get(entry.idx), ownRect=starRects.get(entry.idx);
+    if (!vg || !shape || !own || !ownRect) return;
+    vg.setAttribute('transform','translate('+entry.s.x+','+entry.s.y+') scale('+(1/scale)+')');
+    let accepted=null;
+    const angles=voiceBadgeAngles(preferredLabelSide(entry.s));
+    for (const gapPx of [VOICE_BADGE_GAP_PX,2,4]){
+      for (const angle of angles){
+        const ux=Math.cos(angle), uy=Math.sin(angle);
+        const starSupport=Math.abs(ux)*ownRect.width/2+Math.abs(uy)*ownRect.height/2;
+        const badgeSupport=Math.abs(ux)*VOICE_BADGE_WIDTH_PX/2+Math.abs(uy)*VOICE_BADGE_HEIGHT_PX/2;
+        const ownDistance=starSupport+gapPx+badgeSupport;
+        const cx=own.x+ux*ownDistance, cy=own.y+uy*ownDistance;
+        const rect={left:cx-VOICE_BADGE_WIDTH_PX/2,right:cx+VOICE_BADGE_WIDTH_PX/2,
+          top:cy-VOICE_BADGE_HEIGHT_PX/2,bottom:cy+VOICE_BADGE_HEIGHT_PX/2};
+        if ([...starRects.values()].some(starRect=>rectsOverlap(rect,starRect)) ||
+            placed.some(other=>rectsOverlap(rect,other))) continue;
+        const nearestOther=Math.min(...[...starCenters].filter(([idx])=>idx!==entry.idx)
+          .map(([,p])=>Math.hypot(p.x-cx,p.y-cy)));
+        if (!(ownDistance+.01 < nearestOther)) continue;
+        accepted={dx:ux*ownDistance,dy:uy*ownDistance,ownDistance,nearestOther,gapPx};
+        break;
+      }
+      if (accepted) break;
+    }
+    if (!accepted){
+      const angle=preferredLabelSide(entry.s)>0 ? Math.PI : 0;
+      const ownDistance=ownRect.width/2+4+VOICE_BADGE_WIDTH_PX/2;
+      accepted={dx:Math.cos(angle)*ownDistance,dy:0,ownDistance,nearestOther:0,gapPx:4};
+      vg.dataset.layout='fallback';
+    } else {
+      vg.dataset.layout='placed';
+    }
+    shape.setAttribute('transform','translate('+accepted.dx+','+accepted.dy+')');
+    vg.dataset.ownPx=accepted.ownDistance.toFixed(2);
+    vg.dataset.otherPx=accepted.nearestOther.toFixed(2);
+    vg.dataset.gapPx=accepted.gapPx.toFixed(1);
+    vg.dataset.dxPx=accepted.dx.toFixed(2);
+    vg.dataset.dyPx=accepted.dy.toFixed(2);
+    placed.push(vg.getBoundingClientRect());
+  });
+  return placed;
+}
 function updateMapScaleStyles(){
   const matrix = svg.getScreenCTM();
   const scale = matrix ? Math.hypot(matrix.a, matrix.b) : 0;
@@ -716,14 +812,17 @@ function updateMapScaleStyles(){
   const entries = [...document.querySelectorAll('.hit')].map(h => {
     const idx = +h.dataset.i, s = GEO.shops[idx], star = h.querySelector('.star');
     if (star) star.setAttribute('transform', 'scale('+(starSize(s) * (idx===selectedIndex?1.18:1))+')');
-    return {idx, s, star, main:h.querySelector('text[data-main-label="1"]'),
-      distance:h.querySelector('text.distance-label')};
+    return {idx, s, star, badge:h.querySelector('g.voice-badge'),
+      main:h.querySelector('text[data-main-label="1"]'), distance:h.querySelector('text.distance-label')};
   }).filter(entry => entry.main);
   const starCenters = new Map(entries.map(entry => {
     const rect = entry.star && entry.star.getBoundingClientRect();
     return [entry.idx, rect ? {x:rect.left+rect.width/2, y:rect.top+rect.height/2} : null];
   }).filter(([, point]) => point));
-  layoutLabels(scale, entries, starCenters);
+  updateSignalStyles(scale,mainRoadPx);
+  const signalRects=signalEntries.map(entry=>entry.g.getBoundingClientRect());
+  const badgeRects=layoutVoiceBadges(scale,entries,starCenters);
+  layoutLabels(scale,entries,starCenters,badgeRects.concat(signalRects));
 }
 function scheduleMapScaleStyles(){
   if (mapStyleFrame) cancelAnimationFrame(mapStyleFrame);
@@ -776,13 +875,12 @@ function drawShops(){
     const st = el('use', {href:'#starShape', x:0, y:0, class:'star '+s.cat,
       transform:'scale('+(starSize(s) * (idx===selectedIndex?1.18:1))+')'}, marker);
     if (hasVoices){
-      const bx = s.x + 13;
-      const by = s.y - 13;
-      const vg = el('g', {class:'voice-badge', transform:'translate('+bx+','+by+')'}, g);
-      const vt = el('title', {}, vg); vt.textContent = 'こどもの声あり';
-      el('path', {d:'M-4,5 L-7,9 L-6,4', class:'tail'}, vg);
-      el('rect', {x:-9, y:-7, width:18, height:13, rx:4.5, class:'bubble'}, vg);
-      [-4,0,4].forEach(x => el('circle', {cx:x, cy:0, r:1.15, class:'dot'}, vg));
+      const vg=el('g',{class:'voice-badge','data-i':idx,transform:'translate('+s.x+','+s.y+')'},g);
+      const vt=el('title',{},vg); vt.textContent='こどもの声あり';
+      const shape=el('g',{class:'voice-badge-shape'},vg);
+      el('path',{d:'M-3,3 L-5,5.5 L-4,2.5',class:'tail'},shape);
+      el('rect',{x:-6.5,y:-5.5,width:13,height:9,rx:3.5,class:'bubble'},shape);
+      [-3,0,3].forEach(x=>el('circle',{cx:x,cy:-1,r:.85,class:'dot'},shape));
     }
     if (IS_DEBUG){
       const c = {'osm:exact':'#2e9e44','osm:partial':'#d1a520','gsi_addr':'#2e6fd1','approx':'#d13030'}[s.src]||'#888';
