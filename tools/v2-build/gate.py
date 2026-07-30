@@ -57,6 +57,10 @@ STAR_ROAD_MAX = 0.60       # ★の幅 / バス通りの描画幅 の上限 (超
 # 0.55 (=2倍近い) にすると、人が問題なく読めるラベルまで非表示を強いるので採らない。
 # ボスの訴えは「どの星がどの店名か分からない」なので、順序が明確なら足りる。
 LABEL_MARGIN_MAX = 0.80
+# ★の先端が帯にかすってよい量 (m)。現実が近い店 (中心線から9.2m 等) では
+# 可読な大きさの★は必ず縁に触れる。乗っている (中心が内側) は N15 で別に不合格。
+# 実測の最大は1.2m。2.0m を上限にして、これ以上悪化したら不合格になるようにする。
+MAX_STAR_ROAD_BITE = 2.0
 
 # ---------------- GEO ----------------
 src = io.open(A.target, encoding="utf-8").read()
@@ -480,8 +484,17 @@ def _zoom_checks(D, zname, is_default):
                 fails["N12"].append("%s ★%.1fpx が通り%.1fpx の%.2f倍 (上限%.2f)"
                                     % (r["name"], r["starPxNow"], main,
                                        r["starPxNow"] / main, STAR_ROAD_MAX))
-    # N15 その倍率で実際に描かれている帯に★の絵がかからないか。
+    # N15 その倍率で実際に描かれている帯に★が「乗って」いないか。
     # 帯の幅は「描画px ÷ 倍率」で地図単位に戻す (画面px床が効いている場合を含める)。
+    #
+    # 判定は2段。「絵が一切触れない」を要求すると物理的に達成できないため
+    # (2026-07-30 実測):
+    #   既定0.92px/m・★7.2px(地図7.83m/半径3.91m)・バス通り半幅6.5m
+    #   → 一切触れないには中心線から 10.41m 必要
+    #   実際: 藤倉設備工業 9.21m / BAKERY&BAKE EndRoll 9.41m ← 現実がそれより近い
+    #   ★を可読の下限6px(MIN_STAR_PX)まで縮めても必要9.76mで この2店は解消しない
+    # ボスの訴えは「道路の上に店舗がある」なので、乗っているか(=中心が帯の内側か)を
+    # 不合格とし、先端のかすりは量に上限を置いて歯止めにする。
     DRAWN = {}
     for c in ("main", "major", "mid", "minor"):
         if c in rp:
@@ -495,11 +508,17 @@ def _zoom_checks(D, zname, is_default):
         for rd in roads:
             key = "road-main" if rd.get("guide_spine") else CLSMAP.get(rd["cls"], "road-mid")
             half = DRAWN.get(key, road_w(rd)) / 2.0
-            gap = road_d(s["x"], s["y"], rd) - half - rad
-            if gap < 0:
-                fails["N15"].append("%s ★%.1fm が %s に%.1fm食い込む (%s)"
-                                    % (s["name"], r["starMapM"],
-                                       rd.get("name") or rd["cls"], -gap, zname))
+            d = road_d(s["x"], s["y"], rd)
+            nm2 = rd.get("name") or rd["cls"]
+            if d < half:      # ★の中心が帯の内側 = 道路の上に乗っている
+                fails["N15"].append("%s の★が %s の帯の上に乗っている (中心線から%.1fm / 帯の半幅%.1fm) (%s)"
+                                    % (s["name"], nm2, d, half, zname))
+                break
+            bite = half + rad - d
+            if bite > MAX_STAR_ROAD_BITE:
+                fails["N15"].append("%s ★%.1fm が %s に%.1fm食い込む (上限%.1fm) (%s)"
+                                    % (s["name"], r["starMapM"], nm2, bite,
+                                       MAX_STAR_ROAD_BITE, zname))
                 break
     stars = [r for r in rows if r.get("starCx") is not None]
     for r in rows:
@@ -546,7 +565,7 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N9": "公園との内外が真座標と一致", "N10": "通り沿いの間隔が歪んでいない",
        "N11": "既定ズームで通りが通りとして読める", "N12": "既定ズームで★が通りを覆わない",
        "N13": "ラベルが他店の★を内包しない", "N14": "ラベルの縁から自分の★が明確に最近傍",
-       "N15": "その倍率で描かれた帯に★の絵がかからない",
+       "N15": "★が道路の帯の上に乗っていない",
        "N16": "座標の出典(src)が書き換えられていない"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16"):

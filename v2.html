@@ -76,8 +76,7 @@
   }
 
   #viewport{ flex:1; overflow:auto; position:relative; background:var(--paper); -webkit-overflow-scrolling:touch; }
-  #mapwrap{ width:175%; max-width:none; margin:0 auto; position:relative; }
-  @media(min-width:760px){ #mapwrap{ width:108%; max-width:1000px; } }
+  #mapwrap{ width:100%; max-width:1000px; margin:0 auto; position:relative; }
   svg{ display:block; width:100%; height:auto; }
   text{ user-select:none; }
 
@@ -355,7 +354,10 @@ const CATS = {
 const NS = 'http://www.w3.org/2000/svg';
 const W = GEO.meta.W, H = GEO.meta.H, PAD = 115;
 const svg = document.getElementById('map');
-svg.setAttribute('viewBox', (-PAD)+' '+(-PAD)+' '+(W+2*PAD)+' '+(H+2*PAD));
+const FULL_VIEWBOX = {x:0, y:0, width:W, height:H};
+const INITIAL_VIEWBOX = {x:362, y:677, width:424, height:646};
+svg.setAttribute('viewBox', [INITIAL_VIEWBOX.x, INITIAL_VIEWBOX.y,
+  INITIAL_VIEWBOX.width, INITIAL_VIEWBOX.height].join(' '));
 
 const QS = new URLSearchParams(location.search);
 const IS_EDIT = QS.get('edit') === '1';
@@ -897,9 +899,9 @@ function placeBubble(box, px, py){
   box.style.left = cx + 'px'; box.style.top = py + 'px';
 }
 function focusShopOnMap(s, openDetail){
-  const fx = (s.x + PAD) / (W + 2*PAD), fy = (s.y + PAD) / (H + 2*PAD);
-  viewport.scrollLeft = fx * wrap.offsetWidth - viewport.clientWidth/2;
-  viewport.scrollTop = fy * wrap.offsetHeight - viewport.clientHeight/2;
+  const vb = svg.viewBox.baseVal;
+  setMapViewBox({x:s.x-vb.width/2, y:s.y-vb.height/2,
+    width:vb.width, height:vb.height});
   setSelectedShop(s);
   if (openDetail){
     pinned = s;
@@ -1074,26 +1076,41 @@ chooser.addEventListener('click', e => e.stopPropagation());
 document.addEventListener('click', () => { hideDetail(); hideChooser(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape'){ hideDetail(true); hideChooser(); } });
 
-/* ---------- ズーム (中心点を維持) ---------- */
+/* ---------- ズーム (viewBox中心を維持・全canvasまで縮小可) ---------- */
 const wrap = document.getElementById('mapwrap');
-const ZMIN = 95, ZMAX = 420;
-let zoom = window.innerWidth >= 760 ? 108 : 175;
-function applyZoom(keepCenter){
-  const vp = viewport;
-  const cx = keepCenter ? (vp.scrollLeft + vp.clientWidth/2) / wrap.offsetWidth : null;
-  const cy = keepCenter ? (vp.scrollTop + vp.clientHeight/2) / wrap.offsetHeight : null;
-  wrap.style.width = zoom+'%'; wrap.style.maxWidth = 'none';
-  if (keepCenter){
-    vp.scrollLeft = cx * wrap.offsetWidth - vp.clientWidth/2;
-    vp.scrollTop  = cy * wrap.offsetHeight - vp.clientHeight/2;
-  }
-  hideDetail(); hideChooser();
-  document.getElementById('zin').disabled  = zoom >= ZMAX;
-  document.getElementById('zout').disabled = zoom <= ZMIN;
-  scheduleMapScaleStyles();
+const ZOOM_STEP = 1.45;
+const MIN_VIEWBOX = {width:176, height:268};
+function clampViewBox(box){
+  const width = Math.min(FULL_VIEWBOX.width, Math.max(MIN_VIEWBOX.width, box.width));
+  const height = Math.min(FULL_VIEWBOX.height, Math.max(MIN_VIEWBOX.height, box.height));
+  const minX = FULL_VIEWBOX.x, maxX = FULL_VIEWBOX.x + FULL_VIEWBOX.width - width;
+  const minY = FULL_VIEWBOX.y, maxY = FULL_VIEWBOX.y + FULL_VIEWBOX.height - height;
+  return {x:Math.max(minX, Math.min(maxX, box.x)),
+    y:Math.max(minY, Math.min(maxY, box.y)), width, height};
 }
-document.getElementById('zin').addEventListener('click', () => { zoom = Math.min(zoom+45, ZMAX); applyZoom(true); });
-document.getElementById('zout').addEventListener('click', () => { zoom = Math.max(zoom-45, ZMIN); applyZoom(true); });
+function setMapViewBox(box){
+  const next = clampViewBox(box);
+  svg.setAttribute('viewBox', [next.x, next.y, next.width, next.height].join(' '));
+  updateZoomButtons();
+}
+function updateZoomButtons(){
+  const vb = svg.viewBox.baseVal;
+  document.getElementById('zin').disabled = vb.width <= MIN_VIEWBOX.width + .01 &&
+    vb.height <= MIN_VIEWBOX.height + .01;
+  document.getElementById('zout').disabled = vb.width >= FULL_VIEWBOX.width - .01 &&
+    vb.height >= FULL_VIEWBOX.height - .01;
+}
+function zoomViewBox(factor){
+  const vb = svg.viewBox.baseVal, cx = vb.x + vb.width/2, cy = vb.y + vb.height/2;
+  let width = vb.width * factor, height = vb.height * factor;
+  if (factor > 1 && (width >= FULL_VIEWBOX.width || height >= FULL_VIEWBOX.height)){
+    width = FULL_VIEWBOX.width; height = FULL_VIEWBOX.height;
+  }
+  setMapViewBox({x:cx-width/2, y:cy-height/2, width, height});
+  hideDetail(); hideChooser();
+}
+document.getElementById('zin').addEventListener('click', () => zoomViewBox(1/ZOOM_STEP));
+document.getElementById('zout').addEventListener('click', () => zoomViewBox(ZOOM_STEP));
 window.addEventListener('resize', () => {
   hideChooser();
   scheduleMapScaleStyles();
@@ -1183,17 +1200,11 @@ if (IS_EDIT){
 }
 
 drawShops();
-applyZoom(false);
+updateZoomButtons();
+scheduleMapScaleStyles();
 new MutationObserver(scheduleMapScaleStyles).observe(svg, {attributes:true, attributeFilter:['viewBox']});
 if (window.ResizeObserver) new ResizeObserver(scheduleMapScaleStyles).observe(svg);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(scheduleMapScaleStyles);
-/* 初期表示は商店街の密集帯を中心に */
-requestAnimationFrame(() => {
-  const vp = viewport;
-  const cx = (busXAtY(H*0.45) + PAD) / (W + 2*PAD);
-  vp.scrollLeft = wrap.offsetWidth * cx - vp.clientWidth / 2;
-  vp.scrollTop = wrap.offsetHeight * 0.22;
-});
 </script>
 </body>
 </html>
