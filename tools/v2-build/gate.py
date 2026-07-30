@@ -277,8 +277,14 @@ SAME_ADDR_PAIRS = [("BAKERY&BAKE EndRoll", "cake NAO"),
                    ("デイサービス はるの風", "遊季ガーデン"),
                    ("中杜建設", "ん daccha とこや")]
 PAIRED = {n for p in SAME_ADDR_PAIRS for n in p}
-MAX_DRIFT = 12.0          # 建物に入れるための移動として許す上限
-MAX_WARP = 0.25           # 隣接ペアの相対距離の歪み上限 (±25%)
+# 移動の上限は「距離」ではなく「向き」で決める。2026-07-30 敵対レビュー2周目の実測より:
+#   住所ジオコーディング(gsi_addr)の点は街区の"道路に面した接点"にあるので、
+#   建物の奥へ入れる動き = 通りに直交する動き = 正しいセットバック補正。
+#   位置関係を壊すのは 通りに沿う動き (どの店の隣か・信号の上下が変わる)。
+#   実測: 花祭壇 15.9m のうち沿い0.9m・直交15.8m / ウエルシア 14.4m のうち沿い0.2m・直交14.4m
+MAX_ALONG = {"osm:exact": 4.0, "osm:partial": 4.0, "gsi_addr": 8.0, "approx": 8.0}
+MAX_CROSS = {"osm:exact": 20.0, "osm:partial": 20.0, "gsi_addr": 20.0, "approx": 25.0}
+MAX_WARP_ALONG = 6.0      # 隣接ペアの「通り沿いの間隔」の変化の上限 (m)
 
 for s in shops:
     nm, x, y = s["name"], s["x"], s["y"]
@@ -335,13 +341,39 @@ for s in shops:
             d = min((math.hypot(sx - q[0], sy - q[1]) for q in XN), default=1e9)
             fails["N6"].append("%s の目印になる信号(%.0f,%.0f)が交差点にない(%.0fm)" % (nm, sx, sy, d))
 
-# ---- N7 真座標からの乖離 (建物に入れる移動は許すが、歪ませてはいけない) ----
+# ---- 通りの方向で移動を分解する ----
+def street_axis(y):
+    h = 2.0
+    ax, ay = spine_x(y + h) - spine_x(y - h), 2 * h
+    L = math.hypot(ax, ay) or 1.0
+    return ax / L, ay / L          # 通りに沿う単位ベクトル
+
+
+def decompose(s):
+    """真座標からの移動を (通りに沿う, 通りに直交) に分ける"""
+    tx, ty = TX(s), TY(s)
+    dx, dy = s["x"] - tx, s["y"] - ty
+    ax, ay = street_axis(ty)
+    return abs(dx * ax + dy * ay), abs(dx * ay - dy * ax)
+
+
+def along_coord(s, use_true=False):
+    """通り沿いの位置 (南北の順序を表す1次元座標)"""
+    x, y = (TX(s), TY(s)) if use_true else (s["x"], s["y"])
+    ax, ay = street_axis(TY(s))
+    return x * ax + y * ay
+
+
+# ---- N7 移動が「通りに沿う」方向に偏っていない (位置関係を壊していない) ----
 for s in shops:
-    if s["name"] in PAIRED:
-        continue                      # ±分離を人工的に入れている組は対象外
-    d = math.hypot(s["x"] - TX(s), s["y"] - TY(s))
-    if d > MAX_DRIFT:
-        fails["N7"].append("%s が真座標から%.1fm (上限%.0fm)" % (s["name"], d, MAX_DRIFT))
+    al, cr = decompose(s)
+    src = s.get("src", "approx")
+    lim_a = MAX_ALONG.get(src, 8.0)
+    lim_c = MAX_CROSS.get(src, 25.0)
+    if s["name"] not in PAIRED and al > lim_a:
+        fails["N7"].append("%s が通りに沿って%.1fm動いた (上限%.0fm / %s)" % (s["name"], al, lim_a, src))
+    if cr > lim_c:
+        fails["N7"].append("%s が通りに直交して%.1fm動いた (上限%.0fm / %s)" % (s["name"], cr, lim_c, src))
 
 # ---- N8 ★同士が重ならない (歩きズームでの★直径より離れている) ----
 star_m = max((r["starMapM"] for r in (REND.get("walk", {}).get("rows", []) if REND else [])), default=4.0)
@@ -360,22 +392,24 @@ for pk in parks:
         if poly_inside(pk["pts"], TX(s), TY(s)) != poly_inside(pk["pts"], s["x"], s["y"]):
             fails["N9"].append("%s と %s の内外が真座標と違う" % (s["name"], pk["name"]))
 
-# ---- N10 隣接ペアの相対距離が歪んでいない (歩いて距離感が合うこと) ----
+# ---- N10 「通り沿いの間隔」が歪んでいない ----
+# 直線距離ではなく通り沿いの1次元間隔で見る。向かい合う店の間隔(通りを横切る距離)は
+# セットバックで正しく変わるが、通り沿いの間隔が変わると「どの店の隣か」が壊れる。
 bs = sorted(band, key=lambda s: TY(s))
 for a, b in zip(bs, bs[1:]):
     if a["name"] in PAIRED and b["name"] in PAIRED:
         continue
-    dt = math.hypot(TX(a) - TX(b), TY(a) - TY(b))
-    dd = math.hypot(a["x"] - b["x"], a["y"] - b["y"])
-    if dt >= 10 and abs(dd / dt - 1.0) > MAX_WARP:
-        fails["N10"].append("%s ⇔ %s 真%.1fm → 表示%.1fm (%+.0f%%)"
-                            % (a["name"], b["name"], dt, dd, (dd / dt - 1) * 100))
+    gt = abs(along_coord(a, True) - along_coord(b, True))
+    gd = abs(along_coord(a) - along_coord(b))
+    if abs(gd - gt) > MAX_WARP_ALONG:
+        fails["N10"].append("%s ⇔ %s 通り沿いの間隔 真%.1fm → 表示%.1fm (%+.1fm)"
+                            % (a["name"], b["name"], gt, gd, gd - gt))
 
 LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N3": "歩きズームで★が道路にかからず見える大きさ", "N4": "ラベルが自分の★に一意に結びつく",
        "N5": "通りの東西と向かい合いが成立", "N6": "目印の信号が使える",
-       "N7": "真座標から離れすぎていない", "N8": "★同士が重なっていない",
-       "N9": "公園との内外が真座標と一致", "N10": "隣接ペアの距離感が歪んでいない"}
+       "N7": "移動が通りに沿う方向に偏っていない", "N8": "★同士が重なっていない",
+       "N9": "公園との内外が真座標と一致", "N10": "通り沿いの間隔が歪んでいない"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
