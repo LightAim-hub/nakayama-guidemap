@@ -8,11 +8,12 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N15 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N16 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
   N11..N15 概観ズーム (開いた瞬間の画面) での見やすさ  ← 2026-07-30 追加
+  N16      座標の出典 (src) の書き換え検出              ← 2026-07-30 追加
 
 usage:
   python tools/v2-build/gate.py [--url http://127.0.0.1:PORT/index.html] [--json out.json]
@@ -298,7 +299,7 @@ else:
 P("")
 
 fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
-                         "N11", "N12", "N13", "N14", "N15")}
+                         "N11", "N12", "N13", "N14", "N15", "N16")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -329,6 +330,10 @@ P("")
 #   実測: 花祭壇 15.9m のうち沿い0.9m・直交15.8m / ウエルシア 14.4m のうち沿い0.2m・直交14.4m
 MAX_ALONG = {"osm:exact": 4.0, "osm:partial": 4.0, "gsi_addr": 8.0, "approx": 8.0}
 MAX_CROSS = {"osm:exact": 20.0, "osm:partial": 20.0, "gsi_addr": 20.0, "approx": 25.0}
+# 同一住所グループは1点を共有しているので、判別のために街区の奥 (通りに直交) へ
+# 広げる必要がある。この許容は「グループの構成員か」で決める。src の値で決めると
+# src を書き換えるだけで上限が緩むため (2026-07-30 に実際に10店で発生した)。
+MAX_CROSS_PAIRED = 25.0
 MAX_WARP_ALONG = 6.0      # 隣接ペアの「通り沿いの間隔」の変化の上限 (m)
 
 for s in shops:
@@ -414,7 +419,8 @@ for s in shops:
     al, cr = decompose(s)
     src = s.get("src", "approx")
     lim_a = MAX_ALONG.get(src, 8.0)
-    lim_c = MAX_CROSS.get(src, 25.0)
+    # 直交の上限は「同一住所グループの構成員か」で決める (src では決めない)
+    lim_c = MAX_CROSS_PAIRED if s["name"] in PAIRED else MAX_CROSS.get(src, 25.0)
     if s["name"] not in PAIRED and al > lim_a:
         fails["N7"].append("%s が通りに沿って%.1fm動いた (上限%.0fm / %s)" % (s["name"], al, lim_a, src))
     if cr > lim_c:
@@ -520,6 +526,19 @@ if REND:
     _zoom_checks(REND, "既定ズーム", True)
     _zoom_checks(REND.get("walk"), "歩きズーム", False)
 
+# ---- N16 座標の出典 (src) が書き換えられていない ----
+# src は N7 の上限を決めるキーなので、書き換えれば閾値を緩めたのと同じになる。
+# 2026-07-30、同一住所の分離のために10店が gsi_addr → approx に変わり、
+# うち1店 (中杜建設) が直交23.8m を approx の25m 上限で通していた。
+_sbp = os.path.join(HERE, "src_baseline.json")
+if os.path.exists(_sbp):
+    _base = json.load(io.open(_sbp, encoding="utf-8"))["src"]
+    for s in shops:
+        b = _base.get(s["name"])
+        if b and s.get("src") != b:
+            fails["N16"].append("%s の出典が %s → %s に書き換わっている (src_baseline.json と不一致)"
+                                % (s["name"], b, s.get("src")))
+
 LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N3": "歩きズームで★が道路にかからず見える大きさ", "N4": "ラベルが自分の★に一意に結びつく",
        "N5": "通りの東西と向かい合いが成立", "N6": "目印の信号が使える",
@@ -527,9 +546,10 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N9": "公園との内外が真座標と一致", "N10": "通り沿いの間隔が歪んでいない",
        "N11": "既定ズームで通りが通りとして読める", "N12": "既定ズームで★が通りを覆わない",
        "N13": "ラベルが他店の★を内包しない", "N14": "ラベルの縁から自分の★が明確に最近傍",
-       "N15": "その倍率で描かれた帯に★の絵がかからない"}
+       "N15": "その倍率で描かれた帯に★の絵がかからない",
+       "N16": "座標の出典(src)が書き換えられていない"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
-          "N11", "N12", "N13", "N14", "N15"):
+          "N11", "N12", "N13", "N14", "N15", "N16"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -579,7 +599,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N15 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N16 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
