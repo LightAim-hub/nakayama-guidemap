@@ -8,8 +8,11 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N6 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N15 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
+
+  N1..N10  位置関係と歩きズームでの見やすさ
+  N11..N15 概観ズーム (開いた瞬間の画面) での見やすさ  ← 2026-07-30 追加
 
 usage:
   python tools/v2-build/gate.py [--url http://127.0.0.1:PORT/index.html] [--json out.json]
@@ -40,6 +43,19 @@ OPEN_SITES = {"たきみち公園", "なかやまとびのこ公園", "中山山
 WALK_PX_PER_M = 2.0
 MIN_STAR_PX = 6.0          # これ未満の★は見えない
 SETBACK = 2.0              # 道路の帯からこれだけ離れていること
+
+# ---- 2026-07-30 追加 (N11-N15): 概観ズーム側の「見やすさ」 ----
+# 歩きズームだけを見ていたため、最初に見える倍率で「通りが読めない / ★が通りより太い /
+# ラベルが他店の★を内包する」を取りこぼしていた。バーは上がる方向にのみ変更している。
+# 床の決め方 (勘で置かず、他の床から逆算している):
+#   ★は 6px 未満だと見えない (MIN_STAR_PX)。★ ≤ 0.60 × 道路幅 を満たすには
+#   道路幅 ≥ 10px が必要で、10px では★がちょうど6pxで余裕がない。12px なら★7.2px。
+ROAD_FLOOR_PX = 12.0       # バス通りが通りとして読める最小の描画幅
+STAR_ROAD_MAX = 0.60       # ★の幅 / バス通りの描画幅 の上限 (超えると通りを覆う)
+# 「自分の★が明確に最近傍」= 他のどの★より25%以上近い。
+# 0.55 (=2倍近い) にすると、人が問題なく読めるラベルまで非表示を強いるので採らない。
+# ボスの訴えは「どの星がどの店名か分からない」なので、順序が明確なら足りる。
+LABEL_MARGIN_MAX = 0.80
 
 # ---------------- GEO ----------------
 src = io.open(A.target, encoding="utf-8").read()
@@ -195,6 +211,12 @@ if not A.no_browser:
             JS = """(walkPxPerM) => {
               const svg = document.getElementById('map');
               const s0 = Math.hypot(svg.getScreenCTM().a, svg.getScreenCTM().b);
+              // 道路の実描画幅 (px)。通りとして読めるかを見るため
+              const roadPx = {};
+              for (const c of ['main','major','mid','minor']) {
+                const el = document.querySelector('.road-' + c + '-f');
+                if (el) roadPx[c] = +(parseFloat(getComputedStyle(el).strokeWidth) * s0).toFixed(2);
+              }
               const rows = [...document.querySelectorAll('g.hit')].map(h => {
                 const i = +h.dataset.i, s = GEO.shops[i];
                 const st = h.querySelector('.star'), t = h.querySelector('text.shoplabel');
@@ -202,11 +224,19 @@ if not A.no_browser:
                 const m  = st ? st.getScreenCTM() : null;
                 const sc = m ? Math.hypot(m.a, m.b) : 0;
                 const tb = t ? t.getBBox() : null;
+                const sr = st ? st.getBoundingClientRect() : null;
+                const shown = !!(t && getComputedStyle(t).display !== 'none' && +getComputedStyle(t).opacity > 0);
+                const tr = (shown && t) ? t.getBoundingClientRect() : null;
                 return {i, name: s.name,
                         starPxNow:  bb ? +(bb.width * sc).toFixed(2) : 0,
                         starMapM:   bb && sc ? +(bb.width * sc / s0).toFixed(2) : 0,
-                        labelShown: !!(t && getComputedStyle(t).display !== 'none' && +getComputedStyle(t).opacity > 0),
+                        labelShown: shown,
                         lx: s.lx, ly: s.ly,
+                        starCx: sr ? +(sr.left + sr.width / 2).toFixed(1) : null,
+                        starCy: sr ? +(sr.top + sr.height / 2).toFixed(1) : null,
+                        labelRect: (tr && tr.width > 1)
+                                   ? [+tr.left.toFixed(1), +tr.top.toFixed(1),
+                                      +tr.right.toFixed(1), +tr.bottom.toFixed(1)] : null,
                         labelMapW: tb ? +tb.width.toFixed(1) : 0};
               });
               // ラベルbbox交差
@@ -219,8 +249,8 @@ if not A.no_browser:
                 const oy = Math.min(bx[i].bottom,bx[j].bottom)-Math.max(bx[i].top,bx[j].top);
                 if (ox>0.5 && oy>0.5) cross++;
               }
-              return {pxPerMeter:+s0.toFixed(4), rows, labelCross:cross, labelsVisible:vis.length,
-                      jsErrors:0};
+              return {pxPerMeter:+s0.toFixed(4), rows, roadPx, labelCross:cross,
+                      labelsVisible:vis.length, jsErrors:0};
             }"""
             with sync_playwright() as pw:
                 br = pw.chromium.launch()
@@ -267,7 +297,8 @@ else:
     P("!! ブラウザ実測なし → N3/N4 の画面判定はスキップ (合格にはしない)")
 P("")
 
-fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10")}
+fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
+                         "N11", "N12", "N13", "N14", "N15")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -419,12 +450,86 @@ for a, b in zip(bs, bs[1:]):
         fails["N10"].append("%s ⇔ %s 通り沿いの間隔 真%.1fm → 表示%.1fm (%+.1fm)"
                             % (a["name"], b["name"], gt, gd, gd - gt))
 
+# ---- N11-N14 概観ズーム (最初に見える倍率) の見やすさ ----
+# 歩きズームは N3/N4/N8 が見ている。ここは「開いた瞬間の画面」を見る。
+def _rect_d(rc, sx, sy):
+    """ラベル矩形の縁から★中心までの最短距離。中心で測ると長い店名が不利になる。"""
+    l, t, r, b = rc
+    return math.hypot(max(l - sx, 0.0, sx - r), max(t - sy, 0.0, sy - b))
+
+
+def _zoom_checks(D, zname, is_default):
+    if not D:
+        return
+    rows = D.get("rows") or []
+    rp = D.get("roadPx") or {}
+    main = rp.get("main", 0.0)
+    s0 = D.get("pxPerMeter") or 1.0
+    if is_default:
+        if main and main < ROAD_FLOOR_PX:
+            fails["N11"].append("%s でバス通りが%.1fpx (通りとして読める床%.0fpx)"
+                                % (zname, main, ROAD_FLOOR_PX))
+        for r in rows:
+            if main and r["starPxNow"] / main > STAR_ROAD_MAX:
+                fails["N12"].append("%s ★%.1fpx が通り%.1fpx の%.2f倍 (上限%.2f)"
+                                    % (r["name"], r["starPxNow"], main,
+                                       r["starPxNow"] / main, STAR_ROAD_MAX))
+    # N15 その倍率で実際に描かれている帯に★の絵がかからないか。
+    # 帯の幅は「描画px ÷ 倍率」で地図単位に戻す (画面px床が効いている場合を含める)。
+    DRAWN = {}
+    for c in ("main", "major", "mid", "minor"):
+        if c in rp:
+            DRAWN["road-" + c] = rp[c] / s0
+    byn = {r["name"]: r for r in rows}
+    for s in shops:
+        r = byn.get(s["name"])
+        if not r:
+            continue
+        rad = r["starMapM"] / 2.0
+        for rd in roads:
+            key = "road-main" if rd.get("guide_spine") else CLSMAP.get(rd["cls"], "road-mid")
+            half = DRAWN.get(key, road_w(rd)) / 2.0
+            gap = road_d(s["x"], s["y"], rd) - half - rad
+            if gap < 0:
+                fails["N15"].append("%s ★%.1fm が %s に%.1fm食い込む (%s)"
+                                    % (s["name"], r["starMapM"],
+                                       rd.get("name") or rd["cls"], -gap, zname))
+                break
+    stars = [r for r in rows if r.get("starCx") is not None]
+    for r in rows:
+        rc = r.get("labelRect")
+        if not rc:
+            continue
+        inside = [o["name"] for o in stars
+                  if o["i"] != r["i"] and rc[0] <= o["starCx"] <= rc[2]
+                  and rc[1] <= o["starCy"] <= rc[3]]
+        if inside:
+            fails["N13"].append("%s のラベルが %s の★を内包 (%s)"
+                                % (r["name"], "/".join(inside[:2]), zname))
+        if r.get("starCx") is None:
+            continue
+        own = _rect_d(rc, r["starCx"], r["starCy"])
+        oth = sorted((_rect_d(rc, o["starCx"], o["starCy"]), o["name"])
+                     for o in stars if o["i"] != r["i"])
+        if oth and (own > LABEL_MARGIN_MAX * oth[0][0] if oth[0][0] > 0 else own > 0):
+            fails["N14"].append("%s のラベル 自分%.0fpx / %s %.0fpx (%s)"
+                                % (r["name"], own, oth[0][1], oth[0][0], zname))
+
+
+if REND:
+    _zoom_checks(REND, "既定ズーム", True)
+    _zoom_checks(REND.get("walk"), "歩きズーム", False)
+
 LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N3": "歩きズームで★が道路にかからず見える大きさ", "N4": "ラベルが自分の★に一意に結びつく",
        "N5": "通りの東西と向かい合いが成立", "N6": "目印の信号が使える",
        "N7": "移動が通りに沿う方向に偏っていない", "N8": "★同士が重なっていない",
-       "N9": "公園との内外が真座標と一致", "N10": "通り沿いの間隔が歪んでいない"}
-for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10"):
+       "N9": "公園との内外が真座標と一致", "N10": "通り沿いの間隔が歪んでいない",
+       "N11": "既定ズームで通りが通りとして読める", "N12": "既定ズームで★が通りを覆わない",
+       "N13": "ラベルが他店の★を内包しない", "N14": "ラベルの縁から自分の★が明確に最近傍",
+       "N15": "その倍率で描かれた帯に★の絵がかからない"}
+for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
+          "N11", "N12", "N13", "N14", "N15"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -474,7 +579,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N10 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N15 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
