@@ -8,7 +8,7 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N19 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N24 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
@@ -16,6 +16,7 @@
   N16      座標の出典 (src) の書き換え検出              ← 2026-07-30 追加
   N17      固定UI (お店一覧/ズーム) が店名を覆わない    ← 2026-07-30 追加
   N18-N19  こどもの声バッジ / 信号アイコン               ← 2026-07-30 追加
+  N20-N24  UI/UX (押しやすさ・文字の大きさ・配置)        ← 2026-07-31 追加
 
 usage:
   python tools/v2-build/gate.py [--url http://127.0.0.1:PORT/index.html] [--json out.json]
@@ -63,6 +64,19 @@ LABEL_MARGIN_MAX = 0.80
 # 可読な大きさの★は必ず縁に触れる。乗っている (中心が内側) は N15 で別に不合格。
 # 実測の最大は1.2m。2.0m を上限にして、これ以上悪化したら不合格になるようにする。
 MAX_STAR_ROAD_BITE = 2.0
+
+# ---- 2026-07-30 追加 (N20-N23): UI/UX ----
+# ボス指示「文字の大きさ・位置・ボタンの配置と押しやすさを、位置関係を変えずに」。
+# 実測 (2026-07-30) の出発点:
+#   押しやすさ: chip44 / 検索44 / お店一覧44 / ズーム44x44 / 閉じる44x44 / 一覧の行60 → 合格
+#   文字      : カテゴリ名12.5 / お店一覧13.6 / 検索結果12.5 / 見出し下12.0 / フッタ10.9 → 不足
+#   カテゴリ  : 6個中2個しか見えない (必要875px vs 画面360-428px)。
+#              しかも「こどもの声（11店）」が最後尾で常に画面外
+TAP_MIN_PX = 44.0          # WCAG 2.5.5 / Apple HIG。操作要素の最小
+TEXT_MIN_PX = 14.0         # 高齢者も読める床
+ATTRIB_MIN_PX = 12.0       # 帰属表示 (OpenStreetMap ODbL 等) だけはこの床
+MAP_MIN_RATIO = 0.62       # 画面の高さに対する地図の最小比率
+UI_WIDTHS = [360, 390, 428]  # UI検査を回す画面幅 (小型Android / 標準 / 大型)
 
 # ---------------- GEO ----------------
 src = io.open(A.target, encoding="utf-8").read()
@@ -315,8 +329,14 @@ if not A.no_browser:
                 for (const t of vis) if (ovl(g, t.getBoundingClientRect()))
                   sigHit.push({n: t.textContent.trim(), kind: 'ラベル'});
               }
+              // この倍率で「どのお店？」チューザーが出る店の数。
+              // nearby が地図単位固定だとズームしても減らない。
+              let chooserShops = null;
+              try {
+                chooserShops = GEO.shops.filter(s2 => nearby(s2).length > 1).length;
+              } catch (e) { chooserShops = null; }
               return {pxPerMeter:+s0.toFixed(4), rows, roadPx, labelCross:cross,
-                      labelsVisible:vis.length, uiCovered:covered,
+                      labelsVisible:vis.length, uiCovered:covered, chooserShops,
                       badges, sigW: sigBoxes.length ? +sigBoxes[0].width.toFixed(1) : 0,
                       sigCount: sigBoxes.length, sigHit, jsErrors:0};
             }"""
@@ -343,6 +363,59 @@ if not A.no_browser:
                     w = w * got / WALK_PX_PER_M
                 REND["walk"] = pg.evaluate(JS, WALK_PX_PER_M)
                 REND["walkPxPerMeter"] = round(got, 4)
+
+                # ---- UI/UX の実測 (N20-N24)。画面幅を変えて操作部だけ見る ----
+                UIJS = """() => {
+                  const out = {vw: innerWidth, taps: [], texts: [], offscreen: []};
+                  const SEL = [['.chip','カテゴリ'], ['#q','検索入力'], ['#listbtn','お店一覧'],
+                               ['.zoomctl button','ズーム'], ['#detailClose','詳細を閉じる'],
+                               ['.chooser .copt','チューザーの選択肢'], ['#listrows > *','一覧の行']];
+                  for (const [q, nm] of SEL) {
+                    document.querySelectorAll(q).forEach((e, i) => {
+                      const b = e.getBoundingClientRect();
+                      if (b.width < 1 && b.height < 1) return;
+                      const cs = getComputedStyle(e);
+                      out.taps.push({nm: nm + (i ? '#' + i : ''), w: +b.width.toFixed(0),
+                                     h: +b.height.toFixed(0),
+                                     fs: +parseFloat(cs.fontSize).toFixed(1),
+                                     txt: (e.textContent || '').trim().slice(0, 12)});
+                      if (b.right > innerWidth + 0.5 || b.left < -0.5)
+                        out.offscreen.push({nm: nm + '#' + i,
+                                            txt: (e.textContent || '').trim().slice(0, 12)});
+                    });
+                  }
+                  // 文字サイズ (帰属表示は別枠)
+                  const T = [['header h1','見出し',0], ['header p','見出し下',0],
+                             ['#q','検索入力',0], ['#searchstatus','検索結果',0],
+                             ['.chip .lbl','カテゴリ名',0], ['#listbtn','お店一覧ボタン',0],
+                             ['.detail-address','詳細の住所',0], ['footer,.credits,.foot','帰属表示',1]];
+                  for (const [q, nm, attrib] of T) {
+                    const e = document.querySelector(q); if (!e) continue;
+                    out.texts.push({nm, fs: +parseFloat(getComputedStyle(e).fontSize).toFixed(1),
+                                    attrib: !!attrib});
+                  }
+                  const vp = document.getElementById('viewport').getBoundingClientRect();
+                  out.mapRatio = +(vp.height / innerHeight).toFixed(3);
+                  out.mapH = Math.round(vp.height);
+                  // nearby の半径 (チューザーが出る条件) を実際の関数から測る
+                  let nb = null;
+                  try { nb = (typeof nearby === 'function')
+                        ? GEO.shops.filter(o => nearby(GEO.shops[0]).includes(o)).length : null; } catch (e) {}
+                  out.chooserShops = GEO.shops.filter(s => {
+                    try { return nearby(s).length > 1; } catch (e) { return false; }
+                  }).length;
+                  return out;
+                }"""
+                UI = []
+                for uw in UI_WIDTHS:
+                    up = br.new_page(viewport={"width": uw, "height": 844})
+                    up.goto(url, wait_until="load")
+                    up.wait_for_timeout(1200)
+                    up.evaluate("()=>document.getElementById('listbtn').click()")
+                    up.wait_for_timeout(350)
+                    UI.append(up.evaluate(UIJS))
+                    up.close()
+                REND["ui"] = UI
                 br.close()
         except Exception as e:
             P("!! ブラウザ実測に失敗: %s: %s" % (type(e).__name__, e))
@@ -366,7 +439,8 @@ else:
 P("")
 
 fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
-                         "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19")}
+                         "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
+                         "N20", "N21", "N22", "N23", "N24")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -631,7 +705,33 @@ if REND:
                 fails["N18"].append("%s の声バッジが %s の★のほうに近い (自分%.0fpx / 相手%.0fpx) (%s)"
                                     % (b["own"], b["nearest"], b["ownPx"], b["nearestPx"], zn))
         for h in (D.get("sigHit") or []):
-            fails["N19"].append("信号アイコンが %s の%sを覆っている (%s)" % (h["n"], h["kind"], zn))
+            fails["N19"].append("信号アイコンが %s の%sと重なり、信号が読めない (%s)"
+                                % (h["n"], h["kind"], zn))
+
+    # ---- N20-N24 UI/UX。画面幅を変えて操作部だけ見る ----
+    for u in (REND.get("ui") or []):
+        vw = u["vw"]
+        for t in u["taps"]:
+            if t["w"] < TAP_MIN_PX or t["h"] < TAP_MIN_PX:
+                fails["N20"].append("%s (%s) が %dx%dpx (最小%.0f) [幅%d]"
+                                    % (t["nm"], t["txt"], t["w"], t["h"], TAP_MIN_PX, vw))
+        for t in u["texts"]:
+            lim = ATTRIB_MIN_PX if t["attrib"] else TEXT_MIN_PX
+            if t["fs"] < lim:
+                fails["N21"].append("%s が %.1fpx (床%.0f) [幅%d]" % (t["nm"], t["fs"], lim, vw))
+        for o in u["offscreen"]:
+            fails["N22"].append("%s (%s) が画面の外にある [幅%d]" % (o["nm"], o["txt"], vw))
+        if u["mapRatio"] < MAP_MIN_RATIO:
+            fails["N23"].append("地図が画面の%.0f%%しかない (床%.0f%%) [幅%d]"
+                                % (u["mapRatio"] * 100, MAP_MIN_RATIO * 100, vw))
+    # N24 密集地でチューザーが出る店の数。既定ズームでは指(44px)が2店(最短8.5m=7.8px)を
+    # 覆うので不可避。だが nearby が地図単位固定(22m)だとズームしても減らない
+    # (2026-07-30 実測: 5px/m でも21件。店は42px離れているのに出る)。
+    # 画面px基準にすれば歩きズームで8件、拡大しきれば0件になり単一ボタンで押せる。
+    wk = REND.get("walk") or {}
+    if wk.get("chooserShops") is not None and wk["chooserShops"] > 10:
+        fails["N24"].append("歩きズームでチューザーが出る店が%d件 (上限10件)。"
+                            "nearby が画面px基準になっていない" % wk["chooserShops"])
 
 # ---- N16 座標の出典 (src) が書き換えられていない ----
 # src は N7 の上限を決めるキーなので、書き換えれば閾値を緩めたのと同じになる。
@@ -657,9 +757,13 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N16": "座標の出典(src)が書き換えられていない",
        "N17": "固定UIが店名を覆っていない",
        "N18": "こどもの声バッジが自分の★に一意に結びつく",
-       "N19": "信号アイコンが★やラベルと重なっていない"}
+       "N19": "信号アイコンが★やラベルと重なっていない",
+       "N20": "操作要素が44x44px以上", "N21": "文字が14px以上 (帰属表示は12px)",
+       "N22": "操作要素が画面の外に出ていない", "N23": "地図が画面の62%以上",
+       "N24": "拡大すればチューザーなしで単一ボタンで押せる"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
-          "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19"):
+          "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
+          "N20", "N21", "N22", "N23", "N24"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -709,7 +813,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N19 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N24 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
