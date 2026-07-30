@@ -8,7 +8,7 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N26 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N27 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
@@ -87,6 +87,11 @@ MAP_MIN_PX = 330.0         # 地図の最小の高さ (実測 360x640 で345px)
 # 360x640 (よくある小型Android) の実際の高さを一度も測っていなかった
 # (2026-07-31 発覚: そこでは上下UIが295pxを占め地図が53.9%しかない)。
 UI_DEVICES = [(360, 640), (375, 667), (390, 844), (428, 926)]
+# ラベル配置の所要時間の上限。2026-07-31 の Task R で、こどもの声の店を同時に解く
+# 「打ち切りの無い再帰探索」が入った。いまの条件では12手で終わるが、店やバッジが増えて
+# 制約が厳しくなると組み合わせ爆発する。地図が固まるのは最悪の壊れ方 (店名が消えるより悪い)
+# なので、賢さでなく時間で歯止めをかける。ズーム操作1回あたりの最悪値で測る。
+MAX_LAYOUT_MS = 400.0
 
 # ---------------- GEO ----------------
 src = io.open(A.target, encoding="utf-8").read()
@@ -464,6 +469,29 @@ if not A.no_browser:
                   }).length;
                   return out;
                 }"""
+                # N27 ズームのたびに走るラベル配置が、時間内に終わるか。
+                # layoutLabels を包んで実測する。包めていない (呼ばれた形跡が無い) 時は
+                # 「測れた」ことにせず失敗として扱う — 0ms の偽合格を作らないため。
+                TIMEJS = r"""async () => {
+                  const orig = layoutLabels;
+                  let worst = 0, calls = 0;
+                  window.layoutLabels = function(){
+                    const t0 = performance.now();
+                    const r = orig.apply(this, arguments);
+                    worst = Math.max(worst, performance.now()-t0); calls++;
+                    return r;
+                  };
+                  const btns = [...document.querySelectorAll('.zoomctl button')];
+                  const frame = () => new Promise(r =>
+                    requestAnimationFrame(() => requestAnimationFrame(r)));
+                  for (const b of btns) {
+                    for (let i=0;i<3;i++){
+                      b.click(); await frame(); await new Promise(r=>setTimeout(r,120));
+                    }
+                  }
+                  window.layoutLabels = orig;
+                  return {worst:+worst.toFixed(1), calls, buttons:btns.length};
+                }"""
                 UI = []
                 for uw, uh in UI_DEVICES:
                     up = br.new_page(viewport={"width": uw, "height": uh})
@@ -471,7 +499,9 @@ if not A.no_browser:
                     up.wait_for_timeout(1200)
                     up.evaluate("()=>document.getElementById('listbtn').click()")
                     up.wait_for_timeout(350)
-                    UI.append(up.evaluate(UIJS))
+                    u = up.evaluate(UIJS)
+                    u["layout"] = up.evaluate(TIMEJS)
+                    UI.append(u)
                     up.close()
                 REND["ui"] = UI
                 br.close()
@@ -498,7 +528,7 @@ P("")
 
 fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
                          "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
-                         "N20", "N21", "N22", "N23", "N24", "N25", "N26")}
+                         "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -791,6 +821,13 @@ if REND:
         for n in (u.get("voiceHidden") or []):
             fails["N26"].append("%s のこどもの声ラベルが出ていない [%dx%d]"
                                 % (n, vw, u.get("vh", 0)))
+        lay = u.get("layout") or {}
+        if not lay.get("calls"):
+            fails["N27"].append("ラベル配置の時間を測れなかった (呼び出し%s回/ズームボタン%s個) [%dx%d]"
+                                % (lay.get("calls"), lay.get("buttons"), vw, u.get("vh", 0)))
+        elif lay.get("worst", 0) > MAX_LAYOUT_MS:
+            fails["N27"].append("ズーム1回のラベル配置に%.0fms かかる (上限%.0fms) [%dx%d]"
+                                % (lay["worst"], MAX_LAYOUT_MS, vw, u.get("vh", 0)))
     # N24 密集地でチューザーが出る店の数。既定ズームでは指(44px)が2店(最短8.5m=7.8px)を
     # 覆うので不可避。だが nearby が地図単位固定(22m)だとズームしても減らない
     # (2026-07-30 実測: 5px/m でも21件。店は42px離れているのに出る)。
@@ -829,10 +866,11 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N22": "操作要素が画面の外に出ていない", "N23": "地図が画面の62%以上",
        "N24": "拡大すればチューザーなしで単一ボタンで押せる",
        "N25": "固定UIが帰属表示・注記を覆っていない",
-       "N26": "こどもの声の店のラベルが端末を問わず出ている"}
+       "N26": "こどもの声の店のラベルが端末を問わず出ている",
+       "N27": "ズームしても地図の再描画が止まらない"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
-          "N20", "N21", "N22", "N23", "N24", "N25", "N26"):
+          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -882,7 +920,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N26 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N27 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))

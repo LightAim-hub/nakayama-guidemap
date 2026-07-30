@@ -576,6 +576,7 @@ const ROAD_WIDTHS = {
 const MIN_STAR_PX = 6, MAX_STAR_PX = 11, STAR_ROAD_RATIO = .60;
 const LABEL_OWNER_RATIO = .79;
 const VOICE_BADGE_WIDTH_PX = 13, VOICE_BADGE_HEIGHT_PX = 11, VOICE_BADGE_GAP_PX = 3;
+const PRIORITY_SEARCH_STEP_LIMIT = 20000;
 function preferredLabelSide(s){
   const h = s.hint || {};
   if (h.anchor === 'start') return 1;
@@ -610,30 +611,87 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
         Math.min(clipped.right, blocked.right) - Math.max(clipped.left, blocked.left) >= 1 &&
         Math.min(clipped.bottom, blocked.bottom) - Math.max(clipped.top, blocked.top) >= 1);
     };
-    const overlapsMapSymbol = rect => mapKeepOut.some(blocked =>
-      Math.min(rect.right,blocked.right)-Math.max(rect.left,blocked.left) > .05 &&
-      Math.min(rect.bottom,blocked.bottom)-Math.max(rect.top,blocked.top) > .05);
+    const overlapsMapSymbol = (entry, rect) => mapKeepOut.some(item => {
+      if (item.idx === entry.idx) return false;
+      const blocked = item.rect;
+      return Math.min(rect.right,blocked.right)-Math.max(rect.left,blocked.left) > .05 &&
+        Math.min(rect.bottom,blocked.bottom)-Math.max(rect.top,blocked.top) > .05;
+    });
     entries.forEach(hideLabel);
-    entries.sort((a,b) => labelPriority(b.s)-labelPriority(a.s) ||
-      Number(isPrimaryLabel(b.s))-Number(isPrimaryLabel(a.s)) || a.s.y-b.s.y || a.idx-b.idx);
     const kept = [];
-    entries.forEach(entry => {
+    const placeGreedy = entry => {
       for (const candidate of labelCandidates(entry.s)){
         setLabelPosition(entry, candidate, scale);
         const mainRect = entry.main.getBoundingClientRect();
         if (!labelAnchorBelongsToOwnStar(entry, starCenters) ||
             !labelBelongsToOwnStar(entry, mainRect, starCenters)) continue;
         const rect = labelRect(entry);
-        if (overlapsKeepOut(rect) || overlapsMapSymbol(rect)) continue;
+        if (overlapsKeepOut(rect) || overlapsMapSymbol(entry, rect)) continue;
         if (!kept.some(other => labelsCollide(rect, other))){
           entry.s.labelVisible = true;
           kept.push(rect);
-          return;
+          return true;
         }
       }
       hideLabel(entry);
-    });
-    return;
+      return false;
+    };
+    const priorityEntries = entries.filter(entry => labelPriority(entry.s) === 3);
+    const priorityOptions = new Map(priorityEntries.map(entry => {
+      const options = [];
+      for (const candidate of labelCandidates(entry.s)){
+        setLabelPosition(entry, candidate, scale);
+        const mainRect = entry.main.getBoundingClientRect();
+        if (!labelAnchorBelongsToOwnStar(entry, starCenters) ||
+            !labelBelongsToOwnStar(entry, mainRect, starCenters)) continue;
+        const rect = labelRect(entry);
+        if (!overlapsKeepOut(rect) && !overlapsMapSymbol(entry, rect)){
+          options.push({candidate, rect});
+        }
+      }
+      hideLabel(entry);
+      return [entry, options];
+    }));
+    priorityEntries.sort((a,b) => priorityOptions.get(a).length-priorityOptions.get(b).length ||
+      a.idx-b.idx);
+    const priorityChoice = new Map();
+    let prioritySteps = 0, priorityAborted = false;
+    const placePriority = pos => {
+      if (prioritySteps >= PRIORITY_SEARCH_STEP_LIMIT){
+        priorityAborted = true;
+        return false;
+      }
+      prioritySteps++;
+      if (pos === priorityEntries.length) return true;
+      const entry = priorityEntries[pos];
+      for (const option of priorityOptions.get(entry)){
+        if (kept.some(other => labelsCollide(option.rect, other))) continue;
+        kept.push(option.rect);
+        priorityChoice.set(entry, option.candidate);
+        if (placePriority(pos+1)) return true;
+        priorityChoice.delete(entry);
+        kept.pop();
+        if (priorityAborted) return false;
+      }
+      return false;
+    };
+    if (placePriority(0)){
+      document.body.dataset.labelLayout = 'priority';
+      priorityEntries.forEach(entry => {
+        setLabelPosition(entry, priorityChoice.get(entry), scale);
+        entry.s.labelVisible = true;
+      });
+    } else {
+      document.body.dataset.labelLayout = priorityAborted ? 'greedy-step-limit' : 'greedy-no-solution';
+      kept.length = 0;
+      priorityEntries.forEach(placeGreedy);
+    }
+    document.body.dataset.labelLayoutSteps = String(prioritySteps);
+    entries.filter(entry => labelPriority(entry.s) < 3)
+      .sort((a,b) => labelPriority(b.s)-labelPriority(a.s) ||
+        Number(isPrimaryLabel(b.s))-Number(isPrimaryLabel(a.s)) || a.s.y-b.s.y || a.idx-b.idx)
+      .forEach(placeGreedy);
+    return kept;
   }
   GEO.shops.forEach(s => {
     const side = preferredLabelSide(s);
@@ -772,7 +830,8 @@ function voiceBadgeAngles(side){
   out.push(base+Math.PI);
   return out;
 }
-function layoutVoiceBadges(scale, entries, starCenters){
+function layoutVoiceBadges(scale, entries, starCenters, labelKeepOut){
+  const labelRects=labelKeepOut || [];
   const starRects=new Map(entries.map(entry => [entry.idx,entry.star.getBoundingClientRect()]));
   const nearestStarDistance=entry => {
     const own=starCenters.get(entry.idx);
@@ -799,7 +858,8 @@ function layoutVoiceBadges(scale, entries, starCenters){
         const rect={left:cx-VOICE_BADGE_WIDTH_PX/2,right:cx+VOICE_BADGE_WIDTH_PX/2,
           top:cy-VOICE_BADGE_HEIGHT_PX/2,bottom:cy+VOICE_BADGE_HEIGHT_PX/2};
         if ([...starRects.values()].some(starRect=>rectsOverlap(rect,starRect)) ||
-            placed.some(other=>rectsOverlap(rect,other))) continue;
+            placed.some(other=>rectsOverlap(rect,other.rect)) ||
+            labelRects.some(labelRect=>rectsOverlap(rect,labelRect))) continue;
         const nearestOther=Math.min(...[...starCenters].filter(([idx])=>idx!==entry.idx)
           .map(([,p])=>Math.hypot(p.x-cx,p.y-cy)));
         if (!(ownDistance+.01 < nearestOther)) continue;
@@ -822,7 +882,7 @@ function layoutVoiceBadges(scale, entries, starCenters){
     vg.dataset.gapPx=accepted.gapPx.toFixed(1);
     vg.dataset.dxPx=accepted.dx.toFixed(2);
     vg.dataset.dyPx=accepted.dy.toFixed(2);
-    placed.push(vg.getBoundingClientRect());
+    placed.push({idx:entry.idx,rect:vg.getBoundingClientRect()});
   });
   return placed;
 }
@@ -845,9 +905,10 @@ function updateMapScaleStyles(){
     return [entry.idx, rect ? {x:rect.left+rect.width/2, y:rect.top+rect.height/2} : null];
   }).filter(([, point]) => point));
   updateSignalStyles(scale,mainRoadPx);
-  const signalRects=signalEntries.map(entry=>entry.g.getBoundingClientRect());
+  const signalRects=signalEntries.map(entry=>({rect:entry.g.getBoundingClientRect()}));
   const badgeRects=layoutVoiceBadges(scale,entries,starCenters);
-  layoutLabels(scale,entries,starCenters,badgeRects.concat(signalRects));
+  const labelRects=layoutLabels(scale,entries,starCenters,badgeRects.concat(signalRects));
+  layoutVoiceBadges(scale,entries,starCenters,labelRects);
 }
 function scheduleMapScaleStyles(){
   if (mapStyleFrame) cancelAnimationFrame(mapStyleFrame);
