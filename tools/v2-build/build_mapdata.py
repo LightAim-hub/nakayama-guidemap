@@ -110,8 +110,10 @@ ADDR_FIX = {  # 表示住所の補正 (座標には影響しない)
 }
 # 座標の明示上書き (名寄せ誤りの補正)
 COORD_OVERRIDE = {
-    # Double Egg: OSMノード(西側)=4丁目店 / 5丁目店は住所5-19-5(東側)
-    'Double Egg 4丁目': ('osm:exact', 38.292811, 140.841566),
+    # Double Egg 4丁目: イートイン専門店 = 中山4丁目6-36 (公式 w-egg.jp / Yahoo!マップ)。
+    # 5丁目19-5 はテイクアウト・デリバリー専門の別店舗。
+    # 国土地理院 住所検索APIで号レベル一致「宮城県仙台市青葉区中山四丁目６番３６号」。
+    'Double Egg 4丁目': ('gsi_addr', 38.291851, 140.842712),
     'Double Egg 5丁目': ('gsi_addr', None, None),  # None→GSI値を使う
     '志摩整骨院': ('gsi_addr', None, None),        # OSM同名ノードは西側で紙と不整合
     '中山鳥瀧不動尊（目の神様）': ('osm:exact', 38.2956402, 140.8414793),  # 平田稲荷神社と同一境内
@@ -581,36 +583,10 @@ for e in oq3['elements']:
 # バス通り(中山幹線1号線)は、同じ正本道路ジオメトリから導出する。
 busway = [[list(p) for p in r['pts']] for r in roads if r['cls'] == 'spine']
 
-# Double Egg 4丁目: OSMノードは5丁目と同一地点だったため、通りの対面(西側)へ概算配置
-# (紙マップでは4丁目店は通りの西側。住所非公開のため要現地確認)
-_bus_all = []
-for seg in busway:
-    _bus_all += seg
-def _bus_x_at_y(y):
-    pts_s = sorted(_bus_all, key=lambda p: p[1])
-    if y <= pts_s[0][1]: return pts_s[0][0]
-    if y >= pts_s[-1][1]: return pts_s[-1][0]
-    for i in range(1, len(pts_s)):
-        if pts_s[i][1] >= y:
-            lo, hi = pts_s[i-1], pts_s[i]
-            t = (y - lo[1]) / ((hi[1] - lo[1]) or 1e-9)
-            return lo[0] + t * (hi[0] - lo[0])
-    return pts_s[-1][0]
-
+# Double Egg 4丁目: 住所が判明したので概算配置を廃止し、COORD_OVERRIDE の実座標を使う。
+# 旧実装は「バス通り中心 -75m」の手置き(src=approx)で、実座標から151.2mズレていた。
 de4 = next(s for s in shops if s['name'] == 'Double Egg4丁目')
-de5 = next(s for s in shops if s['name'] == 'Double Egg5丁目')
-_x5, _y5 = project(de5['lat'], de5['lng'])
-_bx = _bus_x_at_y(_y5)
-# 紙マップでは4丁目店は通りの明確に西側(柏屋・たけむらやの並び)に描かれている
-_x4, _y4 = _bx - 75, _y5 + 8
-# 逆変換してlat/lngも更新
-_rot = -ROT
-_gx, _gy = _x4, _y4
-_x0 = _gx * math.cos(_rot) - _gy * math.sin(_rot)
-_y0 = _gx * math.sin(_rot) + _gy * math.cos(_rot)
-de4['lng'] = LON0 + _x0 / (111320 * COSF)
-de4['lat'] = LAT0 + (-_y0) / 111320
-de4['src'] = 'approx'
+de4['addr'] = de4.get('addr') or '仙台市青葉区中山4-6-36'
 
 # ラベルを星の右/左どちらに置くかだけを指定する。上下・斜めオフセットは禁止。
 SHOP_HINTS = {
@@ -799,6 +775,27 @@ if not ARGS.preview:
     for sh in shops:
         sh['x'] = sh.get('tx', sh['x'])
         sh['y'] = sh.get('ty', sh['y'])
+
+    # Double Egg 4丁目: 凍結ベースの座標は手置きの概算(src=approx / バス通り中心-75m)。
+    # 住所が判明したので実測座標へ差し替える。
+    #   住所 = 仙台市青葉区中山4丁目6-36 (イートイン専門店。5丁目19-5 はテイクアウト専門の別店舗)
+    #   出典 = 公式 w-egg.jp / Yahoo!マップ「オムライス食堂 Double Egg 4丁目店」
+    #   国土地理院 住所検索APIで号レベル一致「宮城県仙台市青葉区中山四丁目６番３６号」
+    # 凍結ベースのx/yは投影後にオフセット済みなので、既知店から同じオフセットを逆算して合わせる。
+    DE4_FIX = {'addr': '仙台市青葉区中山4-6-36', 'lat': 38.291851, 'lng': 140.842712}
+    _ref = next(sh for sh in shops if sh['name'] == '柏屋')          # osm:exact・微小変位の対象外
+    _rx, _ry = project(_ref['lat'], _ref['lng'])
+    _ox, _oy = _ref.get('tx', _ref['x']) - _rx, _ref.get('ty', _ref['y']) - _ry
+    _de4 = next(sh for sh in shops if sh['name'] == 'Double Egg4丁目')
+    _nx, _ny = project(DE4_FIX['lat'], DE4_FIX['lng'])
+    _nx, _ny = round(_nx + _ox, 1), round(_ny + _oy, 1)
+    # mapdata.json は毎ビルドで上書きされる = 2回目以降のベースは既に修正済み。冪等にする。
+    _moved = math.hypot(_nx - _de4['x'], _ny - _de4['y'])
+    if not (0 <= _nx <= W and 0 <= _ny <= H):
+        raise SystemExit('Double Egg4丁目 fix guard: canvas外 xy=(%.1f,%.1f)' % (_nx, _ny))
+    _de4.update({'addr': DE4_FIX['addr'], 'lat': DE4_FIX['lat'], 'lng': DE4_FIX['lng'],
+                 'src': 'gsi_addr', 'x': _nx, 'y': _ny, 'tx': _nx, 'ty': _ny})
+    print('Double Egg4丁目: 住所由来座標 xy=(%.1f,%.1f) (ベースからの移動 %.1fm)' % (_nx, _ny, _moved))
 
     endroll = next(sh for sh in shops if sh['name'] == 'BAKERY&BAKE EndRoll')
     cake_nao = next(sh for sh in shops if sh['name'] == 'cake NAO')

@@ -389,16 +389,21 @@ GEO.parks.forEach(p => el('path', {d:polyClosed(p.pts), class:'park'}, gWater));
 GEO.waters.forEach(w => el('path', {d:polyClosed(w.pts), class:'water'}, gWater));
 GEO.rivers.forEach(r => el('path', {d:poly(r.pts), class:'river', 'stroke-width':9}, gWater));
 
+/* 道路幅は実幅 (SVG単位 = 1m)。地図の座標が実縮尺なので幅も実縮尺に合わせる。
+   合わせないと、通りに面した店 (中心から6〜11m) が道路の帯の内側に入り、
+   「通りを挟んで向かい合っている」ことが画面で読めなくなる。
+   根拠 (OSM tags): 中山幹線1号線 = tertiary / lanes=2 → 車道6.5m + 歩道 = 実幅12〜14m
+   縁 (casing) は塗りの約1.4倍で従来の比率を維持。 */
 const roadsSorted = GEO.roads;
-roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-c', 'stroke-width':9}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-f', 'stroke-width':5.5}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-c', 'stroke-width':21}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-f', 'stroke-width':13.5}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-c', 'stroke-width':38}, gRoads); });
-roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-f', 'stroke-width':27}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-c', 'stroke-width':7}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='minor') el('path', {d:poly(r.pts), class:'road-minor-f', 'stroke-width':5}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-c', 'stroke-width':12.5}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='mid')   el('path', {d:poly(r.pts), class:'road-mid-f', 'stroke-width':9}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-c', 'stroke-width':17}, gRoads); });
+roadsSorted.forEach(r => { if(r.cls==='major') el('path', {d:poly(r.pts), class:'road-major-f', 'stroke-width':12}, gRoads); });
 const mainStreet = roadsSorted.filter(r => r.guide_spine);
-mainStreet.forEach(r => el('path', {d:poly(r.pts), class:'road-main-c', 'stroke-width':48}, gRoads));
-mainStreet.forEach(r => el('path', {d:poly(r.pts), class:'road-main-f', 'stroke-width':34}, gRoads));
+mainStreet.forEach(r => el('path', {d:poly(r.pts), class:'road-main-c', 'stroke-width':18}, gRoads));
+mainStreet.forEach(r => el('path', {d:poly(r.pts), class:'road-main-f', 'stroke-width':13}, gRoads));
 GEO.sando.forEach(s => el('path', {d:poly(s), class:'sando', 'stroke-width':3}, gRoads));
 
 /* 信号機 (OSM実データ11箇所 + 振興組合の位置把握FB3箇所) */
