@@ -8,7 +8,7 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N24 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N25 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
@@ -370,8 +370,14 @@ if not A.no_browser:
                   const SEL = [['.chip','カテゴリ'], ['#q','検索入力'], ['#listbtn','お店一覧'],
                                ['.zoomctl button','ズーム'], ['#detailClose','詳細を閉じる'],
                                ['.chooser .copt','チューザーの選択肢'], ['#listrows > *','一覧の行']];
+                  const shown = e => {
+                    const cs = getComputedStyle(e);
+                    return cs.display !== 'none' && cs.visibility !== 'hidden'
+                           && parseFloat(cs.opacity) > 0.05;
+                  };
                   for (const [q, nm] of SEL) {
                     document.querySelectorAll(q).forEach((e, i) => {
+                      if (!shown(e)) return;
                       const b = e.getBoundingClientRect();
                       if (b.width < 1 && b.height < 1) return;
                       const cs = getComputedStyle(e);
@@ -391,8 +397,33 @@ if not A.no_browser:
                              ['.detail-address','詳細の住所',0], ['footer,.credits,.foot','帰属表示',1]];
                   for (const [q, nm, attrib] of T) {
                     const e = document.querySelector(q); if (!e) continue;
+                    // display:none の要素は誰も見ないので測らない
+                    // (2026-07-31: header p が元から非表示で誤検出していた)
+                    if (!shown(e)) continue;
                     out.texts.push({nm, fs: +parseFloat(getComputedStyle(e).fontSize).toFixed(1),
                                     attrib: !!attrib});
+                  }
+                  // N25 固定UIが帰属表示・注記を覆っていないか。
+                  // OpenStreetMap の ODbL は帰属が読める状態を求める。
+                  const fxb = ['#listbtn', '.zoomctl'].map(q => document.querySelector(q))
+                    .filter(e => e && getComputedStyle(e).position === 'fixed' && shown(e))
+                    .map(e => e.getBoundingClientRect());
+                  out.credits = [];
+                  for (const e of document.querySelectorAll('body *')) {
+                    if (e.children.length || !shown(e)) continue;
+                    const t = (e.textContent || '').trim();
+                    if (t.length < 4) continue;
+                    if (e.closest('#map, #listpanel, .detail-panel, .chooser, header, .filters, .searchbar')) continue;
+                    if (e.closest('#listbtn, .zoomctl')) continue;
+                    const b = e.getBoundingClientRect();
+                    if (b.width < 2 || b.height < 2) continue;
+                    for (const f of fxb) {
+                      const ox = Math.min(b.right, f.right) - Math.max(b.left, f.left);
+                      const oy = Math.min(b.bottom, f.bottom) - Math.max(b.top, f.top);
+                      if (ox > 1 && oy > 1)
+                        out.credits.push({txt: t.slice(0, 36),
+                          pct: Math.round(100 * ox * oy / (b.width * b.height))});
+                    }
                   }
                   const vp = document.getElementById('viewport').getBoundingClientRect();
                   out.mapRatio = +(vp.height / innerHeight).toFixed(3);
@@ -440,7 +471,7 @@ P("")
 
 fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
                          "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
-                         "N20", "N21", "N22", "N23", "N24")}
+                         "N20", "N21", "N22", "N23", "N24", "N25")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -721,6 +752,9 @@ if REND:
                 fails["N21"].append("%s が %.1fpx (床%.0f) [幅%d]" % (t["nm"], t["fs"], lim, vw))
         for o in u["offscreen"]:
             fails["N22"].append("%s (%s) が画面の外にある [幅%d]" % (o["nm"], o["txt"], vw))
+        for c in (u.get("credits") or []):
+            fails["N25"].append("「%s」が固定UIに%d%%覆われている [幅%d]"
+                                % (c["txt"], c["pct"], vw))
         if u["mapRatio"] < MAP_MIN_RATIO:
             fails["N23"].append("地図が画面の%.0f%%しかない (床%.0f%%) [幅%d]"
                                 % (u["mapRatio"] * 100, MAP_MIN_RATIO * 100, vw))
@@ -760,10 +794,11 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N19": "信号アイコンが★やラベルと重なっていない",
        "N20": "操作要素が44x44px以上", "N21": "文字が14px以上 (帰属表示は12px)",
        "N22": "操作要素が画面の外に出ていない", "N23": "地図が画面の62%以上",
-       "N24": "拡大すればチューザーなしで単一ボタンで押せる"}
+       "N24": "拡大すればチューザーなしで単一ボタンで押せる",
+       "N25": "固定UIが帰属表示・注記を覆っていない"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
-          "N20", "N21", "N22", "N23", "N24"):
+          "N20", "N21", "N22", "N23", "N24", "N25"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -813,7 +848,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N24 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N25 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
