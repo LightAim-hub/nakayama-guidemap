@@ -162,9 +162,11 @@ for zk, zn in (("default", "既定ズーム"), ("walk", "歩きズーム")):
     if main and stars[len(stars)//2] / main > STAR_ROAD_MAX:
         print("     ✗ ★が道路より太い — 通りを覆う")
 
-    # R3 地図空間で★が道路の帯にかかる店
+    # R3 は退役。gate.py の N15 が同じ性質を「実際に描かれた幅 (画面px床を反映)」で
+    # 判定している。ここは実幅で計算していたため床が効く概観ズームで過小に出る
+    # (2026-07-30 実測: 本レンズ19件 / gate N15 39件)。数値はゲート側を正とする。
     over = []
-    for r in d["rows"]:
+    for r in ([] if True else d["rows"]):
         dd, w = nearest_road(r["x"], r["y"])
         rad = r["starMapM"] / 2.0
         # 道路は地図単位の実幅で描かれる (床は入っていない) ので w をそのまま使う
@@ -172,9 +174,7 @@ for zk, zn in (("default", "既定ズーム"), ("walk", "歩きズーム")):
         clear = dd - (drawn_m / 2.0) - rad
         if clear < 0:
             over.append((r["name"], round(clear, 1), round(dd, 1)))
-    print("[R3] ★が道路の帯にかかっている店: %d / %d" % (len(over), len(d["rows"])))
-    for nm, c, dd in sorted(over, key=lambda t: t[1])[:8]:
-        print("     %-26s %.1fm 食い込み (中心線から %.1fm)" % (nm, -c, dd))
+    print("[R3] 退役 — ★が帯にかかるかは gate.py の N15 が判定する (描画幅で測る)")
 
     outv = [r for r in d["rows"] if not r["starInVp"]]
     hid = [r for r in d["rows"] if not r["labelShown"]]

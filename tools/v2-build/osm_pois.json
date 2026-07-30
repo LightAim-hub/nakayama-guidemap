@@ -1,0 +1,6302 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.11 87bfad18",
+  "osm3s": {
+    "timestamp_osm_base": "2026-07-30T08:44:06Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+
+{
+  "type": "node",
+  "id": 1216935908,
+  "lat": 38.2917704,
+  "lon": 140.8506074,
+  "tags": {
+    "end_date": "2011-05-01",
+    "name": "仙台市立中山小学校",
+    "refugee": "50",
+    "source": "Miyagi pref",
+    "temporary": "yes",
+    "tourism": "disused_camp_site"
+  }
+},
+{
+  "type": "node",
+  "id": 1217133129,
+  "lat": 38.2963809,
+  "lon": 140.8393772,
+  "tags": {
+    "capacity": "50",
+    "end_date": "2011-05-01",
+    "name": "仙台市立中山中学校",
+    "refugee": "yes",
+    "source": "Miyagi pref",
+    "temporary": "yes",
+    "tourism": "disused_camp_site"
+  }
+},
+{
+  "type": "node",
+  "id": 2355734082,
+  "lat": 38.2801125,
+  "lon": 140.8423381,
+  "tags": {
+    "brand": "7-ELEVEN",
+    "brand:en": "7-ELEVEN",
+    "brand:ja": "セブン-イレブン",
+    "brand:wikidata": "Q259340",
+    "brand:wikipedia": "en:7-Eleven",
+    "internet_access": "wlan",
+    "name": "セブン-イレブン",
+    "name:en": "7-Eleven",
+    "name:ja": "セブン-イレブン",
+    "name:ja_rm": "Sebun Irebun",
+    "name:ko": "세븐일레븐",
+    "official_name:en": "Seven-Eleven",
+    "opening_hours": "24/7",
+    "operator": "セブン-イレブン 仙台国見一丁目店",
+    "shop": "convenience"
+  }
+},
+{
+  "type": "node",
+  "id": 2667219625,
+  "lat": 38.2906630,
+  "lon": 140.8448170,
+  "tags": {
+    "addr:block_number": "23",
+    "addr:city": "仙台市",
+    "addr:full": "宮城県仙台市青葉区中山１‐４‐１１４",
+    "addr:housenumber": "1",
+    "addr:neighbourhood": "1丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "branch": "仙台中山一丁目店",
+    "branch:en": "sendainakayama1chiyoume",
+    "branch:ja_kana": "せんだいなかやま１ちようめてん",
+    "brand": "ローソン",
+    "brand:en": "LAWSON",
+    "brand:ja": "ローソン",
+    "brand:wikidata": "Q1557223",
+    "brand:wikipedia": "ja:ローソン",
+    "check_date": "2025-05-13",
+    "name": "ローソン",
+    "name:en": "Lawson",
+    "name:ja": "ローソン",
+    "name:ko": "로손",
+    "opening_hours": "24/7",
+    "operator": "ローソン",
+    "operator:en": "Lawson",
+    "phone": "+81-22-719-8063",
+    "ref:lawson": "157747",
+    "shop": "convenience",
+    "source": "Lawson",
+    "start_date": "2004-08-02"
+  }
+},
+{
+  "type": "node",
+  "id": 2667219739,
+  "lat": 38.2956588,
+  "lon": 140.8462553,
+  "tags": {
+    "addr:full": "宮城県仙台市青葉区川平１ー１１ー２３",
+    "branch": "仙台川平一丁目店",
+    "branch:en": "Lsendaikawadaira1chiyoume",
+    "branch:ja_kana": "Ｌせんだいかわだいら１ちようめてん",
+    "brand": "LAWSON",
+    "brand:en": "LAWSON",
+    "brand:ja": "ローソン",
+    "brand:wikidata": "Q1557223",
+    "brand:wikipedia": "ja:ローソン",
+    "name": "ローソン",
+    "name:en": "Lawson",
+    "name:ja": "ローソン",
+    "name:ko": "로손",
+    "opening_hours": "24/7",
+    "operator": "ローソン",
+    "operator:en": "Lawson",
+    "phone": "+81-22-719-3523",
+    "ref:lawson": "116518",
+    "shop": "convenience",
+    "source": "Lawson",
+    "start_date": "2008-06-18"
+  }
+},
+{
+  "type": "node",
+  "id": 4498010793,
+  "lat": 38.2942005,
+  "lon": 140.8382831,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "レストランカヤ",
+    "name:en": "Restaurant Kaya",
+    "name:ja": "レストランカヤ",
+    "phone": "+81 22 278 0039"
+  }
+},
+{
+  "type": "node",
+  "id": 4498010794,
+  "lat": 38.2889487,
+  "lon": 140.8500737,
+  "tags": {
+    "amenity": "restaurant",
+    "cuisine": "ramen",
+    "name": "幸楽苑 荒巻店",
+    "name:en": "Korakuen",
+    "name:ja": "幸楽苑 荒巻店"
+  }
+},
+{
+  "type": "node",
+  "id": 4498020493,
+  "lat": 38.2940516,
+  "lon": 140.8388235,
+  "tags": {
+    "amenity": "dentist",
+    "healthcare": "dentist",
+    "name": "中山歯科",
+    "name:en": "Nakayama Dental Clinic",
+    "name:ja": "中山歯科",
+    "phone": "+81 22 279 1024"
+  }
+},
+{
+  "type": "node",
+  "id": 4498020494,
+  "lat": 38.2893467,
+  "lon": 140.8503373,
+  "tags": {
+    "amenity": "pharmacy",
+    "name": "ツルハドラッグ 荒巻本沢店",
+    "name:en": "Tsuruha Drugstore",
+    "name:ja": "ツルハドラッグ 荒巻本沢店"
+  }
+},
+{
+  "type": "node",
+  "id": 4498030090,
+  "lat": 38.2945996,
+  "lon": 140.8375109,
+  "tags": {
+    "name": "志摩接骨院",
+    "phone": "+81 22 278 5210",
+    "shop": "massage"
+  }
+},
+{
+  "type": "node",
+  "id": 4498030091,
+  "lat": 38.2932002,
+  "lon": 140.8408145,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "中華レストランとらの子",
+    "name:en": "Toranoko",
+    "name:ja": "中華レストランとらの子",
+    "phone": "+81 22 279 0703"
+  }
+},
+{
+  "type": "node",
+  "id": 4498030092,
+  "lat": 38.2920623,
+  "lon": 140.8375815,
+  "tags": {
+    "amenity": "dentist",
+    "name": "梅津歯科医院",
+    "name:en": "Umezu Dental Clinic",
+    "name:ja": "梅津歯科医院",
+    "phone": "+81 22 279 1717"
+  }
+},
+{
+  "type": "node",
+  "id": 4498031790,
+  "lat": 38.2929336,
+  "lon": 140.8351731,
+  "tags": {
+    "amenity": "dentist",
+    "name": "つげ歯科医院",
+    "name:en": "Tsuge Dental Clinic",
+    "name:ja": "つげ歯科医院"
+  }
+},
+{
+  "type": "node",
+  "id": 4498031791,
+  "lat": 38.2937389,
+  "lon": 140.8396303,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "康正庵",
+    "name:en": "Koseian",
+    "name:ja": "康正庵",
+    "phone": "+81 22 279 4003"
+  }
+},
+{
+  "type": "node",
+  "id": 4498031890,
+  "lat": 38.2940947,
+  "lon": 140.8386373,
+  "tags": {
+    "addr:block_number": "6",
+    "addr:city": "仙台市",
+    "addr:housenumber": "3",
+    "addr:neighbourhood": "6丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "amenity": "post_office",
+    "name": "仙台中山郵便局",
+    "name:en": "Sendai Nakayama Post Office",
+    "name:es": "Oficina de Correos de Sendai Nakayama",
+    "name:it": "Ufficio Postale di Sendai Nakayama",
+    "name:ja": "仙台中山郵便局",
+    "name:ja-Hira": "せんだい なかやま ゆうびんきょく",
+    "name:pt": "Correio de Sendai Nakayama",
+    "opening_hours": "Mo-Fr 09:00-17:00",
+    "operator": "日本郵便",
+    "operator:en": "Japan Post",
+    "operator:ja": "日本郵便",
+    "operator:short": "郵便局",
+    "operator:short:en": "JP",
+    "operator:short:ja": "郵便局",
+    "operator:wikidata": "Q11509260",
+    "phone": "+81 22 278 0570",
+    "short_name:en": "JP",
+    "website": "japanpost.jp"
+  }
+},
+{
+  "type": "node",
+  "id": 4498031891,
+  "lat": 38.2936405,
+  "lon": 140.8356991,
+  "tags": {
+    "amenity": "clinic",
+    "name": "神林耳鼻咽喉科",
+    "name:ja": "神林耳鼻咽喉科",
+    "phone": "+81 22 277 2377"
+  }
+},
+{
+  "type": "node",
+  "id": 4537604398,
+  "lat": 38.2858468,
+  "lon": 140.8324355,
+  "tags": {
+    "amenity": "dentist",
+    "name": "国見ヶ丘歯科医院",
+    "name:en": "Kunimigaoka Dental Clinic",
+    "name:ja": "国見ヶ丘歯科医院"
+  }
+},
+{
+  "type": "node",
+  "id": 4537604399,
+  "lat": 38.2832689,
+  "lon": 140.8327989,
+  "tags": {
+    "amenity": "fuel",
+    "brand": "ENEOS",
+    "brand:en": "ENEOS",
+    "brand:ja": "エネオス",
+    "brand:wikidata": "Q1640290",
+    "name": "エネオス",
+    "name:en": "Eneos",
+    "name:ja": "エネオス"
+  }
+},
+{
+  "type": "node",
+  "id": 4537622893,
+  "lat": 38.2832738,
+  "lon": 140.8317954,
+  "tags": {
+    "addr:block_number": "1-10",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "5丁目",
+    "addr:postcode": "989-3201",
+    "addr:province": "宮城県",
+    "addr:quarter": "国見ヶ丘",
+    "addr:suburb": "青葉区",
+    "branch": "仙台国見ヶ丘店",
+    "brand": "ファミリーマート",
+    "brand:en": "FamilyMart",
+    "brand:ja": "ファミリーマート",
+    "brand:wikidata": "Q1191685",
+    "brand:wikipedia": "ja:ファミリーマート (企業)",
+    "name": "ファミリーマート",
+    "name:en": "FamilyMart",
+    "name:ja": "ファミリーマート",
+    "opening_hours": "24/7",
+    "phone": "+81 22 303 6420",
+    "shop": "convenience",
+    "website": "http://family.co.jp"
+  }
+},
+{
+  "type": "node",
+  "id": 4537653390,
+  "lat": 38.2835588,
+  "lon": 140.8293551,
+  "tags": {
+    "amenity": "restaurant",
+    "cuisine": "french",
+    "name": "アリュム",
+    "name:fr": "Arum"
+  }
+},
+{
+  "type": "node",
+  "id": 4538455493,
+  "lat": 38.2986988,
+  "lon": 140.8320164,
+  "tags": {
+    "amenity": "clinic",
+    "healthcare": "clinic",
+    "name": "佐藤茂内科医院",
+    "name:ja": "佐藤茂内科医院"
+  }
+},
+{
+  "type": "node",
+  "id": 4538455494,
+  "lat": 38.2989645,
+  "lon": 140.8319853,
+  "tags": {
+    "amenity": "clinic",
+    "name": "しかない整形外科クリニック",
+    "name:en": "Shikanai Orthopedics Clinic",
+    "name:ja": "しかない整形外科クリニック",
+    "phone": "+81 22 277 2330"
+  }
+},
+{
+  "type": "node",
+  "id": 4538542791,
+  "lat": 38.2994002,
+  "lon": 140.8298275,
+  "tags": {
+    "branch": "南中山一丁目店",
+    "brand": "FamilyMart",
+    "brand:en": "FamilyMart",
+    "brand:ja": "ファミリーマート",
+    "brand:wikidata": "Q11247682",
+    "name": "ファミリーマート",
+    "name:en": "FamilyMart",
+    "name:ja": "ファミリーマート",
+    "opening_hours": "24/7",
+    "phone": "+81 22 303 6255",
+    "shop": "convenience",
+    "website": "http://family.co.jp"
+  }
+},
+{
+  "type": "node",
+  "id": 4538542792,
+  "lat": 38.2992098,
+  "lon": 140.8296090,
+  "tags": {
+    "amenity": "fast_food",
+    "branch": "仙台中山店",
+    "brand": "スシロー",
+    "brand:en": "Sushiro",
+    "brand:ja": "スシロー",
+    "brand:wikidata": "Q11257037",
+    "brand:wikipedia": "ja:あきんどスシロー",
+    "cuisine": "sushi",
+    "name": "スシロー",
+    "name:en": "Sushiro",
+    "name:ja": "スシロー",
+    "name:zh": "壽司郎",
+    "official_name": "あきんどスシロー",
+    "official_name:en": "Akindo Sushiro",
+    "official_name:ja": "あきんどスシロー",
+    "takeaway": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 4538596190,
+  "lat": 38.2986196,
+  "lon": 140.8326759,
+  "tags": {
+    "addr:block_number": "22",
+    "addr:city": "仙台市",
+    "addr:housenumber": "18",
+    "addr:neighbourhood": "8丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "amenity": "restaurant",
+    "capacity": "21",
+    "cuisine": "ramen",
+    "name": "魔界ラーメン月光",
+    "name:en": "makai-ramen gekko",
+    "opening_hours": "11:00-14:30, 17:30-20:00",
+    "start_date": "2013-08-05",
+    "twitter": "mkr_gekko",
+    "website": "http://blog.livedoor.jp/mkr_gekko/"
+  }
+},
+{
+  "type": "node",
+  "id": 4538596389,
+  "lat": 38.2992350,
+  "lon": 140.8288280,
+  "tags": {
+    "leisure": "amusement_arcade",
+    "name": "GiGO"
+  }
+},
+{
+  "type": "node",
+  "id": 4538596489,
+  "lat": 38.2979229,
+  "lon": 140.8287783,
+  "tags": {
+    "name": "日産プリンス宮城",
+    "name:ja": "日産プリンス宮城",
+    "shop": "car"
+  }
+},
+{
+  "type": "node",
+  "id": 4578949301,
+  "lat": 38.2863236,
+  "lon": 140.8438715,
+  "tags": {
+    "addr:block_number": "2",
+    "addr:city": "仙台市",
+    "addr:housenumber": "13",
+    "addr:neighbourhood": "5丁目",
+    "addr:postcode": "981-0942",
+    "addr:province": "宮城県",
+    "addr:quarter": "貝ヶ森",
+    "addr:suburb": "青葉区",
+    "amenity": "post_office",
+    "name": "仙台貝ヶ森郵便局",
+    "name:en": "Sendai Kaigamori Post Office",
+    "name:ja": "仙台貝ヶ森郵便局",
+    "opening_hours": "Mo-Fr 09:00-17:00",
+    "operator": "日本郵便",
+    "operator:en": "Japan Post",
+    "operator:ja": "日本郵便",
+    "operator:wikidata": "Q11509260",
+    "phone": "+81-22-279-1248",
+    "short_name": "郵便局",
+    "short_name:en": "JP",
+    "short_name:ja": "郵便局"
+  }
+},
+{
+  "type": "node",
+  "id": 4578949602,
+  "lat": 38.2892357,
+  "lon": 140.8535827,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "仙臺麺屋 しゃも",
+    "name:ja": "仙臺麺屋 しゃも"
+  }
+},
+{
+  "type": "node",
+  "id": 4579053195,
+  "lat": 38.2887755,
+  "lon": 140.8507925,
+  "tags": {
+    "amenity": "fuel",
+    "brand": "コスモ",
+    "brand:en": "Cosmo",
+    "brand:ja": "コスモ",
+    "brand:wikidata": "Q2498318",
+    "name": "コスモ石油",
+    "name:en": "Cosmo",
+    "name:ja": "コスモ石油",
+    "official_name": "コスモ石油"
+  }
+},
+{
+  "type": "node",
+  "id": 4579066289,
+  "lat": 38.2884899,
+  "lon": 140.8508844,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "花の膳 中山店",
+    "name:ja": "花の膳 中山店"
+  }
+},
+{
+  "type": "node",
+  "id": 4579208294,
+  "lat": 38.2840069,
+  "lon": 140.8440097,
+  "tags": {
+    "amenity": "restaurant",
+    "cuisine": "sushi",
+    "name": "鮨一八",
+    "name:ja": "鮨一八"
+  }
+},
+{
+  "type": "node",
+  "id": 4579208295,
+  "lat": 38.2843138,
+  "lon": 140.8434268,
+  "tags": {
+    "addr:block_number": "10",
+    "addr:city": "仙台市",
+    "addr:housenumber": "18",
+    "addr:neighbourhood": "3丁目",
+    "addr:postcode": "981-0942",
+    "addr:province": "宮城県",
+    "addr:quarter": "貝ヶ森",
+    "addr:suburb": "青葉区",
+    "amenity": "dentist",
+    "healthcare": "dentist",
+    "name": "貝ヶ森歯科医院",
+    "name:en": "Kaigamori Dental Clinic",
+    "name:ja": "貝ヶ森歯科医院",
+    "phone": "+81-22-279-3646"
+  }
+},
+{
+  "type": "node",
+  "id": 4579208297,
+  "lat": 38.2946634,
+  "lon": 140.8364277,
+  "tags": {
+    "amenity": "fuel",
+    "name": "エネオス",
+    "name:en": "Eneos",
+    "name:ja": "エネオス"
+  }
+},
+{
+  "type": "node",
+  "id": 4579208298,
+  "lat": 38.2955572,
+  "lon": 140.8361212,
+  "tags": {
+    "amenity": "pharmacy",
+    "branch": "仙台中山店",
+    "brand": "ツルハドラッグ",
+    "brand:en": "Tsuruha",
+    "brand:ja": "ツルハドラッグ",
+    "brand:wikidata": "Q11318826",
+    "brand:wikipedia": "ja:ツルハ",
+    "healthcare": "pharmacy",
+    "name": "ツルハドラッグ",
+    "name:en": "Tsuruha",
+    "name:ja": "ツルハドラッグ"
+  }
+},
+{
+  "type": "node",
+  "id": 4579208299,
+  "lat": 38.2975194,
+  "lon": 140.8375105,
+  "tags": {
+    "addr:block_number": "7",
+    "addr:city": "仙台市",
+    "addr:full": "宮城県仙台市青葉区中山7-7-25",
+    "addr:housenumber": "25",
+    "addr:neighbourhood": "7丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "amenity": "restaurant",
+    "capacity": "30",
+    "cuisine": "ramen",
+    "name": "麺屋恵比寿",
+    "name:en": "Menya Ebisu",
+    "name:ja": "麺屋恵比寿",
+    "opening_hours": "Tu-Fr 11:00-14:30; Sa, Su, PH 11:00-14:30, 17:30-19:30",
+    "parking": "yes",
+    "phone": "+81-22-277-5515",
+    "private_rooms": "yes",
+    "smoking": "no"
+  }
+},
+{
+  "type": "node",
+  "id": 4579208400,
+  "lat": 38.2838560,
+  "lon": 140.8440140,
+  "tags": {
+    "amenity": "clinic",
+    "name": "貝ヶ森皮ふ科",
+    "name:ja": "貝ヶ森皮ふ科"
+  }
+},
+{
+  "type": "node",
+  "id": 4579208401,
+  "lat": 38.2916107,
+  "lon": 140.8294621,
+  "tags": {
+    "amenity": "clinic",
+    "name": "国見ヶ丘中央クリニック",
+    "name:ja": "国見ヶ丘中央クリニック"
+  }
+},
+{
+  "type": "node",
+  "id": 4579208409,
+  "lat": 38.2969630,
+  "lon": 140.8282049,
+  "tags": {
+    "amenity": "cafe",
+    "name": "ファンキータイム 中山店",
+    "name:en": "Funky Time",
+    "name:ja": "ファンキータイム 中山店",
+    "opening_hours": "24/7",
+    "phone": "+81 22 303 8603"
+  }
+},
+{
+  "type": "node",
+  "id": 4579208595,
+  "lat": 38.2813102,
+  "lon": 140.8527519,
+  "tags": {
+    "internet_access": "wlan",
+    "name": "セブン-イレブン 仙台三条町店",
+    "name:en": "Seven-Eleven",
+    "name:ja": "セブンイレブン 仙台三条町店",
+    "opening_hours": "24/7",
+    "phone": "+81 22 273 1871",
+    "shop": "convenience"
+  }
+},
+{
+  "type": "node",
+  "id": 4579208596,
+  "lat": 38.2807907,
+  "lon": 140.8525732,
+  "tags": {
+    "amenity": "restaurant",
+    "cuisine": "noodle",
+    "name": "仙台ラーメン 麺屋タカモト"
+  }
+},
+{
+  "type": "node",
+  "id": 4579208599,
+  "lat": 38.2917478,
+  "lon": 140.8291920,
+  "tags": {
+    "amenity": "restaurant",
+    "cuisine": "spanish",
+    "name": "バッカス・エスコンディテ",
+    "name:en": "Bacchus Escondite",
+    "name:ja": "バッカス・エスコンディテ",
+    "phone": "+81 22 278 1985"
+  }
+},
+{
+  "type": "node",
+  "id": 4579208793,
+  "lat": 38.2825385,
+  "lon": 140.8536468,
+  "tags": {
+    "amenity": "dentist",
+    "name": "飛田歯科医院",
+    "name:ja": "飛田歯科医院"
+  }
+},
+{
+  "type": "node",
+  "id": 4579208798,
+  "lat": 38.2842549,
+  "lon": 140.8441123,
+  "tags": {
+    "name": "パーマハウスレイラ",
+    "name:ja": "パーマハウスレイラ",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 4579208799,
+  "lat": 38.2916034,
+  "lon": 140.8299271,
+  "tags": {
+    "branch": "仙台国見ヶ丘一丁目店",
+    "brand": "7-ELEVEN",
+    "brand:en": "7-ELEVEN",
+    "brand:ja": "セブン-イレブン",
+    "brand:wikidata": "Q259340",
+    "brand:wikipedia": "en:7-Eleven",
+    "internet_access": "wlan",
+    "name": "セブン-イレブン",
+    "name:en": "7-Eleven",
+    "name:ja": "セブン-イレブン",
+    "official_name:en": "Seven-Eleven",
+    "opening_hours": "24/7",
+    "phone": "+81 22 719 9071",
+    "shop": "convenience",
+    "website": "http://sej.co.jp"
+  }
+},
+{
+  "type": "node",
+  "id": 4579208801,
+  "lat": 38.2954770,
+  "lon": 140.8305322,
+  "tags": {
+    "amenity": "clinic",
+    "name": "めときこどもクリニック",
+    "name:ja": "めときこどもクリニック"
+  }
+},
+{
+  "type": "node",
+  "id": 4579261890,
+  "lat": 38.2812755,
+  "lon": 140.8524840,
+  "tags": {
+    "name": "蛍火",
+    "name:ja": "蛍火",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 4579261893,
+  "lat": 38.2796521,
+  "lon": 140.8421127,
+  "tags": {
+    "amenity": "restaurant",
+    "cuisine": "soba",
+    "name": "手打ちそば ひふみ野",
+    "name:en": "Hifumino",
+    "name:ja": "手打ちそば ひふみ野",
+    "opening_hours": "Th-Tu 11:00-15:00",
+    "phone": "+81 22 341 4115"
+  }
+},
+{
+  "type": "node",
+  "id": 4579261894,
+  "lat": 38.2920603,
+  "lon": 140.8286579,
+  "tags": {
+    "name": "凱旋門洋菓子店",
+    "name:ja": "凱旋門洋菓子店",
+    "phone": "+81 22 277 8543",
+    "shop": "confectionery"
+  }
+},
+{
+  "type": "node",
+  "id": 4579262591,
+  "lat": 38.2806011,
+  "lon": 140.8514763,
+  "tags": {
+    "amenity": "clinic",
+    "name": "千葉クリニック",
+    "name:en": "Chiba Clinic",
+    "name:ja": "千葉クリニック"
+  }
+},
+{
+  "type": "node",
+  "id": 4579262592,
+  "lat": 38.2797863,
+  "lon": 140.8490404,
+  "tags": {
+    "branch": "東北福祉大学店",
+    "brand": "FamilyMart",
+    "brand:en": "FamilyMart",
+    "brand:ja": "ファミリーマート",
+    "brand:wikidata": "Q11247682",
+    "name": "ファミリーマート",
+    "name:en": "FamilyMart",
+    "name:ja": "ファミリーマート",
+    "shop": "convenience"
+  }
+},
+{
+  "type": "node",
+  "id": 4579262792,
+  "lat": 38.2817678,
+  "lon": 140.8523718,
+  "tags": {
+    "amenity": "restaurant",
+    "cuisine": "chinese",
+    "name": "小中華郷土料理",
+    "name:ja": "小中華郷土料理",
+    "opening_hours": "Fr-We 11:30-22:30",
+    "phone": "+81 22 343 5539"
+  }
+},
+{
+  "type": "node",
+  "id": 4579292591,
+  "lat": 38.2845830,
+  "lon": 140.8442177,
+  "tags": {
+    "amenity": "clinic",
+    "name": "貝ヶ森きむら医院",
+    "name:ja": "貝ヶ森きむら医院"
+  }
+},
+{
+  "type": "node",
+  "id": 4688392694,
+  "lat": 38.2958287,
+  "lon": 140.8483914,
+  "tags": {
+    "amenity": "dentist",
+    "name": "川平たくま歯科",
+    "name:en": "Kawadaira Takuma Dental Clinic",
+    "name:ja": "川平たくま歯科"
+  }
+},
+{
+  "type": "node",
+  "id": 4688393595,
+  "lat": 38.2977946,
+  "lon": 140.8547196,
+  "tags": {
+    "name": "メガネの相沢 桜ヶ丘店",
+    "name:en": "Megane no Aizawa",
+    "name:ja": "メガネの相沢 桜ヶ丘店",
+    "shop": "optician"
+  }
+},
+{
+  "type": "node",
+  "id": 4688393691,
+  "lat": 38.2942327,
+  "lon": 140.8472428,
+  "tags": {
+    "name": "ビューティーサロン愛",
+    "name:en": "Beauty Salon Ai",
+    "name:ja": "ビューティーサロン愛",
+    "shop": "beauty"
+  }
+},
+{
+  "type": "node",
+  "id": 4688393994,
+  "lat": 38.2988462,
+  "lon": 140.8538017,
+  "tags": {
+    "amenity": "cafe",
+    "name": "Ohnuma Scoffee",
+    "name:ja": "Ohnuma Scoffee",
+    "opening_hours": "Th-Tu 09:00-19:00",
+    "phone": "+81 22 719 0386"
+  }
+},
+{
+  "type": "node",
+  "id": 4688403692,
+  "lat": 38.2982597,
+  "lon": 140.8522410,
+  "tags": {
+    "name": "美容ふじ",
+    "name:ja": "美容ふじ",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 4688414695,
+  "lat": 38.2995706,
+  "lon": 140.8502752,
+  "tags": {
+    "amenity": "restaurant",
+    "cuisine": "soba",
+    "name": "そば処一休庵 桜ヶ丘店",
+    "name:en": "Ikkyuan",
+    "name:ja": "そば処一休庵 桜ヶ丘店",
+    "phone": "+81 22 279 4697"
+  }
+},
+{
+  "type": "node",
+  "id": 4688418091,
+  "lat": 38.3007983,
+  "lon": 140.8501864,
+  "tags": {
+    "addr:block_number": "8",
+    "addr:city": "仙台市",
+    "addr:housenumber": "18",
+    "addr:neighbourhood": "5丁目",
+    "addr:postcode": "981-0961",
+    "addr:province": "宮城県",
+    "addr:quarter": "桜ヶ丘",
+    "addr:suburb": "青葉区",
+    "amenity": "bank",
+    "atm": "yes",
+    "name": "仙台銀行 桜ヶ丘支店",
+    "name:en": "Sendai Bank Sakuragaoka Branch",
+    "name:ja": "仙台銀行 桜ヶ丘支店",
+    "opening_hours": "Mo-Fr 09:00-15:00",
+    "phone": "+81 22 278 8731",
+    "website": "sendaibank.co.jp"
+  }
+},
+{
+  "type": "node",
+  "id": 4688418093,
+  "lat": 38.2994146,
+  "lon": 140.8502716,
+  "tags": {
+    "amenity": "restaurant",
+    "cuisine": "sushi",
+    "name": "さくら寿司",
+    "name:en": "Sakura Sushi",
+    "name:ja": "さくら寿司"
+  }
+},
+{
+  "type": "node",
+  "id": 4688418094,
+  "lat": 38.2977663,
+  "lon": 140.8514838,
+  "tags": {
+    "amenity": "clinic",
+    "healthcare": "clinic",
+    "name": "及川内科クリニック",
+    "name:ja": "及川内科クリニック"
+  }
+},
+{
+  "type": "node",
+  "id": 4688422691,
+  "lat": 38.2995447,
+  "lon": 140.8536563,
+  "tags": {
+    "name": "桜ヶ丘フラワー",
+    "name:en": "Sakuragaoka Flower",
+    "name:ja": "桜ヶ丘フラワー",
+    "phone": "+81 22 278 8009",
+    "shop": "florist"
+  }
+},
+{
+  "type": "node",
+  "id": 4688439593,
+  "lat": 38.3001229,
+  "lon": 140.8503468,
+  "tags": {
+    "name": "アトリエ・おーらら",
+    "name:ja": "アトリエ・おーらら",
+    "phone": "+81 22 278 2009",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 4688439594,
+  "lat": 38.2985917,
+  "lon": 140.8504991,
+  "tags": {
+    "name": "弥生美容院",
+    "name:ja": "弥生美容院",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 4688443691,
+  "lat": 38.3007639,
+  "lon": 140.8515580,
+  "tags": {
+    "amenity": "clinic",
+    "name": "やすだクリニック",
+    "name:en": "Yasuda Clinic",
+    "name:ja": "川嶋内科医院",
+    "phone": "+81 22 278 1731",
+    "website": "http://yasuda-cl.byoinnavi.jp"
+  }
+},
+{
+  "type": "node",
+  "id": 4688443693,
+  "lat": 38.2990340,
+  "lon": 140.8503212,
+  "tags": {
+    "amenity": "pharmacy",
+    "name": "宮川薬局",
+    "name:en": "Miyagawa Pharmacy",
+    "name:ja": "宮川薬局"
+  }
+},
+{
+  "type": "node",
+  "id": 4688446591,
+  "lat": 38.3005948,
+  "lon": 140.8503645,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "山善(うなぎ)",
+    "name:en": "Yamazen",
+    "name:ja": "山善(うなぎ)",
+    "phone": "+81 22 278 2783",
+    "website": "http://yamazen.co.jp"
+  }
+},
+{
+  "type": "node",
+  "id": 4688448289,
+  "lat": 38.3002670,
+  "lon": 140.8479148,
+  "tags": {
+    "name": "さくらストアー",
+    "name:en": "Sakura Store",
+    "name:ja": "さくらストアー",
+    "phone": "+81 22 278 2320",
+    "shop": "supermarket"
+  }
+},
+{
+  "type": "node",
+  "id": 4688489189,
+  "lat": 38.2955215,
+  "lon": 140.8535542,
+  "tags": {
+    "amenity": "fuel",
+    "branch": "セルフステーション水の森南SS",
+    "brand": "コスモ",
+    "brand:en": "Cosmo",
+    "brand:ja": "コスモ",
+    "brand:wikidata": "Q2498318",
+    "name": "コスモ石油",
+    "name:en": "Cosmo",
+    "name:ja": "コスモ石油",
+    "official_name": "コスモ石油",
+    "phone": "+81 22 785 9067"
+  }
+},
+{
+  "type": "node",
+  "id": 4688489489,
+  "lat": 38.2956221,
+  "lon": 140.8513128,
+  "tags": {
+    "amenity": "clinic",
+    "name": "原田外科医院",
+    "name:ja": "原田外科医院"
+  }
+},
+{
+  "type": "node",
+  "id": 4688489789,
+  "lat": 38.2948969,
+  "lon": 140.8512377,
+  "tags": {
+    "addr:block_number": "2",
+    "addr:city": "仙台市",
+    "addr:housenumber": "5",
+    "addr:neighbourhood": "一丁目",
+    "addr:postcode": "981-0954",
+    "addr:province": "宮城県",
+    "addr:quarter": "川平",
+    "addr:suburb": "青葉区",
+    "name": "シローの店 川平店",
+    "name:en": "Shiro no Mise Kawadaira Branch",
+    "name:ja": "シローの店 川平店",
+    "opening_hours": "Tu,Th,Fr 09:00-17:00; We10:00-16:00; Sa,Su 09:00-17:00; Tu[1,3] off",
+    "phone": "+81 800 800 8689",
+    "shop": "hairdresser",
+    "website": "https://shiro-no-mise.co.jp/kawadaira"
+  }
+},
+{
+  "type": "node",
+  "id": 5267543123,
+  "lat": 38.2899691,
+  "lon": 140.8455734,
+  "tags": {
+    "name": "街角サロン もうもう亭",
+    "office": "ngo"
+  }
+},
+{
+  "type": "node",
+  "id": 5267543124,
+  "lat": 38.2894574,
+  "lon": 140.8458911,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "そば処 開運丸"
+  }
+},
+{
+  "type": "node",
+  "id": 5267543125,
+  "lat": 38.2897068,
+  "lon": 140.8459678,
+  "tags": {
+    "name": "カットショップ ノブ 中山店",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 5267543126,
+  "lat": 38.2893432,
+  "lon": 140.8460967,
+  "tags": {
+    "name": "理容ラーク",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 5267543129,
+  "lat": 38.2889737,
+  "lon": 140.8552890,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "ほっともっと 荒巻店"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545722,
+  "lat": 38.2925344,
+  "lon": 140.8416301,
+  "tags": {
+    "amenity": "clinic",
+    "healthcare": "clinic",
+    "name": "なかやま医院",
+    "name:en": "Nakayama Clinic"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545724,
+  "lat": 38.2928630,
+  "lon": 140.8410098,
+  "tags": {
+    "name": "花さいだん フローラルプラザ 中山",
+    "shop": "florist"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545726,
+  "lat": 38.2915680,
+  "lon": 140.8433600,
+  "tags": {
+    "amenity": "clinic",
+    "name": "河村内科外科クリニック"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545728,
+  "lat": 38.2905626,
+  "lon": 140.8444588,
+  "tags": {
+    "name": "グットバイク",
+    "shop": "motorcycle"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545729,
+  "lat": 38.2896796,
+  "lon": 140.8434714,
+  "tags": {
+    "amenity": "bar",
+    "name": "地酒処 笑福門"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545730,
+  "lat": 38.2902072,
+  "lon": 140.8452632,
+  "tags": {
+    "name": "河北仙販 中山支店",
+    "shop": "newsagent"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545731,
+  "lat": 38.2878814,
+  "lon": 140.8497866,
+  "tags": {
+    "name": "朝日ソーラー",
+    "office": "company"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545732,
+  "lat": 38.2882756,
+  "lon": 140.8506104,
+  "tags": {
+    "name": "トヨタカローラ宮城 中山店",
+    "shop": "car"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545733,
+  "lat": 38.2886901,
+  "lon": 140.8519496,
+  "tags": {
+    "leisure": "adult_gaming_centre",
+    "name": "Arise Daian 荒巻店"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545734,
+  "lat": 38.2875632,
+  "lon": 140.8521234,
+  "tags": {
+    "name": "モーターハウス・ワヤマ",
+    "name:en": "Motor House Wayama",
+    "phone": "+81 22 279 3531",
+    "shop": "motorcycle"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545735,
+  "lat": 38.2895597,
+  "lon": 140.8541291,
+  "tags": {
+    "name": "宮城ダイハツ",
+    "shop": "car"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545747,
+  "lat": 38.2825576,
+  "lon": 140.8395889,
+  "tags": {
+    "name": "日野酒店",
+    "shop": "alcohol"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545748,
+  "lat": 38.2828765,
+  "lon": 140.8399408,
+  "tags": {
+    "name": "西條美容室",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545749,
+  "lat": 38.2806644,
+  "lon": 140.8397437,
+  "tags": {
+    "name": "河北仙販 国見支店",
+    "shop": "newsagent"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545823,
+  "lat": 38.2928115,
+  "lon": 140.8415659,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "Double Egg",
+    "phone": "+81 22 279 7955"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545824,
+  "lat": 38.2929029,
+  "lon": 140.8413755,
+  "tags": {
+    "name": "仙台エステ サロンドリリィ",
+    "shop": "beauty"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545825,
+  "lat": 38.2931240,
+  "lon": 140.8409825,
+  "tags": {
+    "name": "中山不動産",
+    "office": "estate_agent"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545826,
+  "lat": 38.2924061,
+  "lon": 140.8409981,
+  "tags": {
+    "name": "ビューティーサロン フレンド",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545827,
+  "lat": 38.2921877,
+  "lon": 140.8421951,
+  "tags": {
+    "name": "ヘアーズジュエル 中山店",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545828,
+  "lat": 38.2918232,
+  "lon": 140.8426807,
+  "tags": {
+    "name": "理容ミッキー",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545829,
+  "lat": 38.2921353,
+  "lon": 140.8425617,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "香満園"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545830,
+  "lat": 38.2914948,
+  "lon": 140.8429878,
+  "tags": {
+    "amenity": "dentist",
+    "healthcare": "dentist",
+    "name": "倉田歯科医院",
+    "name:en": "Kurata Dental Clinic"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545831,
+  "lat": 38.2914326,
+  "lon": 140.8432048,
+  "tags": {
+    "name": "柏屋",
+    "name:en": "Kashiwaya",
+    "phone": "+81 22 278 4427",
+    "shop": "stationery"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545832,
+  "lat": 38.2916536,
+  "lon": 140.8438264,
+  "tags": {
+    "amenity": "pharmacy",
+    "healthcare": "pharmacy",
+    "name": "ベリー薬局"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545833,
+  "lat": 38.2911665,
+  "lon": 140.8436170,
+  "tags": {
+    "name": "たけむらや",
+    "name:en": "Takemuraya",
+    "phone": "+81 22 278 2233",
+    "shop": "alcohol"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545834,
+  "lat": 38.2912440,
+  "lon": 140.8440165,
+  "tags": {
+    "amenity": "pharmacy",
+    "brand": "ウエルシア薬局",
+    "brand:en": "Welcia Yakkyoku",
+    "brand:ja": "ウエルシア薬局",
+    "brand:wikidata": "Q11288687",
+    "brand:wikipedia": "ja:ウエルシア薬局",
+    "dispensing": "yes",
+    "healthcare": "pharmacy",
+    "name": "ウエルシア薬局",
+    "name:en": "Welcia Yakkyoku",
+    "name:ja": "ウエルシア薬局",
+    "opening_hours": "Mo-Su,PH 09:00-24:00"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545836,
+  "lat": 38.2903860,
+  "lon": 140.8445224,
+  "tags": {
+    "name": "アベ美容室",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545837,
+  "lat": 38.2902028,
+  "lon": 140.8437722,
+  "tags": {
+    "name": "泉コンクリート工業",
+    "office": "company"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545838,
+  "lat": 38.2902999,
+  "lon": 140.8447851,
+  "tags": {
+    "name": "サカツオートサイクル",
+    "name:en": "Sakatsu Auto Cycle",
+    "phone": "+81 22 278 2242",
+    "shop": "motorcycle"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545839,
+  "lat": 38.2900832,
+  "lon": 140.8454149,
+  "tags": {
+    "amenity": "pub",
+    "name": "スナック オレンジ"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545840,
+  "lat": 38.2891235,
+  "lon": 140.8461844,
+  "tags": {
+    "amenity": "dentist",
+    "healthcare": "dentist",
+    "name": "西原歯科医院",
+    "name:en": "Nishihara Dental Clinic"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545841,
+  "lat": 38.2880936,
+  "lon": 140.8483566,
+  "tags": {
+    "amenity": "driving_school",
+    "name": "中山ドライブスクール",
+    "name:en": "Nakayama Drive School"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545842,
+  "lat": 38.2872776,
+  "lon": 140.8502300,
+  "tags": {
+    "name": "クラシアン仙台",
+    "office": "company"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545843,
+  "lat": 38.2876877,
+  "lon": 140.8496762,
+  "tags": {
+    "name": "熊谷塗装",
+    "office": "company"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545844,
+  "lat": 38.2885950,
+  "lon": 140.8496073,
+  "tags": {
+    "branch": "荒巻店",
+    "brand": "セリア",
+    "brand:en": "Seria",
+    "brand:ja": "セリア",
+    "brand:wikidata": "Q11314509",
+    "name": "セリア",
+    "name:en": "Seria",
+    "name:ja": "セリア",
+    "shop": "variety_store"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545845,
+  "lat": 38.2888893,
+  "lon": 140.8534504,
+  "tags": {
+    "name": "つねが美容室",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 5267545846,
+  "lat": 38.2887671,
+  "lon": 140.8533332,
+  "tags": {
+    "name": "ふたつのしっぽ",
+    "shop": "variety_store"
+  }
+},
+{
+  "type": "node",
+  "id": 5267554222,
+  "lat": 38.2919108,
+  "lon": 140.8425136,
+  "tags": {
+    "name": "なかやまランドリー",
+    "shop": "laundry"
+  }
+},
+{
+  "type": "node",
+  "id": 5267554223,
+  "lat": 38.2917065,
+  "lon": 140.8431656,
+  "tags": {
+    "name": "フラワー中山 本店",
+    "shop": "florist"
+  }
+},
+{
+  "type": "node",
+  "id": 5267554224,
+  "lat": 38.2897987,
+  "lon": 140.8429743,
+  "tags": {
+    "name": "和泉生花",
+    "shop": "florist"
+  }
+},
+{
+  "type": "node",
+  "id": 5267554225,
+  "lat": 38.2897475,
+  "lon": 140.8453678,
+  "tags": {
+    "amenity": "pharmacy",
+    "healthcare": "pharmacy",
+    "name": "ダルマ薬局 中山店",
+    "name:en": "Daruma Pharmacy",
+    "name:ja": "ダルマ薬局 中山店",
+    "phone": "+81 22 278 8227"
+  }
+},
+{
+  "type": "node",
+  "id": 5267554226,
+  "lat": 38.2892286,
+  "lon": 140.8521434,
+  "tags": {
+    "name": "ニューホンダ 荒巻営業所",
+    "shop": "car"
+  }
+},
+{
+  "type": "node",
+  "id": 5267554236,
+  "lat": 38.2808970,
+  "lon": 140.8395853,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "やきとり大吉 貝ヶ森店",
+    "name:en": "Yakitori Daikichi"
+  }
+},
+{
+  "type": "node",
+  "id": 5267554237,
+  "lat": 38.2800768,
+  "lon": 140.8414642,
+  "tags": {
+    "name": "国見造園",
+    "office": "company"
+  }
+},
+{
+  "type": "node",
+  "id": 5267554321,
+  "lat": 38.2918942,
+  "lon": 140.8422276,
+  "tags": {
+    "amenity": "clinic",
+    "healthcare": "clinic",
+    "name": "佐藤医院 胃腸科循環器科呼吸器科"
+  }
+},
+{
+  "type": "node",
+  "id": 5267556221,
+  "lat": 38.2892498,
+  "lon": 140.8536731,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "仙台丼丸 荒巻店"
+  }
+},
+{
+  "type": "node",
+  "id": 5267556222,
+  "lat": 38.2888766,
+  "lon": 140.8557480,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "ドミノ・ピザ 荒巻本沢店",
+    "name:en": "Domino Pizza",
+    "opening_hours": "Mo-Su 11:00-00:00",
+    "phone": "+81 22 303 1211"
+  }
+},
+{
+  "type": "node",
+  "id": 5267556227,
+  "lat": 38.2841356,
+  "lon": 140.8440417,
+  "tags": {
+    "amenity": "pharmacy",
+    "name": "貝ヶ森調剤薬局"
+  }
+},
+{
+  "type": "node",
+  "id": 5267556228,
+  "lat": 38.2811508,
+  "lon": 140.8390937,
+  "tags": {
+    "name": "ヤマサ洋服店",
+    "shop": "clothes"
+  }
+},
+{
+  "type": "node",
+  "id": 5316304925,
+  "lat": 38.2983361,
+  "lon": 140.8415774,
+  "tags": {
+    "amenity": "cafe",
+    "name": "Kocci by Spica"
+  }
+},
+{
+  "type": "node",
+  "id": 5316304926,
+  "lat": 38.2984346,
+  "lon": 140.8334903,
+  "tags": {
+    "name": "つつみ屋 中山店",
+    "shop": "confectionery"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321122,
+  "lat": 38.2938017,
+  "lon": 140.8545651,
+  "tags": {
+    "addr:block_number": "18",
+    "addr:city": "仙台市",
+    "addr:housenumber": "42",
+    "addr:neighbourhood": "3丁目",
+    "addr:postcode": "981-0966",
+    "addr:province": "宮城県",
+    "addr:quarter": "荒巻本沢",
+    "addr:suburb": "青葉区",
+    "amenity": "post_office",
+    "name": "仙台本沢郵便局",
+    "name:en": "Sendai Honzawa Post Office",
+    "name:es": "Oficina de Correos de Sendai Honzawa",
+    "name:it": "Ufficio Postale di Sendai Honzawa",
+    "name:ja": "仙台本沢郵便局",
+    "name:ja-Hira": "せんだい ほんざわ ゆうびんきょく",
+    "name:pt": "Correio de Sendai Honzawa",
+    "opening_hours": "Mo-Fr 09:00-17:00",
+    "operator": "日本郵便",
+    "operator:en": "Japan Post",
+    "operator:ja": "日本郵便",
+    "operator:short": "郵便局",
+    "operator:short:en": "JP",
+    "operator:short:ja": "郵便局",
+    "operator:wikidata": "Q11509260",
+    "phone": "+81 22 279 2715",
+    "short_name:en": "JP",
+    "website": "japanpost.jp"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321130,
+  "lat": 38.2973131,
+  "lon": 140.8537546,
+  "tags": {
+    "amenity": "restaurant",
+    "cuisine": "ramen",
+    "name": "Copal みやぎ生協桜ヶ丘店",
+    "phone": "+81 22 279 9661"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321131,
+  "lat": 38.2965872,
+  "lon": 140.8550824,
+  "tags": {
+    "amenity": "cafe",
+    "name": "楓屋珈琲",
+    "name:en": "Kaedeya Coffee",
+    "name:ja": "楓屋珈琲",
+    "phone": "+81 22 719 7545",
+    "website": "https://www.instagram.com/kaedeya_coffee"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321134,
+  "lat": 38.3006611,
+  "lon": 140.8478945,
+  "tags": {
+    "name": "グリーンショップ いわま",
+    "name:en": "Green Shop Iwama",
+    "shop": "greengrocer"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321135,
+  "lat": 38.2992407,
+  "lon": 140.8459170,
+  "tags": {
+    "name": "カーサウルス",
+    "name:en": "Car Saurus",
+    "phone": "+81 22 277 8228",
+    "shop": "car_parts"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321138,
+  "lat": 38.2938228,
+  "lon": 140.8490531,
+  "tags": {
+    "name": "美容室 幸幸",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321140,
+  "lat": 38.2974684,
+  "lon": 140.8378759,
+  "tags": {
+    "name": "渡辺寝具店",
+    "shop": "furniture"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321141,
+  "lat": 38.2983357,
+  "lon": 140.8338941,
+  "tags": {
+    "amenity": "pub",
+    "name": "スナックゆきだるま"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321142,
+  "lat": 38.2988078,
+  "lon": 140.8325260,
+  "tags": {
+    "amenity": "pharmacy",
+    "name": "中山ヘルスマート薬局"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321143,
+  "lat": 38.2975002,
+  "lon": 140.8285484,
+  "tags": {
+    "name": "Honda Cars 宮城中山店",
+    "shop": "car"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321222,
+  "lat": 38.2941379,
+  "lon": 140.8519416,
+  "tags": {
+    "amenity": "fuel",
+    "name": "いずみや商店（燃料）"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321226,
+  "lat": 38.2970956,
+  "lon": 140.8537942,
+  "tags": {
+    "name": "桜ヶ丘フラワー みやぎ生協桜ヶ丘店",
+    "shop": "florist"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321227,
+  "lat": 38.2969330,
+  "lon": 140.8550407,
+  "tags": {
+    "name": "花祭壇 フローラルプラザ 桜ヶ丘",
+    "shop": "funeral_directors"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321228,
+  "lat": 38.2993152,
+  "lon": 140.8543142,
+  "tags": {
+    "name": "カットハウス ハッピー",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321229,
+  "lat": 38.2996001,
+  "lon": 140.8542732,
+  "tags": {
+    "name": "河北仙販 桜ヶ丘支店",
+    "shop": "newsagent"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321232,
+  "lat": 38.3008146,
+  "lon": 140.8442938,
+  "tags": {
+    "amenity": "dentist",
+    "name": "太田歯科クリニック"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321233,
+  "lat": 38.2927723,
+  "lon": 140.8475494,
+  "tags": {
+    "name": "菅野理容所",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321234,
+  "lat": 38.2925859,
+  "lon": 140.8457920,
+  "tags": {
+    "amenity": "cafe",
+    "name": "中山モダンハウス"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321235,
+  "lat": 38.2963234,
+  "lon": 140.8414449,
+  "tags": {
+    "name": "ママのケーキ屋さん",
+    "shop": "confectionery"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321236,
+  "lat": 38.2982672,
+  "lon": 140.8353844,
+  "tags": {
+    "name": "Claw Hair Labo",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321237,
+  "lat": 38.2982015,
+  "lon": 140.8356238,
+  "tags": {
+    "name": "メグ美容室",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 5316321238,
+  "lat": 38.2994952,
+  "lon": 140.8302374,
+  "tags": {
+    "amenity": "dentist",
+    "name": "歯科倉田"
+  }
+},
+{
+  "type": "node",
+  "id": 5316324221,
+  "lat": 38.2945502,
+  "lon": 140.8544427,
+  "tags": {
+    "amenity": "nursing_home",
+    "name": "せんだんの館",
+    "name:en": "Sendan no Yakata",
+    "phone": "+81 22 303 0371"
+  }
+},
+{
+  "type": "node",
+  "id": 5316324222,
+  "lat": 38.2935764,
+  "lon": 140.8537605,
+  "tags": {
+    "name": "Hanzo Shop",
+    "phone": "+81 22 341 4179",
+    "shop": "sports"
+  }
+},
+{
+  "type": "node",
+  "id": 5316324223,
+  "lat": 38.2930253,
+  "lon": 140.8554358,
+  "tags": {
+    "addr:block_number": "16",
+    "addr:city": "仙台市",
+    "addr:housenumber": "5",
+    "addr:neighbourhood": "3丁目",
+    "addr:postcode": "981-0966",
+    "addr:province": "宮城県",
+    "addr:quarter": "荒巻本沢",
+    "addr:suburb": "青葉区",
+    "amenity": "clinic",
+    "healthcare": "clinic",
+    "name": "相田内科医院",
+    "phone": "+81 22 278 9170"
+  }
+},
+{
+  "type": "node",
+  "id": 5316324227,
+  "lat": 38.2956402,
+  "lon": 140.8414793,
+  "tags": {
+    "amenity": "place_of_worship",
+    "name": "平田稲荷神社",
+    "religion": "shinto"
+  }
+},
+{
+  "type": "node",
+  "id": 5316324230,
+  "lat": 38.2988367,
+  "lon": 140.8327121,
+  "tags": {
+    "name": "理容一床",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 5316324231,
+  "lat": 38.2994028,
+  "lon": 140.8287149,
+  "tags": {
+    "branch": "イオン仙台中山店",
+    "brand": "キャンドゥ",
+    "brand:en": "Can Do",
+    "brand:ja": "キャンドゥ",
+    "brand:wikidata": "Q11297367",
+    "brand:wikipedia": "ja:キャンドゥ",
+    "name": "キャンドゥ",
+    "name:en": "Can Do",
+    "name:ja": "キャンドゥ",
+    "shop": "variety_store"
+  }
+},
+{
+  "type": "node",
+  "id": 5316325921,
+  "lat": 38.2976137,
+  "lon": 140.8450943,
+  "tags": {
+    "amenity": "pharmacy",
+    "name": "桜ヶ丘めぐみ薬局"
+  }
+},
+{
+  "type": "node",
+  "id": 5316326121,
+  "lat": 38.2975760,
+  "lon": 140.8364920,
+  "tags": {
+    "name": "啓美容室",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 6043177512,
+  "lat": 38.2814219,
+  "lon": 140.8541562,
+  "tags": {
+    "name": "BM",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 6043199285,
+  "lat": 38.2819144,
+  "lon": 140.8558059,
+  "tags": {
+    "name": "神奈川クリーニング　北山店",
+    "name:en": "Kamagawa Cleaning",
+    "shop": "dry_cleaning"
+  }
+},
+{
+  "type": "node",
+  "id": 6369748595,
+  "lat": 38.2932675,
+  "lon": 140.8395617,
+  "tags": {
+    "amenity": "place_of_worship",
+    "name": "日本バプテスト尚絅教会",
+    "religion": "christian"
+  }
+},
+{
+  "type": "node",
+  "id": 6369748596,
+  "lat": 38.2934482,
+  "lon": 140.8373136,
+  "tags": {
+    "name": "七十七銀行 研修所",
+    "office": "company"
+  }
+},
+{
+  "type": "node",
+  "id": 6369748597,
+  "lat": 38.2943645,
+  "lon": 140.8380765,
+  "tags": {
+    "name": "シルク美容室",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 6369776387,
+  "lat": 38.2959364,
+  "lon": 140.8368410,
+  "tags": {
+    "name": "石窯パン工房 ばーすでぃ 中山店",
+    "name:en": "Birthday",
+    "phone": "+81 22 347 3901",
+    "shop": "bakery"
+  }
+},
+{
+  "type": "node",
+  "id": 6369776388,
+  "lat": 38.2957009,
+  "lon": 140.8356766,
+  "tags": {
+    "amenity": "restaurant",
+    "cuisine": "burger",
+    "name": "ダイナーハルク",
+    "name:en": "Diner HARUKU",
+    "opening_hours": "Tu-Sa 10:00-19:00; Su 10:00-18:00",
+    "phone": "+81 22 778 6936"
+  }
+},
+{
+  "type": "node",
+  "id": 6369776389,
+  "lat": 38.2948846,
+  "lon": 140.8355798,
+  "tags": {
+    "check_date": "2025-05-30",
+    "name": "東北電力 研究開発センター",
+    "office": "company"
+  }
+},
+{
+  "type": "node",
+  "id": 6369776587,
+  "lat": 38.2937627,
+  "lon": 140.8357562,
+  "tags": {
+    "amenity": "pharmacy",
+    "name": "パーム調剤薬局 中山店"
+  }
+},
+{
+  "type": "node",
+  "id": 6369776588,
+  "lat": 38.2926304,
+  "lon": 140.8359666,
+  "tags": {
+    "amenity": "veterinary",
+    "name": "ホンダペットクリニック"
+  }
+},
+{
+  "type": "node",
+  "id": 6369776589,
+  "lat": 38.2952605,
+  "lon": 140.8402632,
+  "tags": {
+    "amenity": "cafe",
+    "name": "assez COFFEE",
+    "phone": "+81 22 342 0168"
+  }
+},
+{
+  "type": "node",
+  "id": 6369777586,
+  "lat": 38.2918092,
+  "lon": 140.8432650,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "六丁目農園"
+  }
+},
+{
+  "type": "node",
+  "id": 6369777587,
+  "lat": 38.2924555,
+  "lon": 140.8417797,
+  "tags": {
+    "check_date": "2025-05-16",
+    "name": "藤倉設備工業",
+    "office": "company",
+    "phone": "+81 22 279 1090",
+    "website": "http://fujikura-sendai.com"
+  }
+},
+{
+  "type": "node",
+  "id": 6369777588,
+  "lat": 38.2956303,
+  "lon": 140.8366408,
+  "tags": {
+    "name": "コインランドリー サンキュー 仙台中山店",
+    "shop": "laundry"
+  }
+},
+{
+  "type": "node",
+  "id": 6369777786,
+  "lat": 38.2894466,
+  "lon": 140.8462832,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "ミニレストラン 一番館",
+    "name:en": "Mini Restaurant Ichibankan",
+    "phone": "+81 22 279 2849"
+  }
+},
+{
+  "type": "node",
+  "id": 6369777787,
+  "lat": 38.2914514,
+  "lon": 140.8435122,
+  "tags": {
+    "name": "理容庄司",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 6369777788,
+  "lat": 38.2919059,
+  "lon": 140.8433743,
+  "tags": {
+    "amenity": "cafe",
+    "name": "とびのこハウス"
+  }
+},
+{
+  "type": "node",
+  "id": 6369777789,
+  "lat": 38.2925820,
+  "lon": 140.8419273,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "アイリス",
+    "name:en": "IRIS",
+    "opening_hours": "Mo-Sa 18:00-24:00",
+    "phone": "+81 22 719 6141"
+  }
+},
+{
+  "type": "node",
+  "id": 6403387585,
+  "lat": 38.2955504,
+  "lon": 140.8458779,
+  "tags": {
+    "amenity": "restaurant",
+    "cuisine": "ramen",
+    "name": "遠野物語",
+    "phone": "+81 22 279 4889"
+  }
+},
+{
+  "type": "node",
+  "id": 6833586291,
+  "lat": 38.2824319,
+  "lon": 140.8550879,
+  "tags": {
+    "name": "加藤土地開発",
+    "name:en": "Katō TochiKaihatsu",
+    "office": "estate_agent",
+    "phone": "+81 22 272 1377"
+  }
+},
+{
+  "type": "node",
+  "id": 6833673385,
+  "lat": 38.2825830,
+  "lon": 140.8548517,
+  "tags": {
+    "name": "コンノ酒食料品店",
+    "name:en": "Super Konno",
+    "phone": "+81 22 272 9838",
+    "shop": "alcohol"
+  }
+},
+{
+  "type": "node",
+  "id": 6837103287,
+  "lat": 38.2837417,
+  "lon": 140.8318505,
+  "tags": {
+    "name": "大型コインランドリー リンク 国見ヶ丘店",
+    "shop": "laundry"
+  }
+},
+{
+  "type": "node",
+  "id": 6837103586,
+  "lat": 38.2842907,
+  "lon": 140.8324159,
+  "tags": {
+    "name": "東日本住宅",
+    "name:en": "Higashinihon Jūtaku",
+    "office": "company",
+    "phone": "+81 22 277 1112",
+    "website": "http://higashinihonjutakt.co.jp"
+  }
+},
+{
+  "type": "node",
+  "id": 6837103587,
+  "lat": 38.2920292,
+  "lon": 140.8289979,
+  "tags": {
+    "amenity": "dentist",
+    "name": "濱田歯科医院",
+    "name:en": "Hamada Dental Clinic",
+    "phone": "+81 22 277 2655"
+  }
+},
+{
+  "type": "node",
+  "id": 6837103588,
+  "lat": 38.2923690,
+  "lon": 140.8288064,
+  "tags": {
+    "name": "美容室She's",
+    "opening_hours": "Tu-Su 09:00-19:00",
+    "phone": "+81 22 277 1655",
+    "shop": "hairdresser",
+    "website": "https://shes-sendai.com/"
+  }
+},
+{
+  "type": "node",
+  "id": 6837105886,
+  "lat": 38.2808457,
+  "lon": 140.8478109,
+  "tags": {
+    "name": "ときた八百屋",
+    "name:en": "Tokita",
+    "phone": "+81 22 219 8705",
+    "shop": "greengrocer"
+  }
+},
+{
+  "type": "node",
+  "id": 6837125487,
+  "lat": 38.2904330,
+  "lon": 140.8316861,
+  "tags": {
+    "amenity": "restaurant",
+    "cuisine": "soba",
+    "name": "妙庵",
+    "name:en": "Myōan",
+    "phone": "+81 22 719 3161"
+  }
+},
+{
+  "type": "node",
+  "id": 6837125488,
+  "lat": 38.2902314,
+  "lon": 140.8313359,
+  "tags": {
+    "name": "ヘアーメイデン",
+    "name:en": "Hair Meiden",
+    "phone": "+81 22 277 3077",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 6854575486,
+  "lat": 38.2833339,
+  "lon": 140.8552210,
+  "tags": {
+    "amenity": "place_of_worship",
+    "name": "竹駒神社",
+    "name:en": "Takekoma Jinja",
+    "religion": "shinto"
+  }
+},
+{
+  "type": "node",
+  "id": 6956587095,
+  "lat": 38.2824473,
+  "lon": 140.8521794,
+  "tags": {
+    "amenity": "pharmacy",
+    "name": "北山薬局",
+    "name:en": "Kitayama Pharmacy"
+  }
+},
+{
+  "type": "node",
+  "id": 6956588686,
+  "lat": 38.2813913,
+  "lon": 140.8524857,
+  "tags": {
+    "addr:block_number": "12",
+    "addr:city": "仙台市",
+    "addr:housenumber": "7",
+    "addr:neighbourhood": "三条町",
+    "addr:postcode": "981-0935",
+    "addr:province": "宮城県",
+    "addr:suburb": "青葉区",
+    "name": "福田サイクル",
+    "name:en": "Fukuda Cycle",
+    "opening_hours": "We-Su 10:00-19:00",
+    "phone": "+81 22 341 1138",
+    "shop": "motorcycle"
+  }
+},
+{
+  "type": "node",
+  "id": 6956588687,
+  "lat": 38.2813339,
+  "lon": 140.8524961,
+  "tags": {
+    "name": "Must Shop",
+    "office": "estate_agent"
+  }
+},
+{
+  "type": "node",
+  "id": 6956588690,
+  "lat": 38.2825600,
+  "lon": 140.8522581,
+  "tags": {
+    "amenity": "clinic",
+    "name": "北山内科クリニック"
+  }
+},
+{
+  "type": "node",
+  "id": 6956591085,
+  "lat": 38.2807762,
+  "lon": 140.8528295,
+  "tags": {
+    "amenity": "clinic",
+    "name": "木村眼科医院"
+  }
+},
+{
+  "type": "node",
+  "id": 6956591285,
+  "lat": 38.2806335,
+  "lon": 140.8527084,
+  "tags": {
+    "amenity": "bar",
+    "name": "すし居酒屋 しぶ谷",
+    "name:en": "Shibuya"
+  }
+},
+{
+  "type": "node",
+  "id": 6959308786,
+  "lat": 38.2959283,
+  "lon": 140.8511759,
+  "tags": {
+    "name": "読売センター 桜ヶ丘",
+    "name:en": "Yomiuri Center Sakuragaoka",
+    "phone": "+81 22 278 4475",
+    "shop": "newsagent"
+  }
+},
+{
+  "type": "node",
+  "id": 6959308886,
+  "lat": 38.2884198,
+  "lon": 140.8492164,
+  "tags": {
+    "female": "yes",
+    "male": "yes",
+    "name": "aQua",
+    "opening_hours": "Mo-Su 08:30-19:00",
+    "phone": "+81 22 719 6722",
+    "shop": "hairdresser",
+    "website": "https://www.aqua-hairsalon.com/"
+  }
+},
+{
+  "type": "node",
+  "id": 6959308986,
+  "lat": 38.2853859,
+  "lon": 140.8494738,
+  "tags": {
+    "name": "ウェーブ・ハウス・ブルーム",
+    "name:en": "Wave House Bloom",
+    "phone": "+81 22 779 7557",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 6959308987,
+  "lat": 38.2855033,
+  "lon": 140.8493915,
+  "tags": {
+    "name": "アトリエ風雅",
+    "name:en": "Atelier Fuga",
+    "shop": "variety_store"
+  }
+},
+{
+  "type": "node",
+  "id": 6959308988,
+  "lat": 38.2873759,
+  "lon": 140.8498664,
+  "tags": {
+    "name": "東北エンゼル",
+    "name:en": "Tōhoku Angel",
+    "office": "company",
+    "phone": "+81 22 719 5023",
+    "website": "https://angelgroup.co.jp/"
+  }
+},
+{
+  "type": "node",
+  "id": 6959309285,
+  "lat": 38.2852650,
+  "lon": 140.8500840,
+  "tags": {
+    "name": "Hair & Relax Marsh",
+    "opening_hours": "Tu-Fr 10:00-20:00; Sa-Su 09:00-19:00",
+    "phone": "+81 22 719 3230",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 6959309385,
+  "lat": 38.2867906,
+  "lon": 140.8499588,
+  "tags": {
+    "name": "コージーライフ",
+    "name:en": "Cozy Life",
+    "office": "company",
+    "phone": "+81 22 719 8422",
+    "website": "http://cozylifesendai.co.jp"
+  }
+},
+{
+  "type": "node",
+  "id": 6959310485,
+  "lat": 38.2899745,
+  "lon": 140.8496791,
+  "tags": {
+    "name": "廃車買取専門店 ロハス",
+    "shop": "car"
+  }
+},
+{
+  "type": "node",
+  "id": 6959310486,
+  "lat": 38.2893181,
+  "lon": 140.8512090,
+  "tags": {
+    "name": "仙台市 荒巻学校給食センター",
+    "office": "government"
+  }
+},
+{
+  "type": "node",
+  "id": 6959310487,
+  "lat": 38.2928934,
+  "lon": 140.8554777,
+  "tags": {
+    "amenity": "pharmacy",
+    "healthcare": "pharmacy",
+    "name": "アイビー調剤薬局"
+  }
+},
+{
+  "type": "node",
+  "id": 6959310488,
+  "lat": 38.2976079,
+  "lon": 140.8512949,
+  "tags": {
+    "amenity": "pharmacy",
+    "name": "フレンド薬局 桜",
+    "name:en": "Friend Pharmacy"
+  }
+},
+{
+  "type": "node",
+  "id": 6959310585,
+  "lat": 38.2893747,
+  "lon": 140.8525575,
+  "tags": {
+    "name": "ハマダガラス",
+    "name:en": "Hamada Glass",
+    "phone": "+81 22 278 2152",
+    "shop": "variety_store"
+  }
+},
+{
+  "type": "node",
+  "id": 6959310586,
+  "lat": 38.2893757,
+  "lon": 140.8528597,
+  "tags": {
+    "name": "ART6",
+    "opening_hours": "Mo-Fr 09:30-18:30; Sa-Su 09:30-17:00",
+    "phone": "+81 22 279 2369",
+    "shop": "hairdresser",
+    "website": "http://hair-station.com"
+  }
+},
+{
+  "type": "node",
+  "id": 6959310587,
+  "lat": 38.2890979,
+  "lon": 140.8535594,
+  "tags": {
+    "amenity": "restaurant",
+    "cuisine": "soba",
+    "name": "そば処三久",
+    "name:en": "Sankyū",
+    "phone": "+81 22 278 7222",
+    "website": "https://39.on.omisenomikata.jp/"
+  }
+},
+{
+  "type": "node",
+  "id": 6959310593,
+  "lat": 38.3009857,
+  "lon": 140.8503772,
+  "tags": {
+    "amenity": "restaurant",
+    "cuisine": "chinese",
+    "name": "桜ヶ丘飯店",
+    "name:en": "Sakuragaoka Hanten",
+    "opening_hours": "Mo-Su 11:00-14:00",
+    "phone": "+81 22 278 5976"
+  }
+},
+{
+  "type": "node",
+  "id": 6959310686,
+  "lat": 38.2951379,
+  "lon": 140.8519988,
+  "tags": {
+    "addr:block_number": "2",
+    "addr:city": "仙台市",
+    "addr:housenumber": "11",
+    "addr:neighbourhood": "一丁目",
+    "addr:postcode": "981-0954",
+    "addr:province": "宮城県",
+    "addr:quarter": "川平",
+    "addr:suburb": "青葉区",
+    "amenity": "veterinary",
+    "name": "ひまわり動物病院",
+    "name:en": "Himawari Veterinary Clinic",
+    "name:ja": "ひまわり動物病院",
+    "phone": "+81 22 279 3750"
+  }
+},
+{
+  "type": "node",
+  "id": 6959311486,
+  "lat": 38.2999555,
+  "lon": 140.8503272,
+  "tags": {
+    "name": "東雲整骨院",
+    "name:en": "Shinonome Seikotsuin",
+    "phone": "+81 22 277 9722",
+    "shop": "massage"
+  }
+},
+{
+  "type": "node",
+  "id": 6959311487,
+  "lat": 38.3004139,
+  "lon": 140.8501603,
+  "tags": {
+    "name": "だんだん",
+    "name:en": "DanDan",
+    "shop": "cosmetics"
+  }
+},
+{
+  "type": "node",
+  "id": 7891626586,
+  "lat": 38.2879389,
+  "lon": 140.8465590,
+  "tags": {
+    "name": "多夢多夢舎 中山工房",
+    "name:en": "TamuTamusha",
+    "phone": "+81 22 277 0081",
+    "tourism": "museum",
+    "website": "https://tamutamu.jp/"
+  }
+},
+{
+  "type": "node",
+  "id": 7891626785,
+  "lat": 38.2881965,
+  "lon": 140.8463918,
+  "tags": {
+    "addr:block_number": "17",
+    "addr:city": "仙台市",
+    "addr:housenumber": "1",
+    "addr:neighbourhood": "2丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "amenity": "childcare",
+    "name": "中山とびのこ保育園",
+    "name:en": "Nakayama Tobikoko Nursery School",
+    "phone": "+81 22 279 1187",
+    "website": "https://www.tobinoko.jp/"
+  }
+},
+{
+  "type": "node",
+  "id": 7896280389,
+  "lat": 38.2991848,
+  "lon": 140.8305965,
+  "tags": {
+    "name": "きもの処 ゆう美",
+    "name:en": "Yūbi",
+    "shop": "clothes"
+  }
+},
+{
+  "type": "node",
+  "id": 7896311487,
+  "lat": 38.2986810,
+  "lon": 140.8324641,
+  "tags": {
+    "amenity": "pharmacy",
+    "name": "かのん調剤薬局",
+    "phone": "+81 22 303 0570"
+  }
+},
+{
+  "type": "node",
+  "id": 7896311886,
+  "lat": 38.2957069,
+  "lon": 140.8366632,
+  "tags": {
+    "amenity": "dentist",
+    "healthcare": "dentist",
+    "name": "みなみ歯科クリニック",
+    "name:en": "Minami Dental Clinic",
+    "phone": "+81 22 719 8288",
+    "website": "http://minami.dental-office.jp"
+  }
+},
+{
+  "type": "node",
+  "id": 7896314685,
+  "lat": 38.2961970,
+  "lon": 140.8370282,
+  "tags": {
+    "branch": "アクロスガーデン中山",
+    "brand": "カーブス",
+    "brand:en": "Curves",
+    "brand:ja": "カーブス",
+    "brand:wikidata": "Q5196080",
+    "brand:wikipedia": "ja:カーブス",
+    "leisure": "fitness_centre",
+    "name": "カーブス",
+    "name:en": "Curves",
+    "name:ja": "カーブス",
+    "phone": "+81 22 347 3757",
+    "website": "https://www.curves.co.jp/"
+  }
+},
+{
+  "type": "node",
+  "id": 7896314686,
+  "lat": 38.2976002,
+  "lon": 140.8362904,
+  "tags": {
+    "amenity": "school",
+    "name": "英語教室 ABCキッズ",
+    "name:en": "ABC Kids",
+    "phone": "+81 22 719 1245",
+    "website": "http://abcabc.peco.jp"
+  }
+},
+{
+  "type": "node",
+  "id": 7896314786,
+  "lat": 38.2990333,
+  "lon": 140.8311676,
+  "tags": {
+    "name": "竹下デンキ",
+    "name:en": "Takeshita Denki",
+    "shop": "electronics"
+  }
+},
+{
+  "type": "node",
+  "id": 7896315185,
+  "lat": 38.3000285,
+  "lon": 140.8292203,
+  "tags": {
+    "branch": "仙台南中山店",
+    "brand": "GEO",
+    "brand:ja": "GEO",
+    "brand:wikidata": "Q5533938",
+    "name": "ゲオ",
+    "name:en": "GEO",
+    "name:ja": "ゲオ",
+    "opening_hours": "Mo-Su 09:00-23:00",
+    "phone": "+81 22 347 9771",
+    "shop": "video"
+  }
+},
+{
+  "type": "node",
+  "id": 7907151185,
+  "lat": 38.2941191,
+  "lon": 140.8384726,
+  "tags": {
+    "name": "神奈川クリーニング",
+    "name:en": "Kanagawa Cleaning",
+    "shop": "dry_cleaning"
+  }
+},
+{
+  "type": "node",
+  "id": 7907151207,
+  "lat": 38.2842110,
+  "lon": 140.8382960,
+  "tags": {
+    "name": "f分の1",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 7907151393,
+  "lat": 38.2982956,
+  "lon": 140.8337727,
+  "tags": {
+    "amenity": "bar",
+    "name": "呑み座 心"
+  }
+},
+{
+  "type": "node",
+  "id": 7907151786,
+  "lat": 38.2975176,
+  "lon": 140.8378558,
+  "tags": {
+    "brand": "ホワイト急便",
+    "brand:en": "White Kyuubin",
+    "brand:ja": "ホワイト急便",
+    "brand:wikidata": "Q11505557",
+    "brand:wikipedia": "ja:日本さわやかグループ",
+    "name": "ホワイト急便",
+    "name:en": "White Kyuubin",
+    "name:ja": "ホワイト急便",
+    "shop": "dry_cleaning"
+  }
+},
+{
+  "type": "node",
+  "id": 7907681687,
+  "lat": 38.2863586,
+  "lon": 140.8456455,
+  "tags": {
+    "name": "サンヨー コインランドリー",
+    "shop": "laundry"
+  }
+},
+{
+  "type": "node",
+  "id": 7907681785,
+  "lat": 38.2833031,
+  "lon": 140.8439486,
+  "tags": {
+    "name": "うさちゃんクリーニング 生協貝ヶ森店",
+    "name:en": "Usachan Cleaning",
+    "shop": "dry_cleaning"
+  }
+},
+{
+  "type": "node",
+  "id": 7907681791,
+  "lat": 38.2879823,
+  "lon": 140.8520884,
+  "tags": {
+    "name": "ヘアーサロン さとう",
+    "name:en": "Hair  Salon  Satō",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 7930322087,
+  "lat": 38.2981346,
+  "lon": 140.8488353,
+  "tags": {
+    "name": "理容熊谷",
+    "name:en": "Barber Kumagai",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 7930352685,
+  "lat": 38.2977384,
+  "lon": 140.8512162,
+  "tags": {
+    "name": "カットハウス Fit",
+    "name:en": "Cut House Fit",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 8062277380,
+  "lat": 38.2818492,
+  "lon": 140.8280997,
+  "tags": {
+    "amenity": "place_of_worship",
+    "name": "仏舎利塔",
+    "religion": "buddhist"
+  }
+},
+{
+  "type": "node",
+  "id": 8522732522,
+  "lat": 38.2838416,
+  "lon": 140.8494687,
+  "tags": {
+    "amenity": "community_centre",
+    "name": "みんなの広場"
+  }
+},
+{
+  "type": "node",
+  "id": 8522732523,
+  "lat": 38.2836262,
+  "lon": 140.8487281,
+  "tags": {
+    "amenity": "community_centre",
+    "name": "菊田町内会館"
+  }
+},
+{
+  "type": "node",
+  "id": 8522732526,
+  "lat": 38.2862564,
+  "lon": 140.8509402,
+  "tags": {
+    "name": "朝日システムマネジメント",
+    "office": "company"
+  }
+},
+{
+  "type": "node",
+  "id": 8522732527,
+  "lat": 38.2854353,
+  "lon": 140.8515254,
+  "tags": {
+    "amenity": "community_centre",
+    "name": "仙台市好日庵"
+  }
+},
+{
+  "type": "node",
+  "id": 8522732528,
+  "lat": 38.2864192,
+  "lon": 140.8541929,
+  "tags": {
+    "name": "Cake 里菜",
+    "name:en": "Cake Rina",
+    "shop": "confectionery"
+  }
+},
+{
+  "type": "node",
+  "id": 8522732530,
+  "lat": 38.2874338,
+  "lon": 140.8502557,
+  "tags": {
+    "name": "ユウキ食品 仙台営業所",
+    "office": "company"
+  }
+},
+{
+  "type": "node",
+  "id": 8522733121,
+  "lat": 38.2812814,
+  "lon": 140.8539704,
+  "tags": {
+    "name": "宮城県障害者権利擁護センター",
+    "office": "government"
+  }
+},
+{
+  "type": "node",
+  "id": 8522733220,
+  "lat": 38.2822819,
+  "lon": 140.8534074,
+  "tags": {
+    "name": "伊藤生花店",
+    "shop": "florist"
+  }
+},
+{
+  "type": "node",
+  "id": 8522733221,
+  "lat": 38.2829167,
+  "lon": 140.8539776,
+  "tags": {
+    "amenity": "school",
+    "name": "宮城野書道会 あけぼの支部 書道教室"
+  }
+},
+{
+  "type": "node",
+  "id": 8522733225,
+  "lat": 38.2857457,
+  "lon": 140.8499699,
+  "tags": {
+    "name": "ラフ",
+    "name:en": "Raf",
+    "office": "company"
+  }
+},
+{
+  "type": "node",
+  "id": 8522733226,
+  "lat": 38.2874194,
+  "lon": 140.8518951,
+  "tags": {
+    "amenity": "community_centre",
+    "name": "やまて会町内会集会所"
+  }
+},
+{
+  "type": "node",
+  "id": 8522743618,
+  "lat": 38.2805452,
+  "lon": 140.8527313,
+  "tags": {
+    "leisure": "fitness_centre",
+    "name": "格闘技道場 J-FIT"
+  }
+},
+{
+  "type": "node",
+  "id": 8522743621,
+  "lat": 38.2802151,
+  "lon": 140.8529270,
+  "tags": {
+    "name": "三和",
+    "office": "estate_agent"
+  }
+},
+{
+  "type": "node",
+  "id": 8522762719,
+  "lat": 38.2875639,
+  "lon": 140.8552325,
+  "tags": {
+    "amenity": "community_centre",
+    "name": "山手町集会所"
+  }
+},
+{
+  "type": "node",
+  "id": 8522769917,
+  "lat": 38.2870180,
+  "lon": 140.8554482,
+  "tags": {
+    "name": "美容室幸",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 8522769918,
+  "lat": 38.2874026,
+  "lon": 140.8556496,
+  "tags": {
+    "amenity": "school",
+    "education": "school",
+    "name": "生花 池坊"
+  }
+},
+{
+  "type": "node",
+  "id": 9448758974,
+  "lat": 38.2990522,
+  "lon": 140.8284488,
+  "tags": {
+    "brand": "未来屋書店",
+    "brand:en": "Miraiya Shoten",
+    "brand:ja": "未来屋書店",
+    "brand:wikidata": "Q11519563",
+    "name": "未来屋書店",
+    "name:en": "Miraiya Shoten",
+    "name:ja": "未来屋書店",
+    "shop": "books"
+  }
+},
+{
+  "type": "node",
+  "id": 9572275619,
+  "lat": 38.2989111,
+  "lon": 140.8294578,
+  "tags": {
+    "amenity": "restaurant",
+    "brand": "丸亀製麺",
+    "brand:en": "Marugame Seimen",
+    "brand:ja": "丸亀製麺",
+    "brand:wikidata": "Q10877253",
+    "brand:wikipedia": "ja:丸亀製麺",
+    "brand:zh": "丸亀製麵",
+    "cuisine": "noodle",
+    "name": "丸亀製麺",
+    "name:en": "Marugame Seimen",
+    "name:ja": "丸亀製麺",
+    "name:zh": "丸亀製麵"
+  }
+},
+{
+  "type": "node",
+  "id": 9892793350,
+  "lat": 38.2940561,
+  "lon": 140.8386800,
+  "tags": {
+    "amenity": "atm",
+    "brand": "ゆうちょ銀行",
+    "brand:en": "Japan Post Bank",
+    "brand:ja": "ゆうちょ銀行",
+    "brand:wikidata": "Q907103",
+    "name": "ゆうちょ銀行",
+    "name:en": "Japan Post Bank",
+    "name:ja": "ゆうちょ銀行",
+    "operator": "ゆうちょ銀行",
+    "operator:wikidata": "Q907103"
+  }
+},
+{
+  "type": "node",
+  "id": 9918515011,
+  "lat": 38.2938830,
+  "lon": 140.8545996,
+  "tags": {
+    "amenity": "atm",
+    "brand": "ゆうちょ銀行",
+    "brand:en": "Japan Post Bank",
+    "brand:ja": "ゆうちょ銀行",
+    "brand:wikidata": "Q907103",
+    "name": "ゆうちょ銀行",
+    "name:en": "Japan Post Bank",
+    "name:ja": "ゆうちょ銀行",
+    "operator": "ゆうちょ銀行",
+    "operator:wikidata": "Q907103"
+  }
+},
+{
+  "type": "node",
+  "id": 9976111398,
+  "lat": 38.2889952,
+  "lon": 140.8553720,
+  "tags": {
+    "amenity": "vending_machine",
+    "brand": "コカ・コーラ",
+    "brand:en": "Coca-Cola",
+    "brand:ja": "コカ・コーラ",
+    "brand:wikidata": "Q2813",
+    "check_date": "2025-05-24",
+    "drink:cola": "yes",
+    "name": "コカ・コーラ",
+    "name:en": "Coca-Cola",
+    "name:ja": "コカ・コーラ",
+    "operator": "コカ・コーラ",
+    "vending": "drinks"
+  }
+},
+{
+  "type": "node",
+  "id": 9976111399,
+  "lat": 38.2890324,
+  "lon": 140.8551519,
+  "tags": {
+    "addr:block_number": "11",
+    "addr:city": "仙台市",
+    "addr:housenumber": "6",
+    "addr:neighbourhood": "2丁目",
+    "addr:postcode": "981-0966",
+    "addr:province": "宮城県",
+    "addr:quarter": "荒巻本沢",
+    "addr:suburb": "青葉区",
+    "amenity": "police",
+    "check_date": "2025-05-17",
+    "name": "仙台北警察署 荒巻交番",
+    "name:en": "Aramaki Koban",
+    "name:ja": "荒巻交番",
+    "opening_hours": "24/7",
+    "operator": "宮城県警察 仙台北警察署",
+    "phone": "+81 22 279 5123"
+  }
+},
+{
+  "type": "node",
+  "id": 10309219400,
+  "lat": 38.2884417,
+  "lon": 140.8501977,
+  "tags": {
+    "brand": "ダイソー",
+    "brand:en": "Daiso",
+    "brand:ja": "ダイソー",
+    "brand:wikidata": "Q866991",
+    "brand:wikipedia": "ja:カルチュア・コンビニエンス・クラブ",
+    "name": "ダイソー",
+    "name:en": "Daiso",
+    "name:ja": "ダイソー",
+    "name:ja_rm": "Tsutaya",
+    "shop": "variety_store",
+    "source": "knowledge"
+  }
+},
+{
+  "type": "node",
+  "id": 10536571473,
+  "lat": 38.2825509,
+  "lon": 140.8396569,
+  "tags": {
+    "amenity": "telephone",
+    "brand": "NTT",
+    "brand:en": "Nippon Telegraph and Telephone",
+    "brand:ja": "日本電信電話株式会社",
+    "brand:short": "NTT",
+    "brand:wikidata": "Q1054787",
+    "name": "NTT",
+    "operator": "NTT"
+  }
+},
+{
+  "type": "node",
+  "id": 10536571536,
+  "lat": 38.2870014,
+  "lon": 140.8387863,
+  "tags": {
+    "addr:block_number": "6",
+    "addr:city": "仙台市",
+    "addr:housenumber": "10",
+    "addr:neighbourhood": "5丁目",
+    "addr:postcode": "981-0942",
+    "addr:province": "宮城県",
+    "addr:quarter": "貝ヶ森",
+    "addr:suburb": "青葉区",
+    "amenity": "social_facility",
+    "name": "ゆう貝ヶ森",
+    "phone": "+81-22-341-2257",
+    "social_facility": "nursing_home",
+    "social_facility:for": "senior"
+  }
+},
+{
+  "type": "node",
+  "id": 10677716015,
+  "lat": 38.2968309,
+  "lon": 140.8284324,
+  "tags": {
+    "addr:block_number": "39",
+    "addr:city": "仙台市",
+    "addr:housenumber": "1",
+    "addr:neighbourhood": "1丁目",
+    "addr:postcode": "981-3213",
+    "addr:province": "宮城県",
+    "addr:quarter": "南中山",
+    "addr:suburb": "泉区",
+    "leisure": "fitness_centre",
+    "name": "ワールドプラスジム 仙台泉店"
+  }
+},
+{
+  "type": "node",
+  "id": 10677716016,
+  "lat": 38.2969938,
+  "lon": 140.8283552,
+  "tags": {
+    "addr:block_number": "39",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "1丁目",
+    "addr:postcode": "981-3213",
+    "addr:province": "宮城県",
+    "addr:quarter": "南中山",
+    "addr:suburb": "泉区",
+    "name": "理容室アンサー",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 10677716017,
+  "lat": 38.2969086,
+  "lon": 140.8282779,
+  "tags": {
+    "addr:block_number": "39",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "1丁目",
+    "addr:postcode": "981-3213",
+    "addr:province": "宮城県",
+    "addr:quarter": "南中山",
+    "addr:suburb": "泉区",
+    "amenity": "dentist",
+    "healthcare": "dentist",
+    "name": "たなか歯科医院"
+  }
+},
+{
+  "type": "node",
+  "id": 10692076677,
+  "lat": 38.2829375,
+  "lon": 140.8300287,
+  "tags": {
+    "amenity": "doctors",
+    "healthcare": "doctor",
+    "name": "くにみ透析クリニック"
+  }
+},
+{
+  "type": "node",
+  "id": 10692076678,
+  "lat": 38.2828414,
+  "lon": 140.8283420,
+  "tags": {
+    "amenity": "social_facility",
+    "name": "介護老人保健施設国見ナーシングホーム翔裕園",
+    "social_facility": "nursing_home",
+    "social_facility:for": "senior"
+  }
+},
+{
+  "type": "node",
+  "id": 11393500386,
+  "lat": 38.2955649,
+  "lon": 140.8542290,
+  "tags": {
+    "alt_name:en": "Kurazushi",
+    "amenity": "fast_food",
+    "branch": "仙台水の森店",
+    "brand": "くら寿司",
+    "brand:en": "Kura Sushi",
+    "brand:ja": "くら寿司",
+    "brand:wikidata": "Q6445491",
+    "cuisine": "sushi",
+    "name": "くら寿司",
+    "name:en": "Kura Sushi",
+    "name:ja": "くら寿司",
+    "official_name": "無添くら寿司",
+    "official_name:en": "Muten Kura Sushi",
+    "official_name:ja": "無添くら寿司",
+    "takeaway": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 11696748172,
+  "lat": 38.2951419,
+  "lon": 140.8500622,
+  "tags": {
+    "name": "コインランドリー ふわふわプレミアム",
+    "self_service": "yes",
+    "shop": "laundry"
+  }
+},
+{
+  "type": "node",
+  "id": 11696748360,
+  "lat": 38.2952123,
+  "lon": 140.8455013,
+  "tags": {
+    "amenity": "place_of_worship",
+    "name": "仙台川平教会",
+    "religion": "christian"
+  }
+},
+{
+  "type": "node",
+  "id": 11700085504,
+  "lat": 38.2993549,
+  "lon": 140.8449961,
+  "tags": {
+    "amenity": "dentist",
+    "healthcare": "dentist",
+    "name": "舘歯科医院",
+    "phone": "+81-22-346-8143"
+  }
+},
+{
+  "type": "node",
+  "id": 11703437805,
+  "lat": 38.3002807,
+  "lon": 140.8435846,
+  "tags": {
+    "amenity": "community_centre",
+    "name": "さつき町内会集会所"
+  }
+},
+{
+  "type": "node",
+  "id": 11726678018,
+  "lat": 38.2936613,
+  "lon": 140.8340521,
+  "tags": {
+    "amenity": "funeral_hall",
+    "name": "みおくり邸宅 中山"
+  }
+},
+{
+  "type": "node",
+  "id": 11726678319,
+  "lat": 38.2920596,
+  "lon": 140.8379480,
+  "tags": {
+    "addr:block_number": "20",
+    "addr:city": "仙台市",
+    "addr:full": "宮城県仙台市青葉区中山４‐２０‐８",
+    "addr:housenumber": "8",
+    "addr:neighbourhood": "4丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "branch": "仙台中山四丁目店",
+    "branch:en": "sendainakayama4chiyoume",
+    "branch:ja_kana": "せんだいなかやま４ちようめてん",
+    "brand": "LAWSON",
+    "brand:en": "LAWSON",
+    "brand:ja": "ローソン",
+    "brand:wikidata": "Q1557223",
+    "brand:wikipedia": "ja:ローソン",
+    "name": "ローソン",
+    "name:en": "Lawson",
+    "name:ja": "ローソン",
+    "name:ja_rm": "Rōson",
+    "name:ko": "로손",
+    "opening_hours": "24/7",
+    "operator": "ローソン 仙台中山四丁目店",
+    "operator:en": "Lawson",
+    "phone": "+81-22-719-7037",
+    "ref:lawson": "132598",
+    "shop": "convenience",
+    "source": "Bing;Lawson",
+    "start_date": "2006-06-01"
+  }
+},
+{
+  "type": "node",
+  "id": 11809107519,
+  "lat": 38.2892195,
+  "lon": 140.8523066,
+  "tags": {
+    "amenity": "veterinary",
+    "name": "そよかぜ動物病院"
+  }
+},
+{
+  "type": "node",
+  "id": 11809107550,
+  "lat": 38.2888623,
+  "lon": 140.8471136,
+  "tags": {
+    "amenity": "doctors",
+    "healthcare": "doctor",
+    "name": "青葉なかやま内科"
+  }
+},
+{
+  "type": "node",
+  "id": 12100598243,
+  "lat": 38.2850131,
+  "lon": 140.8352596,
+  "tags": {
+    "amenity": "social_facility",
+    "name": "せんだんの里"
+  }
+},
+{
+  "type": "node",
+  "id": 12100598244,
+  "lat": 38.2854743,
+  "lon": 140.8355401,
+  "tags": {
+    "amenity": "social_facility",
+    "name": "認知症介護研究・研修仙台センター"
+  }
+},
+{
+  "type": "node",
+  "id": 12100619521,
+  "lat": 38.2897771,
+  "lon": 140.8347314,
+  "tags": {
+    "amenity": "social_facility",
+    "name": "せんだんの杜",
+    "operator": "東北福祉大学"
+  }
+},
+{
+  "type": "node",
+  "id": 12836778984,
+  "lat": 38.2794772,
+  "lon": 140.8471367,
+  "tags": {
+    "museum": "art",
+    "name": "東北福祉大学芹沢銈介美術工芸館",
+    "name:en": "Serizawa Keisuke Art and Craft Museum",
+    "name:ja": "東北福祉大学芹沢銈介美術工芸館",
+    "operator": "東北福祉大学",
+    "operator:type": "university",
+    "tourism": "museum",
+    "wikidata": "Q78121486",
+    "wikipedia": "ja:東北福祉大学芹沢銈介美術工芸館"
+  }
+},
+{
+  "type": "node",
+  "id": 12836778985,
+  "lat": 38.2795800,
+  "lon": 140.8466937,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "181ホール",
+    "name:en": "1-8-1 Hall",
+    "name:ja": "181ホール"
+  }
+},
+{
+  "type": "node",
+  "id": 12836778986,
+  "lat": 38.2797297,
+  "lon": 140.8466818,
+  "tags": {
+    "artwork_type": "statue",
+    "name": "福祉観音",
+    "tourism": "artwork"
+  }
+},
+{
+  "type": "node",
+  "id": 12836779000,
+  "lat": 38.2798955,
+  "lon": 140.8464995,
+  "tags": {
+    "name": "BOOKセンター国見堂",
+    "name:ja": "BOOKセンター国見堂",
+    "opening_hours": "Mo-Fr 10:00-16:00",
+    "shop": "books",
+    "website": "https://tfucansapo.net/shoplist/kunimido/"
+  }
+},
+{
+  "type": "node",
+  "id": 12836803479,
+  "lat": 38.2799887,
+  "lon": 140.8482965,
+  "tags": {
+    "amenity": "restaurant",
+    "name": "食工房 風土",
+    "name:ja": "食工房 風土"
+  }
+},
+{
+  "type": "node",
+  "id": 12841078311,
+  "lat": 38.2798763,
+  "lon": 140.8487285,
+  "tags": {
+    "name": "カットスペース",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "node",
+  "id": 12912055202,
+  "lat": 38.2802504,
+  "lon": 140.8428162,
+  "tags": {
+    "access": "yes",
+    "amenity": "bicycle_parking",
+    "bicycle_parking": "building",
+    "covered": "yes",
+    "fee": "yes",
+    "name": "東北福祉大駅自転車等駐車場"
+  }
+},
+{
+  "type": "node",
+  "id": 12912055203,
+  "lat": 38.2801199,
+  "lon": 140.8429678,
+  "tags": {
+    "amenity": "clinic",
+    "healthcare": "clinic",
+    "name": "予防福祉クリニック",
+    "name:ja": "予防福祉クリニック",
+    "operator": "学校法人栴檀学園",
+    "website": "https://www.tfu.ac.jp/students/clinic.html"
+  }
+},
+{
+  "type": "way",
+  "id": 103662181,
+  "center": {
+    "lat": 38.2914275,
+    "lon": 140.8323388
+  },
+  "tags": {
+    "access": "private",
+    "leisure": "pitch",
+    "name": "東北福祉大学野球場",
+    "name:en": "Tohoku Fukushi University Baseball Stadium",
+    "name:ja": "東北福祉大学野球場",
+    "name:ja-Hira": "とうほくふくしだいがくやきゅうじょう",
+    "source": "Bing",
+    "sport": "baseball",
+    "surface": "artificial_turf",
+    "wikidata": "Q11526242",
+    "wikipedia": "ja:東北福祉大学野球場"
+  }
+},
+{
+  "type": "way",
+  "id": 104170589,
+  "center": {
+    "lat": 38.2886966,
+    "lon": 140.8348752
+  },
+  "tags": {
+    "amenity": "school",
+    "grades": "7-12",
+    "name": "仙台市立仙台青陵中等教育学校",
+    "name:en": "Sendai Seiryo Secondary School",
+    "name:ja": "仙台市立仙台青陵中等教育学校",
+    "name:ja-Hira": "せんだいしりつせんだいせいりょうちゅうとうきょういくがっこう",
+    "religion": "none",
+    "source": "Bing;NRPB of MLIT Japan.",
+    "source:ja": "国土数値情報公共施設データ平成18年　国土交通省",
+    "source_ref": "http://nlftp.mlit.go.jp/ksj/jpgis/datalist/KsjTmplt-P02-v2_0.html",
+    "wikidata": "Q11377875",
+    "wikipedia": "ja:仙台市立仙台青陵中等教育学校"
+  }
+},
+{
+  "type": "way",
+  "id": 104236574,
+  "center": {
+    "lat": 38.2964163,
+    "lon": 140.8394047
+  },
+  "tags": {
+    "addr:block_number": "16",
+    "addr:city": "仙台市",
+    "addr:housenumber": "1",
+    "addr:neighbourhood": "6丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "amenity": "school",
+    "grades": "7-9",
+    "name": "仙台市立中山中学校",
+    "phone": "+81 22 278 8833",
+    "religion": "none",
+    "source": "Bing;NRPB of MLIT Japan.",
+    "source:ja": "国土数値情報公共施設データ平成18年　国土交通省",
+    "source_ref": "http://nlftp.mlit.go.jp/ksj/jpgis/datalist/KsjTmplt-P02-v2_0.html",
+    "wikidata": "Q11377864",
+    "wikipedia": "ja:仙台市立中山中学校"
+  }
+},
+{
+  "type": "way",
+  "id": 104236629,
+  "center": {
+    "lat": 38.2917789,
+    "lon": 140.8503859
+  },
+  "tags": {
+    "addr:block_number": "6",
+    "addr:city": "仙台市",
+    "addr:housenumber": "1",
+    "addr:neighbourhood": "1丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "amenity": "school",
+    "education": "school",
+    "grades": "1-6",
+    "name": "仙台市立中山小学校",
+    "name:en": "Nakayama Elementary School",
+    "name:ja": "仙台市立中山小学校",
+    "phone": "+81 22 278 0206",
+    "religion": "none",
+    "source": "Bing;NRPB of MLIT Japan.",
+    "source:ja": "国土数値情報公共施設データ平成18年　国土交通省",
+    "source_ref": "http://nlftp.mlit.go.jp/ksj/jpgis/datalist/KsjTmplt-P02-v2_0.html",
+    "wikidata": "Q11377865",
+    "wikipedia": "ja:仙台市立中山小学校"
+  }
+},
+{
+  "type": "way",
+  "id": 104542861,
+  "center": {
+    "lat": 38.2956332,
+    "lon": 140.8329382
+  },
+  "tags": {
+    "addr:block_number": "12",
+    "addr:city": "仙台市",
+    "addr:housenumber": "15",
+    "addr:neighbourhood": "8丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "amenity": "kindergarten",
+    "name": "双葉幼稚園",
+    "source": "knowledge"
+  }
+},
+{
+  "type": "way",
+  "id": 104542940,
+  "center": {
+    "lat": 38.3014871,
+    "lon": 140.8432915
+  },
+  "tags": {
+    "amenity": "school",
+    "education": "school",
+    "name": "仙台大学附属明成高等学校",
+    "name:en": "Sendai University Meisei High School",
+    "source": "Bing",
+    "wikidata": "Q11512083",
+    "wikipedia": "ja:仙台大学附属明成高等学校"
+  }
+},
+{
+  "type": "way",
+  "id": 104789662,
+  "center": {
+    "lat": 38.3013651,
+    "lon": 140.8353978
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "川平北公園",
+    "source": "knowledge"
+  }
+},
+{
+  "type": "way",
+  "id": 104805346,
+  "center": {
+    "lat": 38.2947073,
+    "lon": 140.8483732
+  },
+  "tags": {
+    "amenity": "kindergarten",
+    "name": "泉ヶ丘幼稚園 アルル保育園",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 104820381,
+  "center": {
+    "lat": 38.2813085,
+    "lon": 140.8342016
+  },
+  "tags": {
+    "amenity": "school",
+    "grades": "10-12",
+    "name": "仙台市立仙台高等学校",
+    "name:en": "Sendai High School",
+    "name:ja": "仙台市立仙台高等学校",
+    "name:ja-Hira": "せんだいしりつせんだいこうとうがっこう",
+    "religion": "none",
+    "source": "Bing;NRPB of MLIT Japan.",
+    "source:ja": "国土数値情報公共施設データ平成18年　国土交通省",
+    "source_ref": "http://nlftp.mlit.go.jp/ksj/jpgis/datalist/KsjTmplt-P02-v2_0.html",
+    "wikidata": "Q11377877",
+    "wikipedia": "ja:仙台市立仙台高等学校"
+  }
+},
+{
+  "type": "way",
+  "id": 104820385,
+  "center": {
+    "lat": 38.2919166,
+    "lon": 140.8528200
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "たきみち公園",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 105142749,
+  "center": {
+    "lat": 38.2867366,
+    "lon": 140.8396760
+  },
+  "tags": {
+    "leisure": "pitch",
+    "name": "仙台高等学校 貝ヶ森グラウンド",
+    "source": "Bing, 2011-3"
+  }
+},
+{
+  "type": "way",
+  "id": 105173236,
+  "center": {
+    "lat": 38.2978003,
+    "lon": 140.8539682
+  },
+  "tags": {
+    "addr:block_number": "8",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "2丁目",
+    "addr:postcode": "981-0961",
+    "addr:province": "宮城県",
+    "addr:quarter": "桜ヶ丘",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "桜ヶ丘二丁目公園",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 107296770,
+  "center": {
+    "lat": 38.2802419,
+    "lon": 140.8540091
+  },
+  "tags": {
+    "amenity": "school",
+    "education": "school",
+    "name": "仙台市立三条中学校",
+    "source": "Bing; NRPB of MLIT Japan.",
+    "source:ja": "国土数値情報公共施設データ平成18年　国土交通省",
+    "source_ref": "http://nlftp.mlit.go.jp/ksj/jpgis/datalist/KsjTmplt-P02-v2_0.html",
+    "wikidata": "Q11377860",
+    "wikipedia": "ja:仙台市立三条中学校"
+  }
+},
+{
+  "type": "way",
+  "id": 107789433,
+  "center": {
+    "lat": 38.2881887,
+    "lon": 140.8498209
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "シェル",
+    "brand:en": "Shell",
+    "brand:ja": "シェル",
+    "brand:wikidata": "Q110716465",
+    "building": "yes",
+    "compressed_air": "yes",
+    "name": "昭和シェル",
+    "name:en": "Showa-shell",
+    "name:ja": "昭和シェル",
+    "name:ja_rm": "Showa Sheru",
+    "source": "knowledge"
+  }
+},
+{
+  "type": "way",
+  "id": 107789722,
+  "center": {
+    "lat": 38.2886513,
+    "lon": 140.8484172
+  },
+  "tags": {
+    "amenity": "driving_school",
+    "name": "中山ドライブスクール",
+    "source": "knowledge"
+  }
+},
+{
+  "type": "way",
+  "id": 107980169,
+  "center": {
+    "lat": 38.2793927,
+    "lon": 140.8466381
+  },
+  "tags": {
+    "building": "yes",
+    "building:levels": "4",
+    "leisure": "sports_hall",
+    "name": "福聚殿",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 108219864,
+  "center": {
+    "lat": 38.2968446,
+    "lon": 140.8538084
+  },
+  "tags": {
+    "addr:block_number": "19",
+    "addr:city": "仙台市",
+    "addr:housenumber": "1",
+    "addr:neighbourhood": "二丁目",
+    "addr:postcode": "981-0961",
+    "addr:province": "宮城県",
+    "addr:quarter": "桜ヶ丘",
+    "addr:suburb": "青葉区",
+    "alt_name": "みやぎ生活協同組合",
+    "branch": "桜ヶ丘店",
+    "building": "retail",
+    "name": "みやぎ生協",
+    "name:en": "Miyagi COOP",
+    "name:ja": "みやぎ生協",
+    "opening_hours": "Mo-Sa 09:30-23:00, Su 09:00-23:00",
+    "phone": "+81 22 279 9661",
+    "shop": "supermarket",
+    "source": "Bing",
+    "website": "https://www.miyagi.coop/shop/shoplist/store.php?shop=5"
+  }
+},
+{
+  "type": "way",
+  "id": 225886273,
+  "center": {
+    "lat": 38.2802899,
+    "lon": 140.8474823
+  },
+  "tags": {
+    "addr:block_number": "8",
+    "addr:city": "仙台市",
+    "addr:housenumber": "1",
+    "addr:neighbourhood": "国見一丁目",
+    "addr:postcode": "9818522",
+    "addr:province": "宮城県",
+    "addr:suburb": "青葉区",
+    "amenity": "university",
+    "education": "university",
+    "name": "東北福祉大学 国見キャンパス",
+    "name:en": "Tohoku Fukushi Univercity Kunimi Campus",
+    "name:ja": "東北福祉大学 国見キャンパス",
+    "operator": "栴檀学園",
+    "operator:type": "university",
+    "phone": "+81 22 233 3111",
+    "religion": "buddhist",
+    "short_name": "東福大;福祉大;TFU",
+    "source": "Bing",
+    "website": "https://www.tfu.ac.jp/",
+    "wikidata": "Q860268",
+    "wikipedia": "ja:東北福祉大学"
+  }
+},
+{
+  "type": "way",
+  "id": 225887745,
+  "center": {
+    "lat": 38.2800116,
+    "lon": 140.8433202
+  },
+  "tags": {
+    "addr:block_number": "19",
+    "addr:city": "仙台市",
+    "addr:housenumber": "1",
+    "addr:neighbourhood": "国見一丁目",
+    "addr:postcode": "9818523",
+    "addr:province": "宮城県",
+    "addr:suburb": "青葉区",
+    "amenity": "university",
+    "name": "東北福祉大学 ステーションキャンパス",
+    "name:en": "Tohoku Fukushi Univercity Station Campus",
+    "name:ja": "東北福祉大学 ステーションキャンパス",
+    "operator": "栴檀学園",
+    "operator:type": "private",
+    "source": "Bing",
+    "website": "https://www.tfu.ac.jp/",
+    "wikidata": "Q860268",
+    "wikipedia": "ja:東北福祉大学"
+  }
+},
+{
+  "type": "way",
+  "id": 225907971,
+  "center": {
+    "lat": 38.2839055,
+    "lon": 140.8344325
+  },
+  "tags": {
+    "amenity": "social_facility",
+    "building": "yes",
+    "name": "せんだんの丘",
+    "social_facility": "nursing_home",
+    "social_facility:for": "senior"
+  }
+},
+{
+  "type": "way",
+  "id": 225907972,
+  "center": {
+    "lat": 38.2871670,
+    "lon": 140.8333002
+  },
+  "tags": {
+    "amenity": "hospital",
+    "building": "hospital",
+    "healthcare": "hospital",
+    "healthcare:speciality": "psychiatry;internal",
+    "name": "せんだんホスピタル",
+    "name:en": "Sendan Hospital",
+    "name:ja": "せんだんホスピタル",
+    "source": "Bing",
+    "wikidata": "Q27157927",
+    "wikipedia": "ja:東北福祉大学せんだんホスピタル"
+  }
+},
+{
+  "type": "way",
+  "id": 225907974,
+  "center": {
+    "lat": 38.2856589,
+    "lon": 140.8340501
+  },
+  "tags": {
+    "building": "university",
+    "leisure": "sports_hall",
+    "name": "トレーニングセンター",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 225907978,
+  "center": {
+    "lat": 38.2851718,
+    "lon": 140.8351056
+  },
+  "tags": {
+    "amenity": "university",
+    "name": "東北福祉大学 国見ヶ丘第1キャンパス",
+    "name:en": "Tohoku Fukushi University Kunimigaoka 1st Campus",
+    "name:ja": "東北福祉大学 国見ヶ丘第1キャンパス",
+    "name:ja-Hira": "とうほくふくしだいがくくにみがおかだいいちきゃんぱす",
+    "operator": "東北福祉大学",
+    "operator:type": "university",
+    "source": "http://www.tfu.ac.jp/aboutus/kunimigaoka1stcampus.html",
+    "wikidata": "Q860268",
+    "wikipedia": "ja:東北福祉大学"
+  }
+},
+{
+  "type": "way",
+  "id": 226382734,
+  "center": {
+    "lat": 38.2810787,
+    "lon": 140.8505999
+  },
+  "tags": {
+    "amenity": "university",
+    "education": "university",
+    "name": "東北福祉大学 北山キャンパス",
+    "name:en": "Tohoku Fukushi Univercity Kitayama Campus",
+    "name:ja": "東北福祉大学 北山キャンパス",
+    "operator": "栴檀学園",
+    "operator:type": "private",
+    "wikidata": "Q860268",
+    "wikipedia": "ja:東北福祉大学"
+  }
+},
+{
+  "type": "way",
+  "id": 226839048,
+  "center": {
+    "lat": 38.2831093,
+    "lon": 140.8437912
+  },
+  "tags": {
+    "building": "retail",
+    "name": "みやぎ生協",
+    "shop": "supermarket",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 226839060,
+  "center": {
+    "lat": 38.2793388,
+    "lon": 140.8416653
+  },
+  "tags": {
+    "amenity": "kindergarten",
+    "name": "福聚幼稚園",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 226839061,
+  "center": {
+    "lat": 38.2829480,
+    "lon": 140.8428426
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "貝ヶ森中央公園",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 226839062,
+  "center": {
+    "lat": 38.2816298,
+    "lon": 140.8425050
+  },
+  "tags": {
+    "amenity": "community_centre",
+    "building": "civic",
+    "name": "貝ヶ森市民センター"
+  }
+},
+{
+  "type": "way",
+  "id": 226947492,
+  "center": {
+    "lat": 38.2813600,
+    "lon": 140.8546389
+  },
+  "tags": {
+    "amenity": "place_of_worship",
+    "building": "yes",
+    "name": "大法寺",
+    "religion": "buddhist",
+    "source": "BING"
+  }
+},
+{
+  "type": "way",
+  "id": 226947605,
+  "center": {
+    "lat": 38.2827688,
+    "lon": 140.8496512
+  },
+  "tags": {
+    "amenity": "place_of_worship",
+    "building": "yes",
+    "name": "御嶽三吉神社",
+    "religion": "shinto",
+    "source": "BING"
+  }
+},
+{
+  "type": "way",
+  "id": 227135292,
+  "center": {
+    "lat": 38.2834519,
+    "lon": 140.8548454
+  },
+  "tags": {
+    "amenity": "place_of_worship",
+    "building": "yes",
+    "name": "羽黒神社",
+    "religion": "shinto",
+    "source": "BING"
+  }
+},
+{
+  "type": "way",
+  "id": 228508766,
+  "center": {
+    "lat": 38.2875112,
+    "lon": 140.8485071
+  },
+  "tags": {
+    "addr:block_number": "1",
+    "addr:city": "仙台市",
+    "addr:housenumber": "1",
+    "addr:neighbourhood": "一丁目",
+    "addr:postcode": "981-0966",
+    "addr:province": "宮城県",
+    "addr:quarter": "荒巻本沢",
+    "addr:suburb": "青葉区",
+    "branch": "仙台荒巻本沢",
+    "brand": "セブン-イレブン",
+    "brand:en": "7-Eleven",
+    "brand:ja": "セブン-イレブン",
+    "brand:wikidata": "Q259340",
+    "brand:wikipedia": "en:7-Eleven",
+    "building": "retail",
+    "check_date": "2025-05-13",
+    "name": "セブン-イレブン",
+    "name:en": "7-Eleven",
+    "name:ja": "セブン-イレブン",
+    "name:ja_rm": "Sebun Irebun",
+    "name:ko": "세븐일레븐",
+    "official_name:en": "Seven-Eleven",
+    "opening_hours": "24/7",
+    "operator": "セブン‐イレブン・ジャパン",
+    "phone": "+81 22 277 6260",
+    "shop": "convenience",
+    "source": "knowledge",
+    "website": "https://www.sej.co.jp/index.html"
+  }
+},
+{
+  "type": "way",
+  "id": 228508769,
+  "center": {
+    "lat": 38.2886390,
+    "lon": 140.8458781
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "中山とびのこ公園",
+    "name:en": "Nakayama Tobinoko Park",
+    "name:ja": "中山とびのこ公園",
+    "operator": "青葉区役所建設部公園課",
+    "phone": "+81 22 225 7211",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 228918612,
+  "center": {
+    "lat": 38.2978683,
+    "lon": 140.8272816
+  },
+  "tags": {
+    "branch": "仙台中山店",
+    "brand": "イオン",
+    "brand:en": "AEON",
+    "brand:ja": "イオン",
+    "brand:wikidata": "Q11285951",
+    "brand:wikipedia": "ja:イオン (店舗ブランド)",
+    "building": "retail",
+    "name": "イオン",
+    "name:en": "AEON",
+    "name:ja": "イオン",
+    "operator": "イオン東北",
+    "shop": "supermarket",
+    "website": "https://aeontohoku.co.jp/stores/sendainakayama"
+  }
+},
+{
+  "type": "way",
+  "id": 228918613,
+  "center": {
+    "lat": 38.2997371,
+    "lon": 140.8311529
+  },
+  "tags": {
+    "addr:block_number": "4",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "9丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "すぎとや西公園",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 228918614,
+  "center": {
+    "lat": 38.2961217,
+    "lon": 140.8279784
+  },
+  "tags": {
+    "branch": "国見ケ丘店",
+    "building": "retail",
+    "name": "みやぎ生協",
+    "name:en": "COOP Miyagi",
+    "name:ja": "みやぎ生協",
+    "opening_hours": "Mo-Su 09:30-21:30",
+    "phone": "+81 22 277 5511",
+    "shop": "supermarket",
+    "source": "Bing",
+    "website": "https://www.miyagi.coop/"
+  }
+},
+{
+  "type": "way",
+  "id": 228918615,
+  "center": {
+    "lat": 38.3009387,
+    "lon": 140.8303930
+  },
+  "tags": {
+    "building": "retail",
+    "name": "ダイシン",
+    "shop": "doityourself",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 228918618,
+  "center": {
+    "lat": 38.2966007,
+    "lon": 140.8340038
+  },
+  "tags": {
+    "addr:block_number": "21",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "7丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "中山公園",
+    "opening_hours": "24/7",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 228918619,
+  "center": {
+    "lat": 38.2971674,
+    "lon": 140.8294017
+  },
+  "tags": {
+    "addr:block_number": "34",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "8丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "中山北公園",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 228918685,
+  "center": {
+    "lat": 38.2936940,
+    "lon": 140.8326932
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "うどう沼公園",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 228922734,
+  "center": {
+    "lat": 38.2863224,
+    "lon": 140.8412786
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "貝ヶ森１号公園"
+  }
+},
+{
+  "type": "way",
+  "id": 228922735,
+  "center": {
+    "lat": 38.2820187,
+    "lon": 140.8388342
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "貝ヶ森３号公園",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 229163886,
+  "center": {
+    "lat": 38.2936956,
+    "lon": 140.8383588
+  },
+  "tags": {
+    "addr:block_number": "22",
+    "addr:city": "仙台市",
+    "addr:housenumber": "2",
+    "addr:neighbourhood": "4丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "building": "retail",
+    "name": "ウジエ",
+    "name:ja": "ウジエスーパー 中山店",
+    "opening_hours": "Mo-Su 10:00-22:00",
+    "phone": "+81 22 303 2200",
+    "shop": "supermarket",
+    "source": "Bing",
+    "website": "https://ujiesuper.com/"
+  }
+},
+{
+  "type": "way",
+  "id": 229163888,
+  "center": {
+    "lat": 38.2942968,
+    "lon": 140.8373124
+  },
+  "tags": {
+    "addr:block_number": "23",
+    "addr:city": "仙台市",
+    "addr:housenumber": "28",
+    "addr:neighbourhood": "4丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "amenity": "bank",
+    "atm": "yes",
+    "building": "yes",
+    "name": "七十七銀行 中山支店",
+    "name:en": "77 Bank Nakayama Branch",
+    "opening_hours": "Mo-Fr 09:00-15:00",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 229163889,
+  "center": {
+    "lat": 38.2917590,
+    "lon": 140.8371509
+  },
+  "tags": {
+    "addr:block_number": "13",
+    "addr:city": "仙台市",
+    "addr:housenumber": "1",
+    "addr:neighbourhood": "3丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "amenity": "community_centre",
+    "building": "civic",
+    "name": "中山市民センター",
+    "source": "Bing"
+  }
+},
+{
+  "type": "way",
+  "id": 229163996,
+  "center": {
+    "lat": 38.2888148,
+    "lon": 140.8323574
+  },
+  "tags": {
+    "amenity": "social_facility",
+    "building": "yes",
+    "name": "せんだんの家"
+  }
+},
+{
+  "type": "way",
+  "id": 298109387,
+  "center": {
+    "lat": 38.2875926,
+    "lon": 140.8434664
+  },
+  "tags": {
+    "addr:block_number": "26",
+    "addr:city": "仙台市",
+    "addr:housenumber": "20",
+    "addr:neighbourhood": "2丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "amenity": "doctors",
+    "building": "yes",
+    "healthcare": "doctor",
+    "name": "てらさわ小児科"
+  }
+},
+{
+  "type": "way",
+  "id": 502044117,
+  "center": {
+    "lat": 38.2835156,
+    "lon": 140.8366282
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "貝ヶ森５号公園"
+  }
+},
+{
+  "type": "way",
+  "id": 502044152,
+  "center": {
+    "lat": 38.2817603,
+    "lon": 140.8368105
+  },
+  "tags": {
+    "amenity": "restaurant",
+    "building": "yes",
+    "name": "ヘミングウェイ"
+  }
+},
+{
+  "type": "way",
+  "id": 502048665,
+  "center": {
+    "lat": 38.2827137,
+    "lon": 140.8353638
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "貝ヶ森４号公園"
+  }
+},
+{
+  "type": "way",
+  "id": 502048697,
+  "center": {
+    "lat": 38.2823789,
+    "lon": 140.8378422
+  },
+  "tags": {
+    "amenity": "restaurant",
+    "building": "yes",
+    "name": "遠州屋"
+  }
+},
+{
+  "type": "way",
+  "id": 612431539,
+  "center": {
+    "lat": 38.2878482,
+    "lon": 140.8432422
+  },
+  "tags": {
+    "addr:block_number": "26",
+    "addr:city": "仙台市",
+    "addr:housenumber": "24",
+    "addr:neighbourhood": "2丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "amenity": "pharmacy",
+    "building": "retail",
+    "building:levels": "2",
+    "dispensing": "yes",
+    "healthcare": "pharmacy",
+    "name": "アクア調剤薬局"
+  }
+},
+{
+  "type": "way",
+  "id": 612435800,
+  "center": {
+    "lat": 38.2884963,
+    "lon": 140.8416110
+  },
+  "tags": {
+    "addr:block_number": "32",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "2丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "中山山の神公園",
+    "opening_hours": "24/7"
+  }
+},
+{
+  "type": "way",
+  "id": 634697277,
+  "center": {
+    "lat": 38.2826960,
+    "lon": 140.8518869
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "亀岡公園"
+  }
+},
+{
+  "type": "way",
+  "id": 634697278,
+  "center": {
+    "lat": 38.2841751,
+    "lon": 140.8489756
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "菊田公園"
+  }
+},
+{
+  "type": "way",
+  "id": 634697279,
+  "center": {
+    "lat": 38.2821933,
+    "lon": 140.8528322
+  },
+  "tags": {
+    "building": "yes",
+    "building:levels": "2",
+    "name": "阿部美容室",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "way",
+  "id": 634697286,
+  "center": {
+    "lat": 38.2828689,
+    "lon": 140.8531526
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "北山三丁目公園"
+  }
+},
+{
+  "type": "way",
+  "id": 634697292,
+  "center": {
+    "lat": 38.2824352,
+    "lon": 140.8523420
+  },
+  "tags": {
+    "building": "yes",
+    "building:levels": "5",
+    "name": "大石屋サトー",
+    "shop": "supermarket"
+  }
+},
+{
+  "type": "way",
+  "id": 634718814,
+  "center": {
+    "lat": 38.2824651,
+    "lon": 140.8518626
+  },
+  "tags": {
+    "building": "yes",
+    "building:levels": "2",
+    "name": "理容コロナ",
+    "shop": "hairdresser"
+  }
+},
+{
+  "type": "way",
+  "id": 634718855,
+  "center": {
+    "lat": 38.2833737,
+    "lon": 140.8509017
+  },
+  "tags": {
+    "amenity": "restaurant",
+    "building": "yes",
+    "building:levels": "2",
+    "name": "そば処暢気"
+  }
+},
+{
+  "type": "way",
+  "id": 634770597,
+  "center": {
+    "lat": 38.2856227,
+    "lon": 140.8492686
+  },
+  "tags": {
+    "amenity": "pub",
+    "building": "yes",
+    "building:levels": "2",
+    "name": "八剣伝 JR北山駅前店",
+    "name:en": "Hakkenden",
+    "opening_hours": "Mo-Fr 17:00-00:00; Sa-Su 16:00-00:00",
+    "phone": "+81 22 303 2450"
+  }
+},
+{
+  "type": "way",
+  "id": 634770600,
+  "center": {
+    "lat": 38.2860225,
+    "lon": 140.8498437
+  },
+  "tags": {
+    "amenity": "place_of_worship",
+    "building": "yes",
+    "building:levels": "2",
+    "name": "世界心道教小泉教会"
+  }
+},
+{
+  "type": "way",
+  "id": 634770602,
+  "center": {
+    "lat": 38.2859916,
+    "lon": 140.8490314
+  },
+  "tags": {
+    "amenity": "restaurant",
+    "building": "yes",
+    "name": "カナール",
+    "opening_hours": "Fr-We 11:00-20:00; Th 11:00-15:00",
+    "phone": "+81 22 277 2422"
+  }
+},
+{
+  "type": "way",
+  "id": 634770612,
+  "center": {
+    "lat": 38.2893057,
+    "lon": 140.8487526
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "荒巻本沢一丁目南公園"
+  }
+},
+{
+  "type": "way",
+  "id": 634770618,
+  "center": {
+    "lat": 38.2848622,
+    "lon": 140.8510417
+  },
+  "tags": {
+    "amenity": "place_of_worship",
+    "building": "yes",
+    "name": "光圓寺",
+    "religion": "buddhist"
+  }
+},
+{
+  "type": "way",
+  "id": 636796752,
+  "center": {
+    "lat": 38.2895075,
+    "lon": 140.8552267
+  },
+  "tags": {
+    "addr:block_number": "12",
+    "addr:city": "仙台市",
+    "addr:housenumber": "1",
+    "addr:neighbourhood": "二丁目",
+    "addr:postcode": "981-0966",
+    "addr:province": "宮城県",
+    "addr:quarter": "荒巻本沢",
+    "addr:suburb": "青葉区",
+    "branch": "荒巻店",
+    "brand": "ヨークベニマル",
+    "brand:en": "York Benimaru",
+    "brand:ja": "ヨークベニマル",
+    "brand:wikidata": "Q11346199",
+    "building": "retail",
+    "name": "ヨークベニマル",
+    "name:en": "York Benimaru",
+    "name:ja": "ヨークベニマル",
+    "opening_hours": "Mo-Su 09:30-22:00",
+    "operator": "ヨークベニマル",
+    "phone": "+81 22 278 9823",
+    "shop": "supermarket",
+    "website": "https://yorkbenimaru.com/store/details/aramaki/"
+  }
+},
+{
+  "type": "way",
+  "id": 637926956,
+  "center": {
+    "lat": 38.2819859,
+    "lon": 140.8527510
+  },
+  "tags": {
+    "building": "yes",
+    "craft": "photographer",
+    "name": "アライ写真館"
+  }
+},
+{
+  "type": "way",
+  "id": 637926976,
+  "center": {
+    "lat": 38.2816127,
+    "lon": 140.8519245
+  },
+  "tags": {
+    "amenity": "place_of_worship",
+    "building": "yes",
+    "name": "伊勢堂山大國主神",
+    "religion": "shinto"
+  }
+},
+{
+  "type": "way",
+  "id": 637927093,
+  "center": {
+    "lat": 38.2816581,
+    "lon": 140.8484646
+  },
+  "tags": {
+    "amenity": "place_of_worship",
+    "building": "yes",
+    "name": "伊勢神明社",
+    "religion": "shinto"
+  }
+},
+{
+  "type": "way",
+  "id": 637927114,
+  "center": {
+    "lat": 38.2825504,
+    "lon": 140.8536432
+  },
+  "tags": {
+    "amenity": "dentist",
+    "building": "yes",
+    "building:levels": "2",
+    "healthcare": "dentist",
+    "name": "飛田歯科医院"
+  }
+},
+{
+  "type": "way",
+  "id": 637927130,
+  "center": {
+    "lat": 38.2820188,
+    "lon": 140.8551497
+  },
+  "tags": {
+    "amenity": "place_of_worship",
+    "building": "yes",
+    "name": "幸福の科学仙台支部"
+  }
+},
+{
+  "type": "way",
+  "id": 637939785,
+  "center": {
+    "lat": 38.2865618,
+    "lon": 140.8503915
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "山手町4号公園"
+  }
+},
+{
+  "type": "way",
+  "id": 637939786,
+  "center": {
+    "lat": 38.2859344,
+    "lon": 140.8518747
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "山手町3号公園"
+  }
+},
+{
+  "type": "way",
+  "id": 637939811,
+  "center": {
+    "lat": 38.2882649,
+    "lon": 140.8532590
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "山手町2号公園"
+  }
+},
+{
+  "type": "way",
+  "id": 996772615,
+  "center": {
+    "lat": 38.2971342,
+    "lon": 140.8549738
+  },
+  "tags": {
+    "building": "yes",
+    "name": "東北環境整備",
+    "office": "company"
+  }
+},
+{
+  "type": "way",
+  "id": 996772631,
+  "center": {
+    "lat": 38.2962141,
+    "lon": 140.8511151
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "桜ヶ丘一丁目公園"
+  }
+},
+{
+  "type": "way",
+  "id": 996792822,
+  "center": {
+    "lat": 38.2972924,
+    "lon": 140.8481812
+  },
+  "tags": {
+    "addr:block_number": "21",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "1丁目",
+    "addr:postcode": "981-0961",
+    "addr:province": "宮城県",
+    "addr:quarter": "桜ヶ丘",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "春日団地公園"
+  }
+},
+{
+  "type": "way",
+  "id": 996801034,
+  "center": {
+    "lat": 38.2966167,
+    "lon": 140.8524613
+  },
+  "tags": {
+    "addr:block_number": "16",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "2丁目",
+    "addr:postcode": "981-0961",
+    "addr:province": "宮城県",
+    "addr:quarter": "桜ヶ丘",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "桜ヶ丘二丁目南公園"
+  }
+},
+{
+  "type": "way",
+  "id": 996817256,
+  "center": {
+    "lat": 38.2991227,
+    "lon": 140.8464348
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "桜ヶ丘五丁目公園"
+  }
+},
+{
+  "type": "way",
+  "id": 997248164,
+  "center": {
+    "lat": 38.2964910,
+    "lon": 140.8407475
+  },
+  "tags": {
+    "addr:block_number": "17",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "6丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "中山不動公園"
+  }
+},
+{
+  "type": "way",
+  "id": 997260314,
+  "center": {
+    "lat": 38.2969331,
+    "lon": 140.8451907
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "行楽園町内広場"
+  }
+},
+{
+  "type": "way",
+  "id": 997266450,
+  "center": {
+    "lat": 38.2948441,
+    "lon": 140.8457952
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "川平一丁目公園"
+  }
+},
+{
+  "type": "way",
+  "id": 997352655,
+  "center": {
+    "lat": 38.2935187,
+    "lon": 140.8482049
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "ふれあいパーク"
+  }
+},
+{
+  "type": "way",
+  "id": 997356285,
+  "center": {
+    "lat": 38.2904710,
+    "lon": 140.8484942
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "中山一丁目公園"
+  }
+},
+{
+  "type": "way",
+  "id": 997356322,
+  "center": {
+    "lat": 38.2901979,
+    "lon": 140.8489783
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "荒巻本沢一丁目公園"
+  }
+},
+{
+  "type": "way",
+  "id": 997367870,
+  "center": {
+    "lat": 38.2927498,
+    "lon": 140.8409458
+  },
+  "tags": {
+    "addr:block_number": "14",
+    "addr:city": "仙台市",
+    "addr:housenumber": "35",
+    "addr:neighbourhood": "4丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "building": "yes",
+    "name": "フローラルプラザ中山",
+    "shop": "funeral_directors"
+  }
+},
+{
+  "type": "way",
+  "id": 997367886,
+  "center": {
+    "lat": 38.2924456,
+    "lon": 140.8393297
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "中山四丁目公園"
+  }
+},
+{
+  "type": "way",
+  "id": 997546189,
+  "center": {
+    "lat": 38.2949174,
+    "lon": 140.8514358
+  },
+  "tags": {
+    "addr:block_number": "2",
+    "addr:city": "仙台市",
+    "addr:housenumber": "8",
+    "addr:neighbourhood": "一丁目",
+    "addr:postcode": "981-0954",
+    "addr:province": "宮城県",
+    "addr:quarter": "川平",
+    "addr:suburb": "青葉区",
+    "branch": "川平一丁目店",
+    "brand": "ファミリーマート",
+    "brand:en": "FamilyMart",
+    "brand:ja": "ファミリーマート",
+    "brand:wikidata": "Q1191685",
+    "building": "yes",
+    "building:levels": "1",
+    "name": "ファミリーマート",
+    "name:en": "FamilyMart",
+    "name:ja": "ファミリーマート",
+    "opening_hours": "24/7",
+    "phone": "+81 22 277 6290",
+    "shop": "convenience",
+    "website": "https://as.chizumaru.com/famima/detailMap?account=famima&accmd=0&bid=61412"
+  }
+},
+{
+  "type": "way",
+  "id": 997546209,
+  "center": {
+    "lat": 38.2950357,
+    "lon": 140.8523263
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "川平優遊公園"
+  }
+},
+{
+  "type": "way",
+  "id": 997601529,
+  "center": {
+    "lat": 38.2914607,
+    "lon": 140.8369416
+  },
+  "tags": {
+    "addr:block_number": "12",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "3丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "月急山公園",
+    "opening_hours": "24/7"
+  }
+},
+{
+  "type": "way",
+  "id": 997604403,
+  "center": {
+    "lat": 38.2868390,
+    "lon": 140.8426278
+  },
+  "tags": {
+    "addr:block_number": "24",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "2丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "中山二丁目公園"
+  }
+},
+{
+  "type": "way",
+  "id": 997651459,
+  "center": {
+    "lat": 38.2930741,
+    "lon": 140.8557614
+  },
+  "tags": {
+    "addr:block_number": "16",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "3丁目",
+    "addr:postcode": "981-0966",
+    "addr:province": "宮城県",
+    "addr:quarter": "荒巻本沢",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "本沢北公園"
+  }
+},
+{
+  "type": "way",
+  "id": 998320080,
+  "center": {
+    "lat": 38.2984137,
+    "lon": 140.8380313
+  },
+  "tags": {
+    "addr:block_number": "5",
+    "addr:city": "仙台市",
+    "addr:postcode": "981-0953",
+    "addr:province": "宮城県",
+    "addr:quarter": "西勝山",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "西勝山公園",
+    "name:en": "Nishikatsuyama Park",
+    "name:es": "Parque de Nishikatsuyama",
+    "name:ja": "西勝山公園",
+    "opening_hours": "24/7"
+  }
+},
+{
+  "type": "way",
+  "id": 998965339,
+  "center": {
+    "lat": 38.2946681,
+    "lon": 140.8363734
+  },
+  "tags": {
+    "amenity": "fuel",
+    "brand": "エネオス",
+    "brand:en": "ENEOS",
+    "brand:ja": "エネオス",
+    "brand:wikidata": "Q1640290",
+    "brand:wikipedia": "en:Eneos",
+    "name": "Eneos",
+    "name:en": "ENEOS",
+    "name:ja": "エネオス"
+  }
+},
+{
+  "type": "way",
+  "id": 998965354,
+  "center": {
+    "lat": 38.2949933,
+    "lon": 140.8357089
+  },
+  "tags": {
+    "addr:block_number": "2",
+    "addr:city": "仙台市",
+    "addr:housenumber": "1",
+    "addr:neighbourhood": "7丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "building": "yes",
+    "check_date": "2025-05-30",
+    "name": "東北電力 研究開発センター",
+    "office": "research"
+  }
+},
+{
+  "type": "way",
+  "id": 998965377,
+  "center": {
+    "lat": 38.2962517,
+    "lon": 140.8364351
+  },
+  "tags": {
+    "addr:block_number": "2",
+    "addr:city": "仙台市",
+    "addr:housenumber": "40",
+    "addr:neighbourhood": "7丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "building": "yes",
+    "leisure": "sports_hall",
+    "name": "ディアス中山"
+  }
+},
+{
+  "type": "way",
+  "id": 998967949,
+  "center": {
+    "lat": 38.2965526,
+    "lon": 140.8360896
+  },
+  "tags": {
+    "addr:block_number": "22",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "7丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "中山七丁目公園"
+  }
+},
+{
+  "type": "way",
+  "id": 1000396970,
+  "center": {
+    "lat": 38.2933377,
+    "lon": 140.8303649
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "国見ヶ丘一丁目南公園"
+  }
+},
+{
+  "type": "way",
+  "id": 1000397082,
+  "center": {
+    "lat": 38.2945981,
+    "lon": 140.8281943
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "国見ヶ丘一丁目北公園"
+  }
+},
+{
+  "type": "way",
+  "id": 1000426499,
+  "center": {
+    "lat": 38.2905571,
+    "lon": 140.8281382
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "国見ヶ丘二丁目南公園"
+  }
+},
+{
+  "type": "way",
+  "id": 1000429255,
+  "center": {
+    "lat": 38.2892889,
+    "lon": 140.8310575
+  },
+  "tags": {
+    "amenity": "social_facility",
+    "building": "yes",
+    "name": "せんだんの里 北乃家",
+    "social_facility": "nursing_home",
+    "social_facility:for": "senior"
+  }
+},
+{
+  "type": "way",
+  "id": 1000655821,
+  "center": {
+    "lat": 38.2860058,
+    "lon": 140.8278452
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "臨済院公園"
+  }
+},
+{
+  "type": "way",
+  "id": 1000655856,
+  "center": {
+    "lat": 38.2869664,
+    "lon": 140.8279055
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "国見ヶ丘四丁目公園"
+  }
+},
+{
+  "type": "way",
+  "id": 1000657990,
+  "center": {
+    "lat": 38.2853473,
+    "lon": 140.8307996
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "国見ヶ丘五丁目公園"
+  }
+},
+{
+  "type": "way",
+  "id": 1001201224,
+  "center": {
+    "lat": 38.2798732,
+    "lon": 140.8371315
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "国見六丁目東公園"
+  }
+},
+{
+  "type": "way",
+  "id": 1001207138,
+  "center": {
+    "lat": 38.2834362,
+    "lon": 140.8465212
+  },
+  "tags": {
+    "addr:block_number": "12",
+    "addr:city": "仙台市",
+    "addr:postcode": "981-0936",
+    "addr:province": "宮城県",
+    "addr:quarter": "千代田町",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "千代田町1号公園"
+  }
+},
+{
+  "type": "way",
+  "id": 1002167867,
+  "center": {
+    "lat": 38.2806420,
+    "lon": 140.8476529
+  },
+  "tags": {
+    "building": "university",
+    "leisure": "sports_hall",
+    "name": "H-3GYM"
+  }
+},
+{
+  "type": "way",
+  "id": 1002826686,
+  "center": {
+    "lat": 38.2826917,
+    "lon": 140.8479259
+  },
+  "tags": {
+    "addr:block_number": "9",
+    "addr:city": "仙台市",
+    "addr:postcode": "981-0936",
+    "addr:province": "宮城県",
+    "addr:quarter": "千代田町",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "千代田町2号公園"
+  }
+},
+{
+  "type": "way",
+  "id": 1002830020,
+  "center": {
+    "lat": 38.2807060,
+    "lon": 140.8519137
+  },
+  "tags": {
+    "building": "detached",
+    "name": "ネイバーフッド・マーケット",
+    "name:en": "Neighborhood Market",
+    "shop": "convenience"
+  }
+},
+{
+  "type": "way",
+  "id": 1002830034,
+  "center": {
+    "lat": 38.2806999,
+    "lon": 140.8523857
+  },
+  "tags": {
+    "building": "detached",
+    "name": "Fresh Usami 宇佐美商店",
+    "shop": "greengrocer"
+  }
+},
+{
+  "type": "way",
+  "id": 1012963269,
+  "center": {
+    "lat": 38.2989460,
+    "lon": 140.8294290
+  },
+  "tags": {
+    "amenity": "restaurant",
+    "brand": "丸亀製麺",
+    "brand:en": "Marugame Seimen",
+    "brand:ja": "丸亀製麺",
+    "brand:wikidata": "Q10877253",
+    "brand:wikipedia": "ja:丸亀製麺",
+    "brand:zh": "丸亀製麵",
+    "building": "yes",
+    "cuisine": "noodle",
+    "name": "丸亀製麺",
+    "name:en": "Marugame Seimen",
+    "name:ja": "丸亀製麺",
+    "name:zh": "丸亀製麵"
+  }
+},
+{
+  "type": "way",
+  "id": 1012963270,
+  "center": {
+    "lat": 38.2992497,
+    "lon": 140.8296007
+  },
+  "tags": {
+    "amenity": "fast_food",
+    "brand": "スシロー",
+    "brand:en": "Sushiro",
+    "brand:ja": "スシロー",
+    "brand:wikidata": "Q11257037",
+    "brand:wikipedia": "ja:あきんどスシロー",
+    "building": "yes",
+    "cuisine": "sushi",
+    "name": "スシロー",
+    "name:en": "Sushiro",
+    "name:ja": "スシロー",
+    "name:zh": "壽司郎",
+    "official_name": "あきんどスシロー",
+    "official_name:en": "Akindo Sushiro",
+    "official_name:ja": "あきんどスシロー",
+    "takeaway": "yes"
+  }
+},
+{
+  "type": "way",
+  "id": 1079190227,
+  "center": {
+    "lat": 38.2931841,
+    "lon": 140.8399259
+  },
+  "tags": {
+    "addr:block_number": "17",
+    "addr:city": "仙台市",
+    "addr:housenumber": "25",
+    "addr:neighbourhood": "4丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "amenity": "place_of_worship",
+    "building": "yes",
+    "name": "日本バプテスト尚絅教会",
+    "phone": "+81 22 278 2277",
+    "religion": "christian"
+  }
+},
+{
+  "type": "way",
+  "id": 1130581491,
+  "center": {
+    "lat": 38.2813472,
+    "lon": 140.8422176
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場",
+    "operator": "東海林興産",
+    "parking": "surface",
+    "surface": "ground"
+  }
+},
+{
+  "type": "way",
+  "id": 1130581500,
+  "center": {
+    "lat": 38.2814289,
+    "lon": 140.8444956
+  },
+  "tags": {
+    "addr:block_number": "29",
+    "addr:city": "仙台市",
+    "addr:neighbourhood": "6丁目",
+    "addr:postcode": "981-0942",
+    "addr:province": "宮城県",
+    "addr:quarter": "貝ヶ森",
+    "addr:suburb": "青葉区",
+    "leisure": "park",
+    "name": "貝ヶ森メープル公園"
+  }
+},
+{
+  "type": "way",
+  "id": 1130581510,
+  "center": {
+    "lat": 38.2827600,
+    "lon": 140.8401178
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場",
+    "operator": "あすか不動産",
+    "parking": "surface",
+    "surface": "ground"
+  }
+},
+{
+  "type": "way",
+  "id": 1130581511,
+  "center": {
+    "lat": 38.2824993,
+    "lon": 140.8403267
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場",
+    "parking": "surface",
+    "surface": "ground"
+  }
+},
+{
+  "type": "way",
+  "id": 1130581515,
+  "center": {
+    "lat": 38.2824016,
+    "lon": 140.8396100
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "有料駐車場",
+    "parking": "surface",
+    "surface": "ground"
+  }
+},
+{
+  "type": "way",
+  "id": 1130581518,
+  "center": {
+    "lat": 38.2838215,
+    "lon": 140.8382122
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場",
+    "operator": "魁",
+    "parking": "surface",
+    "surface": "ground"
+  }
+},
+{
+  "type": "way",
+  "id": 1130581530,
+  "center": {
+    "lat": 38.2862880,
+    "lon": 140.8437347
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場",
+    "operator": "加藤土地開発",
+    "parking": "surface",
+    "surface": "ground"
+  }
+},
+{
+  "type": "way",
+  "id": 1130581535,
+  "center": {
+    "lat": 38.2858583,
+    "lon": 140.8486110
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "菊田町駐車場",
+    "parking": "surface",
+    "surface": "ground"
+  }
+},
+{
+  "type": "way",
+  "id": 1130581536,
+  "center": {
+    "lat": 38.2856767,
+    "lon": 140.8485912
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "菊田町駐車場",
+    "parking": "surface",
+    "surface": "ground"
+  }
+},
+{
+  "type": "way",
+  "id": 1131917428,
+  "center": {
+    "lat": 38.2872313,
+    "lon": 140.8533559
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "山手町公園"
+  }
+},
+{
+  "type": "way",
+  "id": 1225139151,
+  "center": {
+    "lat": 38.2928496,
+    "lon": 140.8558922
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "相田内科駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1225364861,
+  "center": {
+    "lat": 38.2954901,
+    "lon": 140.8551615
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1230090815,
+  "center": {
+    "lat": 38.2798390,
+    "lon": 140.8462627
+  },
+  "tags": {
+    "amenity": "library",
+    "building": "university",
+    "building:levels": "3",
+    "name": "図書館棟",
+    "operator": "東北福祉大学",
+    "operator:type": "university"
+  }
+},
+{
+  "type": "way",
+  "id": 1230090821,
+  "center": {
+    "lat": 38.2800987,
+    "lon": 140.8478709
+  },
+  "tags": {
+    "amenity": "theatre",
+    "building": "university",
+    "name": "音楽堂けやきホール"
+  }
+},
+{
+  "type": "way",
+  "id": 1258122878,
+  "center": {
+    "lat": 38.2942549,
+    "lon": 140.8485837
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "滝道駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1258122879,
+  "center": {
+    "lat": 38.2941997,
+    "lon": 140.8482264
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1258122891,
+  "center": {
+    "lat": 38.2942129,
+    "lon": 140.8469455
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "泉ヶ丘幼稚園 第4駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1258122892,
+  "center": {
+    "lat": 38.2944477,
+    "lon": 140.8466936
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "泉ヶ丘幼稚園 第3駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1258122907,
+  "center": {
+    "lat": 38.2949735,
+    "lon": 140.8504377
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "川平1丁目 第2駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1258122915,
+  "center": {
+    "lat": 38.2949812,
+    "lon": 140.8491380
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "泉ヶ丘幼稚園 アルル保育園第2駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1258122916,
+  "center": {
+    "lat": 38.2949772,
+    "lon": 140.8489525
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "泉ヶ丘幼稚園 アルル保育園 第1駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1258141108,
+  "center": {
+    "lat": 38.2952745,
+    "lon": 140.8497694
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "マックスパーク川平"
+  }
+},
+{
+  "type": "way",
+  "id": 1258141133,
+  "center": {
+    "lat": 38.2957150,
+    "lon": 140.8467763
+  },
+  "tags": {
+    "amenity": "social_facility",
+    "name": "ショートステイひかりの里"
+  }
+},
+{
+  "type": "way",
+  "id": 1258152552,
+  "center": {
+    "lat": 38.2980555,
+    "lon": 140.8429714
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "出羽三山神社奉斎教団 参拝者専用駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1258536993,
+  "center": {
+    "lat": 38.2972285,
+    "lon": 140.8449232
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1258541594,
+  "center": {
+    "lat": 38.2984914,
+    "lon": 140.8420033
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1258541603,
+  "center": {
+    "lat": 38.2983374,
+    "lon": 140.8433298
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1258541609,
+  "center": {
+    "lat": 38.2983843,
+    "lon": 140.8441305
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "グランドハイツ川平パーキング"
+  }
+},
+{
+  "type": "way",
+  "id": 1258958592,
+  "center": {
+    "lat": 38.3003131,
+    "lon": 140.8431311
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極有料駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1260484447,
+  "center": {
+    "lat": 38.3005711,
+    "lon": 140.8369603
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "西勝山A月極駐車場",
+    "parking": "surface"
+  }
+},
+{
+  "type": "way",
+  "id": 1261413385,
+  "center": {
+    "lat": 38.3010836,
+    "lon": 140.8396515
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "西勝山整骨院 来院者専用駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1261413388,
+  "center": {
+    "lat": 38.3007650,
+    "lon": 140.8403068
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1261413418,
+  "center": {
+    "lat": 38.2992007,
+    "lon": 140.8348571
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "あさひパーキング"
+  }
+},
+{
+  "type": "way",
+  "id": 1261413423,
+  "center": {
+    "lat": 38.3008347,
+    "lon": 140.8343906
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極有料駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1261413460,
+  "center": {
+    "lat": 38.2984802,
+    "lon": 140.8395360
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1262084513,
+  "center": {
+    "lat": 38.2924621,
+    "lon": 140.8369611
+  },
+  "tags": {
+    "access": "private",
+    "amenity": "parking",
+    "name": "月極駐車場",
+    "parking": "surface"
+  }
+},
+{
+  "type": "way",
+  "id": 1262090297,
+  "center": {
+    "lat": 38.2915590,
+    "lon": 140.8392099
+  },
+  "tags": {
+    "leisure": "park",
+    "name": "中山西公園"
+  }
+},
+{
+  "type": "way",
+  "id": 1262090302,
+  "center": {
+    "lat": 38.2917437,
+    "lon": 140.8406967
+  },
+  "tags": {
+    "access": "customers",
+    "amenity": "parking",
+    "fee": "no",
+    "name": "なかやま医院第二パーキング",
+    "parking": "surface"
+  }
+},
+{
+  "type": "way",
+  "id": 1262090307,
+  "center": {
+    "lat": 38.2924542,
+    "lon": 140.8415076
+  },
+  "tags": {
+    "access": "yes",
+    "amenity": "parking",
+    "brand": "三井のリパーク",
+    "brand:en": "Mitsui Repark",
+    "brand:ja": "三井のリパーク",
+    "brand:wikidata": "Q55521368",
+    "fee": "yes",
+    "name": "三井のリパーク 仙台中山4丁目",
+    "name:en": "Mitsui Repark",
+    "name:ja": "三井のリパーク",
+    "operator": "三井不動産リアルティ",
+    "operator:en": "Mitsui Fudosan Realty",
+    "operator:ja": "三井不動産リアルティ",
+    "operator:wikidata": "Q11354218",
+    "parking": "surface",
+    "surface": "asphalt"
+  }
+},
+{
+  "type": "way",
+  "id": 1262090314,
+  "center": {
+    "lat": 38.2923983,
+    "lon": 140.8426927
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1262090321,
+  "center": {
+    "lat": 38.2923873,
+    "lon": 140.8433660
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "Fパーキング 契約者駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1262090322,
+  "center": {
+    "lat": 38.2921558,
+    "lon": 140.8433983
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "契約駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1262090325,
+  "center": {
+    "lat": 38.2922049,
+    "lon": 140.8438354
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "とびのこハウス駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1262090330,
+  "center": {
+    "lat": 38.2913537,
+    "lon": 140.8437770
+  },
+  "tags": {
+    "access": "yes",
+    "amenity": "parking",
+    "fee": "yes",
+    "name": "ウエルシア薬局駐車場",
+    "parking": "surface"
+  }
+},
+{
+  "type": "way",
+  "id": 1262090333,
+  "center": {
+    "lat": 38.2915833,
+    "lon": 140.8437523
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "河村外科 駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1262450598,
+  "center": {
+    "lat": 38.2954996,
+    "lon": 140.8402066
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極有料駐車場",
+    "parking": "surface",
+    "surface": "ground"
+  }
+},
+{
+  "type": "way",
+  "id": 1262459707,
+  "center": {
+    "lat": 38.2954225,
+    "lon": 140.8372184
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1262459712,
+  "center": {
+    "lat": 38.2958285,
+    "lon": 140.8380121
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1262459726,
+  "center": {
+    "lat": 38.2947199,
+    "lon": 140.8376016
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "月極駐車場",
+    "operator": "中山不動産",
+    "operator:type": "business",
+    "parking": "surface",
+    "surface": "concrete"
+  }
+},
+{
+  "type": "way",
+  "id": 1262466048,
+  "center": {
+    "lat": 38.2943722,
+    "lon": 140.8384344
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "レストランKAYA駐車場",
+    "parking": "surface",
+    "surface": "asphalt"
+  }
+},
+{
+  "type": "way",
+  "id": 1271671742,
+  "center": {
+    "lat": 38.2899515,
+    "lon": 140.8471790
+  },
+  "tags": {
+    "amenity": "parking",
+    "name": "エランドパーキング 月極駐車場"
+  }
+},
+{
+  "type": "way",
+  "id": 1306578033,
+  "center": {
+    "lat": 38.2871751,
+    "lon": 140.8343092
+  },
+  "tags": {
+    "leisure": "golf_course",
+    "name": "ゴルフ練習場",
+    "operator": "東北福祉大学"
+  }
+},
+{
+  "type": "way",
+  "id": 1306580929,
+  "center": {
+    "lat": 38.2891428,
+    "lon": 140.8321602
+  },
+  "tags": {
+    "leisure": "golf_course",
+    "name": "パークゴルフ場"
+  }
+},
+{
+  "type": "way",
+  "id": 1306580940,
+  "center": {
+    "lat": 38.2900464,
+    "lon": 140.8356603
+  },
+  "tags": {
+    "leisure": "sports_centre",
+    "name": "東北福祉大学 弓道場"
+  }
+},
+{
+  "type": "way",
+  "id": 1464243264,
+  "center": {
+    "lat": 38.2931632,
+    "lon": 140.8409007
+  },
+  "tags": {
+    "addr:block_number": "19",
+    "addr:city": "仙台市",
+    "addr:housenumber": "10",
+    "addr:neighbourhood": "5丁目",
+    "addr:postcode": "981-0952",
+    "addr:province": "宮城県",
+    "addr:quarter": "中山",
+    "addr:suburb": "青葉区",
+    "building": "retail",
+    "name": "ん daccha",
+    "opening_hours": "Tu-Su 10:00-18:30",
+    "payment:cash": "yes",
+    "shop": "hairdresser"
+  }
+}
+
+  ]
+}
