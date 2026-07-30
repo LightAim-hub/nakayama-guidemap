@@ -577,7 +577,7 @@ function setLabelPosition(entry, candidate, scale){
   const s = entry.s, main = entry.main, distance = entry.distance;
   const side = candidate.side, dyPx = candidate.dyPx;
   const fontPx = labelTargetPx(s), fontMap = fontPx / scale;
-  const offsetMap = (starTargetPx(s) / 2 + LABEL_GAP_PX) / scale;
+  const offsetMap = candidate.gapPx / scale;
   s.anchor = side > 0 ? 'start' : 'end';
   s.lx = s.x + side * offsetMap;
   s.ly = s.y + dyPx / scale;
@@ -620,13 +620,18 @@ function labelsCollide(a, b){
     a.bottom + LABEL_COLLISION_PAD_PX > b.top;
 }
 function labelCandidates(s){
-  const preferred = preferredLabelSide(s), candidates = [
-    {side:preferred, dyPx:0}, {side:-preferred, dyPx:0},
-  ];
-  [-4,4,-8,8,-12,12,-16,16].forEach(dyPx => {
-    candidates.push({side:preferred, dyPx}, {side:-preferred, dyPx});
-  });
-  return candidates;
+  const preferred = preferredLabelSide(s);
+  const baseGap = starTargetPx(s) / 2 + LABEL_GAP_PX;
+  const voice = (s.voices||[]).length > 0;
+  const gaps = (voice ? [0,4,8,12,18,26,36,48] : [0,4,8,12]).map(v => baseGap + v);
+  const dySteps = voice ? [0,-4,4,-8,8,-12,12,-16,16,-20,20,-24,24,-28,28,-32,32,-40,40,-48,48]
+                        : [0,-4,4,-8,8,-12,12,-16,16];
+  const candidates = [];
+  [preferred, -preferred].forEach(side => gaps.forEach(gapPx =>
+    dySteps.forEach(dyPx => candidates.push({side, gapPx, dyPx}))));
+  return candidates.sort((a,b) =>
+    Math.hypot(a.gapPx,a.dyPx)-Math.hypot(b.gapPx,b.dyPx) ||
+    Number(a.side!==preferred)-Number(b.side!==preferred) || a.dyPx-b.dyPx);
 }
 function rectDistance(rect, x, y){
   return Math.hypot(Math.max(rect.left-x, 0, x-rect.right),
@@ -644,6 +649,18 @@ function labelBelongsToOwnStar(entry, rect, starCenters){
     nearestOther = Math.min(nearestOther, rectDistance(rect, point.x, point.y));
   }
   return !Number.isFinite(nearestOther) || ownDistance <= LABEL_OWNER_RATIO * nearestOther;
+}
+function labelAnchorBelongsToOwnStar(entry, starCenters){
+  const own = starCenters.get(entry.idx), matrix = svg.getScreenCTM();
+  if (!own || !matrix) return false;
+  const point = svg.createSVGPoint(); point.x = entry.s.lx; point.y = entry.s.ly;
+  const anchor = point.matrixTransform(matrix);
+  const ownDistance = Math.hypot(anchor.x-own.x, anchor.y-own.y);
+  let nearestOther = Infinity;
+  for (const [idx, other] of starCenters){
+    if (idx !== entry.idx) nearestOther = Math.min(nearestOther, Math.hypot(anchor.x-other.x, anchor.y-other.y));
+  }
+  return !Number.isFinite(nearestOther) || ownDistance + .01 < nearestOther;
 }
 function updateMapScaleStyles(){
   const matrix = svg.getScreenCTM();
@@ -671,7 +688,8 @@ function updateMapScaleStyles(){
     for (const candidate of labelCandidates(entry.s)){
       setLabelPosition(entry, candidate, scale);
       const mainRect = entry.main.getBoundingClientRect();
-      if (!labelBelongsToOwnStar(entry, mainRect, starCenters)) continue;
+      if (!labelAnchorBelongsToOwnStar(entry, starCenters) ||
+          !labelBelongsToOwnStar(entry, mainRect, starCenters)) continue;
       const rect = labelRect(entry);
       if (!kept.some(other => labelsCollide(rect, other))){
         entry.s.labelVisible = true;

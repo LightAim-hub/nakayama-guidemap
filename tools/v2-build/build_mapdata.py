@@ -6,7 +6,7 @@
 preview出力: リポジトリ直下の preview.html (本番2ファイルは非変更)
 実行: python tools/v2-build/build_mapdata.py [--preview] (どこから実行してもよい)
 """
-import argparse, json, math, os, re
+import argparse, json, math, os, re, unicodedata
 from collections import Counter, defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -79,6 +79,45 @@ verified = json.load(open(P('verified_shops.json'), encoding='utf-8'))
 osm_matched = {r['name']: r for r in json.load(open(P('shops_geo_osm.json'), encoding='utf-8'))['matched']}
 gsi_addr = {a['name']: a for a in json.load(open(P('store_addresses_geo.json'), encoding='utf-8'))}
 new_geo = {a['name']: a for a in json.load(open(P('new_shops_geo.json'), encoding='utf-8'))}
+osm_pois = json.load(open(P('osm_pois.json'), encoding='utf-8')).get('elements', [])
+
+# Task K: OSM名寄せは候補抽出を一般化するが、座標採用は確認済み3要素だけに閉じる。
+# 同名・部分一致が複数なら採用しない。未確認候補を自動採用しない。
+_OSM_POI_TAGS = {'shop', 'amenity', 'office', 'healthcare', 'craft'}
+_OSM_CONFIRMED = {
+    'ウエルシア薬局': ('node', 5267545834),
+    'ん daccha とこや': ('way', 1464243264),
+    'Double Egg5丁目': ('node', 5267545823),
+}
+_OSM_DROP_RE = re.compile(r'[\s・（）()【】「」,、.。/\-ー]+')
+
+def normalize_osm_name(value):
+    value = unicodedata.normalize('NFKC', value or '').lower()
+    for corporate in ('株式会社', '有限会社', '合同会社'):
+        value = value.replace(corporate, '')
+    return _OSM_DROP_RE.sub('', value)
+
+def osm_poi_point(element):
+    point = element.get('center', element)
+    return point.get('lat'), point.get('lon')
+
+def match_unique_osm_poi(shop_name):
+    target = normalize_osm_name(shop_name)
+    named = []
+    for element in osm_pois:
+        tags = element.get('tags', {})
+        if not tags.get('name') or not (_OSM_POI_TAGS & set(tags)):
+            continue
+        candidate = normalize_osm_name(tags['name'])
+        if candidate:
+            named.append((element, candidate))
+    exact = [element for element, candidate in named if candidate == target]
+    if exact:
+        return exact[0] if len(exact) == 1 else None
+    partial = [element for element, candidate in named
+               if min(len(target), len(candidate)) >= 4 and
+               (target in candidate or candidate in target)]
+    return partial[0] if len(partial) == 1 else None
 
 DROP = {'おかきや', 'お肉とお酒のうちだ'}  # 2026-05-18版 紙マップ・公式サイトともに無し
 RENAME = {  # 紙マップ(2026-05-18)表記を正とする
@@ -182,8 +221,8 @@ for a in new_geo.values():
                   'voices': [], 'note': '', 'addr': a['address'],
                   'lat': a['lat'], 'lng': a['lng'], 'src': a.get('src', 'gsi_addr')})
 
-# 同一住所で個別ピンが確認できなかった組だけ、紙マップの上下順を実座標へ焼き込む。
-# 星の描画座標を後段で動かさず、推定点そのものを lat/lng + src=approx として明示する。
+# 同一住所で個別ピンが確認できなかった組だけ、紙マップの上下順を座標へ焼き込む。
+# Task K では出典を表す src と分離操作を切り離し、後段で元の出典へ戻す。
 def set_approx_pair(upper_name, lower_name):
     upper = next(s for s in shops if s['name'] == upper_name)
     lower = next(s for s in shops if s['name'] == lower_name)
@@ -209,6 +248,34 @@ for _name in ('デイサービス はるの風', '遊季ガーデン'):
     _shop['lat'], _shop['lng'] = 38.292133, 140.842529
 set_approx_pair('デイサービス はるの風', '遊季ガーデン')
 set_approx_pair('中杜建設', 'ん daccha とこや')
+
+# Task K-1: 分離のために動かした事実で src (座標出典) を上書きしない。
+_TASK_K_SPREAD_NAMES = {
+    'BAKERY&BAKE EndRoll', 'cake NAO', 'Double Egg5丁目', '佐藤次夫税理士事務所',
+    'ん daccha とこや', '中杜建設', 'サトー商会', 'みなとや',
+    'デイサービス はるの風', '遊季ガーデン',
+}
+for _shop in shops:
+    if _shop['name'] in _TASK_K_SPREAD_NAMES:
+        _shop['src'] = 'gsi_addr'
+
+# Task K-2: 確認済み3店だけを OSM の真座標へ置換する。
+# この後の共通処理が建物寄せを行い、続く Task I の反復が分離を解き直す。
+_task_k_osm_applied = set()
+for _shop in shops:
+    expected_ = _OSM_CONFIRMED.get(_shop['name'])
+    if not expected_:
+        continue
+    matched_ = match_unique_osm_poi(_shop['name'])
+    if not matched_ or (matched_.get('type'), matched_.get('id')) != expected_:
+        raise SystemExit('Task K: confirmed OSM POI did not match uniquely: %s' % _shop['name'])
+    lat_, lon_ = osm_poi_point(matched_)
+    if lat_ is None or lon_ is None:
+        raise SystemExit('Task K: confirmed OSM POI has no point: %s' % _shop['name'])
+    _shop['lat'], _shop['lng'], _shop['src'] = lat_, lon_, 'osm:exact'
+    _task_k_osm_applied.add(_shop['name'])
+if _task_k_osm_applied != set(_OSM_CONFIRMED):
+    raise SystemExit('Task K: confirmed OSM POI set incomplete')
 
 # モニュメント (紙マップ: 坂の登り口・多夢多夢舎の東の道路沿い) — 位置は概算
 shops.append({'name': '商店街モニュメント', 'cat': 'place', 'url': '#', 'voices': [],
@@ -1132,13 +1199,18 @@ if not ARGS.preview:
     # 連成制約を解いた安定解を真座標からの相対量として再現する。絶対座標の自己参照ではなく、
     # 毎回ローカル入力から得た tx/ty に加算し、後段で建物・道路・方向・分離を再検査する。
     _task_i_preferred_offsets = {
-        '佐藤次夫税理士事務所': (4.4, -0.6),
-        'おたからや': (4.9, 5.1),
-        '中山不動産': (2.3, -5.4),
+        # Task K: OSM真座標を入れた密集帯10店を建物候補上で同時に解いた相対初期解。
+        # 後段で建物内・道路外・東西・南北順・8.5m分離・N10を全件再検査する。
+        'ん daccha とこや': (-2.4, 0.3),
+        '中山不動産': (4.3, -5.9),
         '中杜建設': (24.8, 0.1),
-        'ん daccha とこや': (3.3, -3.4),
-        'ダイニングバー 祭': (1.7, 3.9),
         '花祭壇': (-15.0, 5.2),
+        'ダイニングバー 祭': (1.2, -1.1),
+        '佐藤次夫税理士事務所': (2.9, -7.1),
+        'おたからや': (3.4, -1.4),
+        'Double Egg5丁目': (1.8, 3.2),
+        'お菜とお酒アイリス': (0.1, 0.2),
+        '藤倉設備工業': (-3.3, 0.8),
         'デイサービス はるの風': (6.5, 0.2),
         '遊季ガーデン': (-1.5, 0.2),
         '梅原表具店': (5.1, -1.0),
