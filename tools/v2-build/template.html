@@ -229,17 +229,38 @@
   .credit .partner img{ display:block; width:auto; height:28px; max-width:150px; object-fit:contain; }
   @media(max-width:600px){
     .credit .partner{ margin-left:0; }
-    .zoomctl, #listbtn{ bottom:84px; }
-    #editbar{ bottom:84px; }
-    #srcinfo{ bottom:134px; }
+    .zoomctl{ bottom:114px; }
+    #editbar{ bottom:114px; }
+    #srcinfo{ bottom:164px; }
   }
 
   /* お店一覧パネル */
-  #listbtn{ position:fixed; left:12px; bottom:62px; z-index:26; min-height:44px;
+  #listbtn{ min-height:44px;
     font:inherit; font-size:14px; font-weight:700; color:var(--ink);
     background:var(--paper); border:2px solid var(--ink-soft); border-radius:999px; padding:9px 18px;
     box-shadow:2px 3px 0 rgba(92,67,39,.25); cursor:pointer; }
   #listbtn:active{ transform:translateY(2px); box-shadow:none; }
+  @media(max-width:600px){
+    footer.credit{
+      position:relative; display:grid; flex:0 0 106px; height:106px; padding:2px 10px;
+      grid-template-columns:118px minmax(0,1fr);
+      grid-template-rows:44px 43.2px 14.4px;
+      column-gap:8px; row-gap:0; align-items:start;
+    }
+    #listbtn{ grid-column:1; grid-row:1; width:118px; height:44px; padding:8px 10px; }
+    .credit .asof{
+      position:static; grid-column:2; grid-row:1; align-self:center;
+    }
+    .credit .sources{
+      position:static; grid-column:1 / 3; grid-row:2; align-self:start;
+    }
+    .credit .sources .source-line{ display:block; white-space:nowrap; }
+    .credit .partner{
+      position:static; grid-column:1 / 3; grid-row:3; height:14.4px;
+      margin-left:0; flex-wrap:nowrap; gap:3px; line-height:1.2;
+    }
+    .credit .partner img{ height:14px; max-width:80px; }
+  }
   #listpanel{ position:fixed; left:0; right:0; bottom:0; z-index:35; background:#fffaf0;
     border-top:3px solid #d8c4a0; border-radius:18px 18px 0 0; box-shadow:0 -10px 30px rgba(80,60,30,.3);
     max-height:62vh; display:none; flex-direction:column; }
@@ -305,7 +326,6 @@
   <button id="zin" aria-label="拡大">＋</button>
   <button id="zout" aria-label="縮小">－</button>
 </div>
-<button id="listbtn" aria-haspopup="dialog">📋 お店一覧</button>
 <div id="listpanel" role="dialog" aria-label="お店一覧">
   <div class="lhead"><h2 id="listtitle">お店一覧</h2><button class="lclose" id="listclose" aria-label="閉じる">✕</button></div>
   <div id="listrows"></div>
@@ -331,8 +351,9 @@
 <div id="srcinfo">debug: 緑=OSM実測 / 黄=OSM近似 / 青=住所ジオコーディング / 赤=概算</div>
 
 <footer class="credit">
+  <button id="listbtn" aria-haspopup="dialog">📋 お店一覧</button>
   <span class="asof" id="infoAsOf"></span>
-  <span class="sources">地図データ © OpenStreetMap contributors（ODbL）／位置参照: 国土地理院 地名検索API／店舗情報: なかやま商店街振興組合・nakayaman.com</span>
+  <span class="sources"><span class="source-line">地図データ © OpenStreetMap contributors（ODbL）／</span><span class="source-line">位置参照: 国土地理院 地名検索API／</span><span class="source-line">店舗情報: なかやま商店街振興組合・nakayaman.com</span></span>
   <span class="partner" id="partnerLogo" hidden><span>協力：</span><img id="partnerLogoImage" alt=""><span>宮城大学 事業構想学群 宮﨑ゼミ</span></span>
 </footer>
 
