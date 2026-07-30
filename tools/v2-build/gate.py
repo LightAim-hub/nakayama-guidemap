@@ -8,7 +8,7 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N27 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N29 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
@@ -552,7 +552,52 @@ if not A.no_browser:
                       taps.push({state, sel:sel(e), w:+r.width.toFixed(1), h:+r.height.toFixed(1),
                                  txt:(e.getAttribute('aria-label')||e.textContent||'').trim().slice(0,18)});
                   }
-                  return {texts, taps};
+                  // N28 ボタン・チップのラベルが語の途中で改行されていないか。
+                  // 日本語の本文はどこで折り返しても正しいが、短いラベルが
+                  // 「食べる・飲｜む・食料」のように切れると壊れて見える。
+                  // 中点・読点・空白・括弧での改行は自然なので許す。
+                  const OK_BREAK = '・、，  （(）)／/';
+                  const wrap = [];
+                  for (const e of document.querySelectorAll(
+                        'button, .chip, .chip .lbl, [role="button"]')) {
+                    if (!vis(e)) continue;
+                    const t = [...e.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+                    if (!t) continue;
+                    const txt = t.textContent;
+                    if (txt.trim().length < 2) continue;
+                    const rg = document.createRange();
+                    let prevTop = null;
+                    for (let i = 0; i < txt.length; i++) {
+                      rg.setStart(t, i); rg.setEnd(t, i+1);
+                      const b = rg.getBoundingClientRect();
+                      if (prevTop !== null && b.top > prevTop + 2) {
+                        const before = txt[i-1], after = txt[i];
+                        if (!OK_BREAK.includes(before) && !OK_BREAK.includes(after))
+                          wrap.push({state, sel:sel(e), txt:txt.trim().slice(0,20),
+                                     at: txt.slice(Math.max(0,i-3), i) + '｜' + txt.slice(i, i+3)});
+                      }
+                      prevTop = b.top;
+                    }
+                  }
+                  // N29 文字が入れ物からはみ出していないか (検索の説明文など)。
+                  const clip = [];
+                  for (const e of document.querySelectorAll('input')) {
+                    if (!vis(e) || !e.placeholder) continue;
+                    const cs = getComputedStyle(e);
+                    const probe = document.createElement('span');
+                    probe.style.cssText =
+                      'position:absolute;visibility:hidden;white-space:pre;font:' + cs.font;
+                    probe.textContent = e.placeholder;
+                    document.body.appendChild(probe);
+                    const need = probe.getBoundingClientRect().width;
+                    probe.remove();
+                    const has = e.getBoundingClientRect().width
+                              - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+                    if (need > has + 1)
+                      clip.push({state, sel:sel(e), txt:e.placeholder,
+                                 need:Math.round(need), has:Math.round(has)});
+                  }
+                  return {texts, taps, wrap, clip};
                 }"""
                 # 画面の状態を作る手順。詳細シートは単一ボタンで開ける店、
                 # チューザーは複数候補が出る店を選ぶ。
@@ -588,14 +633,16 @@ if not A.no_browser:
                     up = br.new_page(viewport={"width": uw, "height": uh})
                     up.goto(url, wait_until="load")
                     up.wait_for_timeout(1200)
-                    sweep = {"texts": [], "taps": []}
+                    sweep = {"texts": [], "taps": [], "wrap": [], "clip": []}
                     base = up.evaluate(SWEEPJS, "開いた直後")
-                    sweep["texts"] += base["texts"]; sweep["taps"] += base["taps"]
+                    for _k in ("texts", "taps", "wrap", "clip"):
+                        sweep[_k] += base[_k]
                     for st, act in STATES:
                         if up.evaluate(act) is False:
                             continue
                         r = up.evaluate(SWEEPJS, st)
-                        sweep["texts"] += r["texts"]; sweep["taps"] += r["taps"]
+                        for _k in ("texts", "taps", "wrap", "clip"):
+                            sweep[_k] += r[_k]
                     up.evaluate("""async () => {
                         document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
                         const q=document.getElementById('q');
@@ -636,7 +683,8 @@ P("")
 
 fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
                          "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
-                         "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27")}
+                         "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27",
+                         "N28", "N29")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -951,6 +999,21 @@ if REND:
         elif lay.get("worst", 0) > MAX_LAYOUT_MS:
             fails["N27"].append("ズーム1回のラベル配置に%.0fms かかる (上限%.0fms) [%dx%d]"
                                 % (lay["worst"], MAX_LAYOUT_MS, vw, u.get("vh", 0)))
+    for _k, _n, _fmt in (("wrap", "N28", "%s (%s) が「%s」で改行される [%s]"),
+                         ("clip", "N29", "%s (%s) が入れ物に収まらない 必要%dpx / 幅%dpx [%s]")):
+        _seen = {}
+        for u in (REND.get("ui") or []):
+            for it in (u.get("sweep") or {}).get(_k, []):
+                _seen.setdefault(it["sel"], []).append((it, "%dx%d %s" % (u["vw"], u.get("vh", 0), it["state"])))
+        for sel_, rows in sorted(_seen.items()):
+            it = rows[0][0]
+            where = sorted(set(r[1] for r in rows))
+            wtxt = "どの端末でも" if len(where) >= 12 else where[0] + ("" if len(where) == 1 else " ほか%d" % (len(where)-1))
+            if _n == "N28":
+                fails[_n].append(_fmt % (sel_, it["txt"], it["at"], wtxt))
+            else:
+                fails[_n].append(_fmt % (sel_, it["txt"], it["need"], it["has"], wtxt))
+
     def _where(w):
         # 全端末・全状態に出るなら「どこでも」。そうでなければ最初の1つを示す。
         u = sorted(set(w))
@@ -1003,10 +1066,12 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N24": "拡大すればチューザーなしで単一ボタンで押せる",
        "N25": "固定UIが帰属表示・注記を覆っていない",
        "N26": "こどもの声の店のラベルが端末を問わず出ている",
-       "N27": "ズームしても地図の再描画が止まらない"}
+       "N27": "ズームしても地図の再描画が止まらない",
+       "N28": "ボタンの文字が語の途中で改行されない",
+       "N29": "文字が入れ物からはみ出していない"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
-          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27"):
+          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -1056,7 +1121,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N27 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N29 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
