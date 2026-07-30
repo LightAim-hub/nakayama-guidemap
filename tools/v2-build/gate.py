@@ -87,6 +87,18 @@ MAP_MIN_PX = 330.0         # 地図の最小の高さ (実測 360x640 で345px)
 # 360x640 (よくある小型Android) の実際の高さを一度も測っていなかった
 # (2026-07-31 発覚: そこでは上下UIが295pxを占め地図が53.9%しかない)。
 UI_DEVICES = [(360, 640), (375, 667), (390, 844), (428, 926)]
+# 端末を寝かせた状態。文字の大きさと押しやすさは向きに関係なく成り立つべきなので
+# N20/N21 はここでも見る。一方 N23 (地図の大きさ) は横向きだと前提が変わるので
+# 縦向きだけで判定する — 横向きは「地図が主」でなく「一覧が主」の使い方になる。
+UI_LANDSCAPE = [(640, 360), (844, 390)]
+# 横向きの地図の床。実測 (2026-07-31) では 640x360 で地図が57px・844x390 で51px しかなく、
+# 上下のUIが画面の87%を占めていた。この状態では地図として使えない。
+# 横向きは横に余裕があるので、カテゴリと検索を横の列へ逃がせば縦は
+#   ヘッダ38 + フッタ約100 = 138px で済み、640x360 なら地図222px (62%) が取れる計算。
+# 余裕を見て 200px / 45% を床に置く。達成不能だと分かったら、縦向きの 0.62→0.52 と
+# 同じように「なぜ届かないか」を書いたうえで下げる。勘で下げない。
+LAND_MAP_MIN_PX = 200.0
+LAND_MAP_MIN_RATIO = 0.45
 # ラベル配置の所要時間の上限。2026-07-31 の Task R で、こどもの声の店を同時に解く
 # 「打ち切りの無い再帰探索」が入った。いまの条件では12手で終わるが、店やバッジが増えて
 # 制約が厳しくなると組み合わせ爆発する。地図が固まるのは最悪の壊れ方 (店名が消えるより悪い)
@@ -400,7 +412,12 @@ if not A.no_browser:
                                      h: +b.height.toFixed(0),
                                      fs: +parseFloat(cs.fontSize).toFixed(1),
                                      txt: (e.textContent || '').trim().slice(0, 12)});
-                      if (b.right > innerWidth + 0.5 || b.left < -0.5)
+                      // 画面に一切かかっていないものは「閉じたパネルの中身」。
+                      // 閉じた詳細シートは display:none ではなく画面外へずらしてあるので、
+                      // これを見ないと ✕ ボタンを毎回「画面外」と誤検出する (2026-07-31)。
+                      const onScreen = Math.min(b.right, innerWidth) - Math.max(b.left, 0) > 0
+                                    && Math.min(b.bottom, innerHeight) - Math.max(b.top, 0) > 0;
+                      if (onScreen && (b.right > innerWidth + 0.5 || b.left < -0.5))
                         out.offscreen.push({nm: nm + '#' + i,
                                             txt: (e.textContent || '').trim().slice(0, 12)});
                     });
@@ -492,14 +509,105 @@ if not A.no_browser:
                   window.layoutLabels = orig;
                   return {worst:+worst.toFixed(1), calls, buttons:btns.length};
                 }"""
+                # N20/N21 を「画面の状態ごとの総なめ」にする。
+                # 2026-07-31 まで、手で選んだ8個のセレクタの *最初の1個ずつ* しか測っておらず、
+                # 詳細シート・チューザー・一覧の住所・横向きを一度も測っていなかった。
+                # 見えている文字と操作要素を全部拾う (地図の中の★は N24 の領分なので除く)。
+                SWEEPJS = r"""(state) => {
+                  const shown = e => { const cs = getComputedStyle(e);
+                    return cs.display !== 'none' && cs.visibility !== 'hidden'
+                        && parseFloat(cs.opacity) > .05 && e.getAttribute('aria-hidden') !== 'true'; };
+                  // 閉じたパネルは display:none ではなく画面外へずらしてあるだけなので、
+                  // 祖先の表示状態だけを見ると中身を全部拾ってしまう。面積の半分以上が
+                  // 画面の中にあるものだけを「映っている」とする。
+                  const vis = e => {
+                    for (let n = e; n && n !== document.documentElement; n = n.parentElement)
+                      if (!shown(n)) return false;
+                    const r = e.getBoundingClientRect();
+                    if (!(r.width > 0 && r.height > 0)) return false;
+                    const iw = Math.min(r.right, innerWidth) - Math.max(r.left, 0);
+                    const ih = Math.min(r.bottom, innerHeight) - Math.max(r.top, 0);
+                    if (iw <= 0 || ih <= 0) return false;
+                    return (iw * ih) >= .5 * (r.width * r.height); };
+                  const sel = e => { const p = e.parentElement;
+                    const cn = x => x && typeof x.className === 'string' && x.className.trim()
+                      ? '.' + x.className.trim().split(/\s+/).slice(0,2).join('.') : '';
+                    return e.id ? '#'+e.id
+                      : (cn(p) ? cn(p)+' > ' : '') + e.tagName.toLowerCase() + cn(e); };
+                  const texts = [], taps = [];
+                  for (const e of document.querySelectorAll('body *')) {
+                    if (e.closest('svg') || !vis(e)) continue;
+                    if (![...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) continue;
+                    const attrib = !!e.closest('footer, .credits, .foot');
+                    const fs = +parseFloat(getComputedStyle(e).fontSize).toFixed(1);
+                    if (fs < (attrib ? 12 : 14))
+                      texts.push({state, sel:sel(e), fs, attrib,
+                                  txt:(e.textContent||'').trim().slice(0,18)});
+                  }
+                  for (const e of document.querySelectorAll(
+                        'button,a[href],input,select,[role="button"],[tabindex]')) {
+                    if (e.closest('svg') || !vis(e)) continue;
+                    const r = e.getBoundingClientRect();
+                    if (r.width < 44 || r.height < 44)
+                      taps.push({state, sel:sel(e), w:+r.width.toFixed(1), h:+r.height.toFixed(1),
+                                 txt:(e.getAttribute('aria-label')||e.textContent||'').trim().slice(0,18)});
+                  }
+                  return {texts, taps};
+                }"""
+                # 画面の状態を作る手順。詳細シートは単一ボタンで開ける店、
+                # チューザーは複数候補が出る店を選ぶ。
+                STATES = [
+                  ("詳細シート", r"""async () => {
+                     const h=[...document.querySelectorAll('g.hit')].find(x=>{
+                       try{return nearby(GEO.shops[+x.dataset.i]).length<=1;}catch(e){return false;}})
+                       || document.querySelector('g.hit');
+                     h.dispatchEvent(new MouseEvent('click',{bubbles:true}));
+                     await new Promise(r=>setTimeout(r,450)); return true; }"""),
+                  ("チューザー", r"""async () => {
+                     document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+                     await new Promise(r=>setTimeout(r,300));
+                     const h=[...document.querySelectorAll('g.hit')].find(x=>{
+                       try{return nearby(GEO.shops[+x.dataset.i]).length>1;}catch(e){return false;}});
+                     if(!h) return false;
+                     h.dispatchEvent(new MouseEvent('click',{bubbles:true}));
+                     await new Promise(r=>setTimeout(r,450)); return true; }"""),
+                  ("お店一覧", r"""async () => {
+                     document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+                     await new Promise(r=>setTimeout(r,300));
+                     document.getElementById('listbtn').click();
+                     await new Promise(r=>setTimeout(r,450)); return true; }"""),
+                  ("検索中", r"""async () => {
+                     document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+                     await new Promise(r=>setTimeout(r,300));
+                     const q=document.getElementById('q'); q.value='なか';
+                     q.dispatchEvent(new Event('input',{bubbles:true}));
+                     await new Promise(r=>setTimeout(r,450)); return true; }"""),
+                ]
                 UI = []
-                for uw, uh in UI_DEVICES:
+                for uw, uh in UI_DEVICES + UI_LANDSCAPE:
                     up = br.new_page(viewport={"width": uw, "height": uh})
                     up.goto(url, wait_until="load")
                     up.wait_for_timeout(1200)
+                    sweep = {"texts": [], "taps": []}
+                    base = up.evaluate(SWEEPJS, "開いた直後")
+                    sweep["texts"] += base["texts"]; sweep["taps"] += base["taps"]
+                    for st, act in STATES:
+                        if up.evaluate(act) is False:
+                            continue
+                        r = up.evaluate(SWEEPJS, st)
+                        sweep["texts"] += r["texts"]; sweep["taps"] += r["taps"]
+                    up.evaluate("""async () => {
+                        document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+                        const q=document.getElementById('q');
+                        if(q){ q.value=''; q.dispatchEvent(new Event('input',{bubbles:true})); }
+                        await new Promise(r=>setTimeout(r,350)); }""")
+                    # 既存の測定 (N22/N23/N25/N26) は「開いた直後 + お店一覧」で行う
                     up.evaluate("()=>document.getElementById('listbtn').click()")
                     up.wait_for_timeout(350)
                     u = up.evaluate(UIJS)
+                    u["vh"] = uh
+                    u["portrait"] = uh > uw
+                    u["sweep"] = sweep
                     u["layout"] = up.evaluate(TIMEJS)
                     UI.append(u)
                     up.close()
@@ -797,30 +905,45 @@ if REND:
                                 % (h["n"], h["kind"], zn))
 
     # ---- N20-N24 UI/UX。画面幅を変えて操作部だけ見る ----
+    _tap_bad, _txt_bad = {}, {}
     for u in (REND.get("ui") or []):
         vw = u["vw"]
-        for t in u["taps"]:
-            if t["w"] < TAP_MIN_PX or t["h"] < TAP_MIN_PX:
-                fails["N20"].append("%s (%s) が %dx%dpx (最小%.0f) [幅%d]"
-                                    % (t["nm"], t["txt"], t["w"], t["h"], TAP_MIN_PX, vw))
-        for t in u["texts"]:
-            lim = ATTRIB_MIN_PX if t["attrib"] else TEXT_MIN_PX
-            if t["fs"] < lim:
-                fails["N21"].append("%s が %.1fpx (床%.0f) [幅%d]" % (t["nm"], t["fs"], lim, vw))
+        dev = "%dx%d" % (vw, u.get("vh", 0))
+        # N20/N21 は画面の状態ごとの総なめ。直す場所はセレクタ単位なので、
+        # 端末・状態をまたいで1件にまとめる (同じ1箇所を136件に数えても読めないだけ)。
+        for t in (u.get("sweep") or {}).get("taps", []):
+            e = _tap_bad.setdefault(t["sel"], {"txt": t["txt"], "w": t["w"], "h": t["h"], "where": []})
+            e["w"] = min(e["w"], t["w"]); e["h"] = min(e["h"], t["h"])
+            e["where"].append("%s %s" % (dev, t["state"]))
+        for t in (u.get("sweep") or {}).get("texts", []):
+            e = _txt_bad.setdefault(t["sel"], {"txt": t["txt"], "fs": t["fs"],
+                                               "attrib": t["attrib"], "where": []})
+            e["fs"] = min(e["fs"], t["fs"])
+            e["where"].append("%s %s" % (dev, t["state"]))
         for o in u["offscreen"]:
             fails["N22"].append("%s (%s) が画面の外にある [幅%d]" % (o["nm"], o["txt"], vw))
         for c in (u.get("credits") or []):
             fails["N25"].append("「%s」が固定UIに%d%%覆われている [幅%d]"
                                 % (c["txt"], c["pct"], vw))
-        if u["mapRatio"] < MAP_MIN_RATIO:
-            fails["N23"].append("地図が画面の%.0f%%しかない (床%.0f%%) [%dx%d]"
-                                % (u["mapRatio"] * 100, MAP_MIN_RATIO * 100, vw, u.get("vh", 0)))
-        if u.get("mapH", 0) < MAP_MIN_PX:
-            fails["N23"].append("地図の高さが%dpxしかない (床%.0fpx) [%dx%d]"
-                                % (u["mapH"], MAP_MIN_PX, vw, u.get("vh", 0)))
-        for n in (u.get("voiceHidden") or []):
-            fails["N26"].append("%s のこどもの声ラベルが出ていない [%dx%d]"
-                                % (n, vw, u.get("vh", 0)))
+        # N23 / N26 は縦向きだけ。横向きは「地図が主」でなく「一覧が主」の使い方になり、
+        # 同じ床を当てると達成不能な要求になる (縦向きの床は実測で導出したもの)。
+        if u.get("portrait", True):
+            if u["mapRatio"] < MAP_MIN_RATIO:
+                fails["N23"].append("地図が画面の%.0f%%しかない (床%.0f%%) [%dx%d]"
+                                    % (u["mapRatio"] * 100, MAP_MIN_RATIO * 100, vw, u.get("vh", 0)))
+            if u.get("mapH", 0) < MAP_MIN_PX:
+                fails["N23"].append("地図の高さが%dpxしかない (床%.0fpx) [%dx%d]"
+                                    % (u["mapH"], MAP_MIN_PX, vw, u.get("vh", 0)))
+            for n in (u.get("voiceHidden") or []):
+                fails["N26"].append("%s のこどもの声ラベルが出ていない [%dx%d]"
+                                    % (n, vw, u.get("vh", 0)))
+        else:
+            if u.get("mapH", 0) < LAND_MAP_MIN_PX or u["mapRatio"] < LAND_MAP_MIN_RATIO:
+                fails["N23"].append("横向きで地図が%dpx (画面の%.0f%%) しかない "
+                                    "(床%.0fpx / %.0f%%) [%dx%d]"
+                                    % (u.get("mapH", 0), u["mapRatio"] * 100,
+                                       LAND_MAP_MIN_PX, LAND_MAP_MIN_RATIO * 100,
+                                       vw, u.get("vh", 0)))
         lay = u.get("layout") or {}
         if not lay.get("calls"):
             fails["N27"].append("ラベル配置の時間を測れなかった (呼び出し%s回/ズームボタン%s個) [%dx%d]"
@@ -828,6 +951,19 @@ if REND:
         elif lay.get("worst", 0) > MAX_LAYOUT_MS:
             fails["N27"].append("ズーム1回のラベル配置に%.0fms かかる (上限%.0fms) [%dx%d]"
                                 % (lay["worst"], MAX_LAYOUT_MS, vw, u.get("vh", 0)))
+    def _where(w):
+        # 全端末・全状態に出るなら「どこでも」。そうでなければ最初の1つを示す。
+        u = sorted(set(w))
+        return "どの端末でも" if len(u) >= 12 else u[0] + ("" if len(u) == 1 else " ほか%d" % (len(u) - 1))
+
+    for sel_, e in sorted(_tap_bad.items(), key=lambda kv: min(kv[1]["w"], kv[1]["h"])):
+        fails["N20"].append("%s (%s) が %.0fx%.0fpx (最小%.0f) [%s]"
+                            % (sel_, e["txt"], e["w"], e["h"], TAP_MIN_PX, _where(e["where"])))
+    for sel_, e in sorted(_txt_bad.items(), key=lambda kv: kv[1]["fs"]):
+        lim = ATTRIB_MIN_PX if e["attrib"] else TEXT_MIN_PX
+        fails["N21"].append("%s (%s) が %.1fpx (床%.0f) [%s]"
+                            % (sel_, e["txt"], e["fs"], lim, _where(e["where"])))
+
     # N24 密集地でチューザーが出る店の数。既定ズームでは指(44px)が2店(最短8.5m=7.8px)を
     # 覆うので不可避。だが nearby が地図単位固定(22m)だとズームしても減らない
     # (2026-07-30 実測: 5px/m でも21件。店は42px離れているのに出る)。
