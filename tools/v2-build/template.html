@@ -542,7 +542,50 @@ function labelPriority(s){
   if (s.url && s.url !== '#') return 2;
   return 1;
 }
-function layoutLabels(){
+function layoutLabels(scale, entries, starCenters){
+  if (entries && starCenters && scale > 0){
+    const viewport = document.querySelector('#viewport');
+    const viewportRect = viewport && viewport.getBoundingClientRect();
+    const keepOut = ['#listbtn', '.zoomctl', '#editbar', '#srcinfo']
+      .map(q => document.querySelector(q))
+      .filter(e => e && getComputedStyle(e).position === 'fixed'
+        && getComputedStyle(e).display !== 'none')
+      .map(e => e.getBoundingClientRect());
+    const overlapsKeepOut = rect => {
+      if (!viewportRect) return false;
+      const clipped = {
+        left:Math.max(rect.left, viewportRect.left),
+        right:Math.min(rect.right, viewportRect.right),
+        top:Math.max(rect.top, viewportRect.top),
+        bottom:Math.min(rect.bottom, viewportRect.bottom),
+      };
+      if (clipped.right <= clipped.left || clipped.bottom <= clipped.top) return false;
+      return keepOut.some(blocked =>
+        Math.min(clipped.right, blocked.right) - Math.max(clipped.left, blocked.left) >= 1 &&
+        Math.min(clipped.bottom, blocked.bottom) - Math.max(clipped.top, blocked.top) >= 1);
+    };
+    entries.forEach(hideLabel);
+    entries.sort((a,b) => labelPriority(b.s)-labelPriority(a.s) ||
+      Number(isPrimaryLabel(b.s))-Number(isPrimaryLabel(a.s)) || a.s.y-b.s.y || a.idx-b.idx);
+    const kept = [];
+    entries.forEach(entry => {
+      for (const candidate of labelCandidates(entry.s)){
+        setLabelPosition(entry, candidate, scale);
+        const mainRect = entry.main.getBoundingClientRect();
+        if (!labelAnchorBelongsToOwnStar(entry, starCenters) ||
+            !labelBelongsToOwnStar(entry, mainRect, starCenters)) continue;
+        const rect = labelRect(entry);
+        if (overlapsKeepOut(rect)) continue;
+        if (!kept.some(other => labelsCollide(rect, other))){
+          entry.s.labelVisible = true;
+          kept.push(rect);
+          return;
+        }
+      }
+      hideLabel(entry);
+    });
+    return;
+  }
   GEO.shops.forEach(s => {
     const side = preferredLabelSide(s);
     s.labelVisible = true;
@@ -624,10 +667,8 @@ function labelsCollide(a, b){
 function labelCandidates(s){
   const preferred = preferredLabelSide(s);
   const baseGap = starTargetPx(s) / 2 + LABEL_GAP_PX;
-  const voice = (s.voices||[]).length > 0;
-  const gaps = (voice ? [0,4,8,12,18,26,36,48] : [0,4,8,12]).map(v => baseGap + v);
-  const dySteps = voice ? [0,-4,4,-8,8,-12,12,-16,16,-20,20,-24,24,-28,28,-32,32,-40,40,-48,48]
-                        : [0,-4,4,-8,8,-12,12,-16,16];
+  const gaps = [0,4,8,12,18,26,36,48].map(v => baseGap + v);
+  const dySteps = [0,-4,4,-8,8,-12,12,-16,16,-20,20,-24,24,-28,28,-32,32,-40,40,-48,48];
   const candidates = [];
   [preferred, -preferred].forEach(side => gaps.forEach(gapPx =>
     dySteps.forEach(dyPx => candidates.push({side, gapPx, dyPx}))));
@@ -682,25 +723,7 @@ function updateMapScaleStyles(){
     const rect = entry.star && entry.star.getBoundingClientRect();
     return [entry.idx, rect ? {x:rect.left+rect.width/2, y:rect.top+rect.height/2} : null];
   }).filter(([, point]) => point));
-  entries.forEach(hideLabel);
-  entries.sort((a,b) => labelPriority(b.s)-labelPriority(a.s) ||
-    Number(isPrimaryLabel(b.s))-Number(isPrimaryLabel(a.s)) || a.s.y-b.s.y || a.idx-b.idx);
-  const kept = [];
-  entries.forEach(entry => {
-    for (const candidate of labelCandidates(entry.s)){
-      setLabelPosition(entry, candidate, scale);
-      const mainRect = entry.main.getBoundingClientRect();
-      if (!labelAnchorBelongsToOwnStar(entry, starCenters) ||
-          !labelBelongsToOwnStar(entry, mainRect, starCenters)) continue;
-      const rect = labelRect(entry);
-      if (!kept.some(other => labelsCollide(rect, other))){
-        entry.s.labelVisible = true;
-        kept.push(rect);
-        return;
-      }
-    }
-    hideLabel(entry);
-  });
+  layoutLabels(scale, entries, starCenters);
 }
 function scheduleMapScaleStyles(){
   if (mapStyleFrame) cancelAnimationFrame(mapStyleFrame);
