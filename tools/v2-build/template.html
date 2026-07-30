@@ -520,14 +520,7 @@ function busXAtY(y){
 }
 function distToBus(s){ return Math.abs(s.x - busXAtY(s.y)); }
 
-const FS = 16.5, LABEL_GAP = 20;
-const LABEL_TOP = -13, LABEL_BOTTOM = 10, LABEL_EXTRA_BOTTOM = 27, LABEL_CLEARANCE = 4;
-const LABEL_MIN_Y = -PAD + 14, LABEL_MAX_Y = H + PAD - 14;
-function estW(name){
-  let w = 0;
-  for (const ch of name) w += ch.charCodeAt(0) < 256 ? 0.56 : 1.02;
-  return w * FS;
-}
+const FS = 12, LABEL_GAP_PX = 5, LABEL_COLLISION_PAD_PX = 2;
 function preferredLabelSide(s){
   const h = s.hint || {};
   if (h.anchor === 'start') return 1;
@@ -539,89 +532,124 @@ function labelPriority(s){
   if (s.url && s.url !== '#') return 2;
   return 1;
 }
-function labelPlacement(s, side){
-  const w = estW(s.name);
-  const minX = -PAD + 12, maxX = W + PAD - 12;
-  let lx = s.x + side * LABEL_GAP;
-  let x0 = side > 0 ? lx : lx - w;
-  let x1 = x0 + w;
-  if (x0 < minX){ lx += minX - x0; x1 += minX - x0; x0 = minX; }
-  if (x1 > maxX){ lx -= x1 - maxX; x0 -= x1 - maxX; x1 = maxX; }
-  return {lx, x0, x1};
-}
-function labelExtents(s){
-  return {top:LABEL_TOP, bottom:s.clamped && s.far_m > 0 ? LABEL_EXTRA_BOTTOM : LABEL_BOTTOM};
-}
-function labelCapacity(){
-  return Math.floor((LABEL_MAX_Y - LABEL_MIN_Y) / (FS * 1.6)) + 1;
-}
-function solveOrderedLabelYs(items){
-  const sorted = items.slice().sort((a,b) => a.s.y-b.s.y || a.s.x-b.s.x || a.idx-b.idx);
-  if (!sorted.length) return sorted;
-  const offsets = [0];
-  for (let i=1; i<sorted.length; i++){
-    const prev = labelExtents(sorted[i-1].s), cur = labelExtents(sorted[i].s);
-    offsets[i] = offsets[i-1] + prev.bottom - cur.top + LABEL_CLEARANCE;
-  }
-  const blocks = [];
-  sorted.forEach((item, i) => {
-    const value = item.s.y - offsets[i];
-    blocks.push({start:i, end:i, weight:1, sum:value, mean:value});
-    while (blocks.length > 1 && blocks[blocks.length-2].mean > blocks[blocks.length-1].mean){
-      const right = blocks.pop(), left = blocks.pop();
-      const merged = {start:left.start, end:right.end, weight:left.weight+right.weight, sum:left.sum+right.sum};
-      merged.mean = merged.sum / merged.weight;
-      blocks.push(merged);
-    }
-  });
-  const solved = new Array(sorted.length);
-  blocks.forEach(block => {
-    for (let i=block.start; i<=block.end; i++) solved[i] = block.mean + offsets[i];
-  });
-  const firstExtent = labelExtents(sorted[0].s), lastExtent = labelExtents(sorted[sorted.length-1].s);
-  const lowShift = LABEL_MIN_Y - (solved[0] + firstExtent.top);
-  const highShift = LABEL_MAX_Y - (solved[solved.length-1] + lastExtent.bottom);
-  if (lowShift > highShift) throw new Error('label separation constraints do not fit the map');
-  const shift = Math.max(lowShift, Math.min(highShift, 0));
-  sorted.forEach((item, i) => { item.ly = solved[i] + shift; });
-  return sorted;
-}
 function layoutLabels(){
-  const all = GEO.shops.map((s, idx) => ({s, idx}));
-  const ranked = all.slice().sort((a,b) => labelPriority(b.s)-labelPriority(a.s) || a.s.y-b.s.y || a.idx-b.idx);
-  const keep = new Set(ranked.slice(0, labelCapacity()).map(item => item.idx));
-  all.forEach(item => { item.s.labelVisible = keep.has(item.idx); item.s.labelLeader = false; });
-  solveOrderedLabelYs(all.filter(item => keep.has(item.idx))).forEach(item => {
-    const s = item.s, side = preferredLabelSide(s), placed = labelPlacement(s, side);
+  GEO.shops.forEach(s => {
+    const side = preferredLabelSide(s);
+    s.labelVisible = true;
+    s.labelLeader = false;
     s.anchor = side > 0 ? 'start' : 'end';
-    s.lx = placed.lx;
-    s.ly = item.ly;
-    s.labelLeader = Math.hypot(s.lx-s.x, s.ly-s.y) > 34;
+    s.lx = s.x;
+    s.ly = s.y;
   });
 }
 
 let selectedIndex = -1;
-function nearestStarDistance(s){
-  let nearest = Infinity;
-  GEO.shops.forEach(other => { if (other !== s) nearest = Math.min(nearest, Math.hypot(s.x-other.x, s.y-other.y)); });
-  return nearest;
-}
-function starSize(s){
-  const base = s.name.indexOf('公園')>=0 || s.cat==='place' ? 1.15 : 1;
-  const noOverlap = (nearestStarDistance(s) - 1) / 20;
-  return Math.max(.12, Math.min(base, noOverlap));
-}
 function isPrimaryLabel(s){
-  return s.cat === 'place' || /郵便局|中学校|小学校|市民センター|不動尊|ドライブスクール|ヨークベニマル/.test(s.name);
+  return (s.voices||[]).length > 0 || s.cat === 'place' ||
+    /郵便局|中学校|小学校|市民センター|不動尊|ドライブスクール|ヨークベニマル/.test(s.name);
+}
+let currentMapScale = 1, mapStyleFrame = 0;
+function starTargetPx(s){ return isPrimaryLabel(s) ? 14 : 11; }
+function labelTargetPx(s){ return isPrimaryLabel(s) ? 15 : 12; }
+function starSize(s){
+  return starTargetPx(s) / (20 * Math.max(.001, currentMapScale));
+}
+function setLabelPosition(entry, side, scale){
+  const s = entry.s, main = entry.main, distance = entry.distance;
+  const fontPx = labelTargetPx(s), fontMap = fontPx / scale;
+  const offsetMap = (starTargetPx(s) / 2 + LABEL_GAP_PX) / scale;
+  s.anchor = side > 0 ? 'start' : 'end';
+  s.lx = s.x + side * offsetMap;
+  s.ly = s.y;
+  main.setAttribute('x', s.lx);
+  main.setAttribute('y', s.ly);
+  main.setAttribute('font-size', fontMap);
+  main.setAttribute('text-anchor', s.anchor);
+  main.setAttribute('dominant-baseline', 'middle');
+  main.style.strokeWidth = ((isPrimaryLabel(s) ? 3.5 : 3) / scale)+'px';
+  main.removeAttribute('display');
+  main.style.display = '';
+  if (distance){
+    const distancePx = 10, distanceMap = distancePx / scale;
+    distance.setAttribute('x', s.lx);
+    distance.setAttribute('y', s.y + (fontPx/2 + distancePx/2 + 6) / scale);
+    distance.setAttribute('font-size', distanceMap);
+    distance.setAttribute('text-anchor', s.anchor);
+    distance.setAttribute('dominant-baseline', 'middle');
+    distance.style.strokeWidth = (2.5 / scale)+'px';
+    distance.removeAttribute('display');
+    distance.style.display = '';
+  }
+}
+function hideLabel(entry){
+  entry.main.style.display = 'none';
+  if (entry.distance) entry.distance.style.display = 'none';
+  entry.s.labelVisible = false;
+}
+function labelRect(entry){
+  const rects = [entry.main, entry.distance].filter(Boolean).map(t => t.getBoundingClientRect());
+  return {
+    left:Math.min(...rects.map(r=>r.left)), right:Math.max(...rects.map(r=>r.right)),
+    top:Math.min(...rects.map(r=>r.top)), bottom:Math.max(...rects.map(r=>r.bottom)),
+  };
+}
+function labelsCollide(a, b){
+  return a.left < b.right + LABEL_COLLISION_PAD_PX &&
+    a.right + LABEL_COLLISION_PAD_PX > b.left &&
+    a.top < b.bottom + LABEL_COLLISION_PAD_PX &&
+    a.bottom + LABEL_COLLISION_PAD_PX > b.top;
+}
+function labelSides(s, scale){
+  const preferred = preferredLabelSide(s), offsetMap = (starTargetPx(s)/2 + LABEL_GAP_PX) / scale;
+  return [preferred, -preferred].filter(side => {
+    const lx = s.x + side * offsetMap, ly = s.y;
+    const selfDistance = Math.hypot(lx-s.x, ly-s.y);
+    const otherDistance = Math.min(...GEO.shops.filter(o=>o!==s).map(o=>Math.hypot(lx-o.x, ly-o.y)));
+    return selfDistance + .01 < otherDistance;
+  });
+}
+function updateMapScaleStyles(){
+  const matrix = svg.getScreenCTM();
+  const scale = matrix ? Math.hypot(matrix.a, matrix.b) : 0;
+  if (!(scale > 0)) return;
+  currentMapScale = scale;
+  const entries = [...document.querySelectorAll('.hit')].map(h => {
+    const idx = +h.dataset.i, s = GEO.shops[idx], star = h.querySelector('.star');
+    if (star) star.setAttribute('transform', 'scale('+(starSize(s) * (idx===selectedIndex?1.18:1))+')');
+    return {idx, s, main:h.querySelector('text[data-main-label="1"]'),
+      distance:h.querySelector('text.distance-label')};
+  }).filter(entry => entry.main);
+  entries.forEach(hideLabel);
+  entries.sort((a,b) => labelPriority(b.s)-labelPriority(a.s) ||
+    Number(isPrimaryLabel(b.s))-Number(isPrimaryLabel(a.s)) || a.s.y-b.s.y || a.idx-b.idx);
+  const kept = [];
+  entries.forEach(entry => {
+    for (const side of labelSides(entry.s, scale)){
+      setLabelPosition(entry, side, scale);
+      const rect = labelRect(entry);
+      if (!kept.some(other => labelsCollide(rect, other))){
+        entry.s.labelVisible = true;
+        kept.push(rect);
+        return;
+      }
+    }
+    hideLabel(entry);
+  });
+}
+function scheduleMapScaleStyles(){
+  if (mapStyleFrame) cancelAnimationFrame(mapStyleFrame);
+  mapStyleFrame = requestAnimationFrame(() => {
+    mapStyleFrame = 0;
+    updateMapScaleStyles();
+  });
 }
 function updateSelectedMarker(){
   document.querySelectorAll('.hit').forEach(h => {
-    const idx = +h.dataset.i, on = idx === selectedIndex;
-    const s = GEO.shops[idx], star = h.querySelector('.star');
+    const on = +h.dataset.i === selectedIndex;
     h.classList.toggle('selected', on);
     h.setAttribute('aria-pressed', on ? 'true' : 'false');
-    if (star) star.setAttribute('transform', 'scale('+(starSize(s) * (on ? 1.18 : 1))+')');
   });
+  scheduleMapScaleStyles();
 }
 function setSelectedShop(s){
   selectedIndex = s ? GEO.shops.indexOf(s) : -1;
@@ -672,12 +700,13 @@ function drawShops(){
       el('circle', {cx:s.x, cy:s.y, r:14, fill:'none', stroke:c, 'stroke-width':2, 'stroke-dasharray':'3 3'}, g);
     }
     if (s.labelVisible){
-      const t = el('text', {x:s.lx, y:s.ly+FS*0.35, class:'shoplabel '+(primary?'primary b':'detail'),
-        'font-size':FS, 'text-anchor':s.anchor}, g);
+      const t = el('text', {x:s.lx, y:s.ly, class:'shoplabel '+(primary?'primary b':'detail'),
+        'font-size':FS, 'text-anchor':s.anchor, 'dominant-baseline':'middle',
+        'data-main-label':'1', display:'none'}, g);
       t.textContent = s.name;
       if (s.clamped && s.far_m > 0){
-        const ft = el('text', {x:s.lx, y:s.ly+FS*0.35+15, class:'shoplabel '+(primary?'primary':'detail'), 'font-size':10.5,
-          'text-anchor':s.anchor, opacity:.8}, g);
+        const ft = el('text', {x:s.lx, y:s.ly, class:'shoplabel distance-label '+(primary?'primary':'detail'),
+          'font-size':10, 'text-anchor':s.anchor, 'dominant-baseline':'middle', opacity:.8, display:'none'}, g);
         ft.textContent = '実際は約'+(s.far_m>=1000? (s.far_m/1000).toFixed(1)+'km':(s.far_m+'m'))+'先';
       }
     }
@@ -997,11 +1026,13 @@ function applyZoom(keepCenter){
   hideDetail(); hideChooser();
   document.getElementById('zin').disabled  = zoom >= ZMAX;
   document.getElementById('zout').disabled = zoom <= ZMIN;
+  scheduleMapScaleStyles();
 }
 document.getElementById('zin').addEventListener('click', () => { zoom = Math.min(zoom+45, ZMAX); applyZoom(true); });
 document.getElementById('zout').addEventListener('click', () => { zoom = Math.max(zoom-45, ZMIN); applyZoom(true); });
 window.addEventListener('resize', () => {
   hideChooser();
+  scheduleMapScaleStyles();
   if (detailIndex >= 0) requestAnimationFrame(() => detailRail.scrollTo({left:detailIndex * detailRail.clientWidth, behavior:'auto'}));
 });
 
@@ -1089,6 +1120,9 @@ if (IS_EDIT){
 
 drawShops();
 applyZoom(false);
+new MutationObserver(scheduleMapScaleStyles).observe(svg, {attributes:true, attributeFilter:['viewBox']});
+if (window.ResizeObserver) new ResizeObserver(scheduleMapScaleStyles).observe(svg);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(scheduleMapScaleStyles);
 /* 初期表示は商店街の密集帯を中心に */
 requestAnimationFrame(() => {
   const vp = viewport;

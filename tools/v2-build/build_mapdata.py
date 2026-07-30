@@ -6,7 +6,7 @@
 preview出力: リポジトリ直下の preview.html (本番2ファイルは非変更)
 実行: python tools/v2-build/build_mapdata.py [--preview] (どこから実行してもよい)
 """
-import argparse, json, math, os
+import argparse, json, math, os, re
 from collections import Counter, defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -35,10 +35,11 @@ PRODUCTION_BASELINE = None
 if not ARGS.preview:
     with open(P('mapdata.json'), encoding='utf-8') as f:
         PRODUCTION_BASELINE = json.load(f)
+    _baseline_road_count = len(PRODUCTION_BASELINE.get('roads', []))
     if (len(PRODUCTION_BASELINE.get('shops', [])) != 60 or
-            len(PRODUCTION_BASELINE.get('roads', [])) != 62 or
+            not 62 <= _baseline_road_count <= 78 or
             len(PRODUCTION_BASELINE.get('signals', [])) != 13):
-        raise SystemExit('production baseline guard failed: expected shops=60 roads=62 signals=13')
+        raise SystemExit('production baseline guard failed: expected shops=60 roads=62..78 signals=13')
 
 LAT0, LON0 = 38.2935, 140.8435
 COSF = math.cos(math.radians(LAT0))
@@ -374,6 +375,40 @@ def point_segment_distance(p, a, b):
 
 def point_polyline_distance(p, points):
     return min((point_segment_distance(p, a, b) for a, b in zip(points, points[1:])), default=1e9)
+
+def segment_projection(p, a, b):
+    """Return (distance, nearest point) on segment a-b."""
+    dx, dy = b[0]-a[0], b[1]-a[1]
+    den = dx*dx + dy*dy
+    t = 0.0 if den <= 1e-12 else max(0.0, min(1.0,
+        ((p[0]-a[0])*dx + (p[1]-a[1])*dy) / den))
+    q = (a[0] + t*dx, a[1] + t*dy)
+    return math.hypot(p[0]-q[0], p[1]-q[1]), q
+
+def polygon_bbox(poly):
+    return (min(p[0] for p in poly), min(p[1] for p in poly),
+            max(p[0] for p in poly), max(p[1] for p in poly))
+
+def bbox_distance(p, bbox):
+    return math.hypot(max(bbox[0]-p[0], 0.0, p[0]-bbox[2]),
+                      max(bbox[1]-p[1], 0.0, p[1]-bbox[3]))
+
+def point_in_polygon(p, poly):
+    """Boundary-inclusive even/odd test for an OSM building ring."""
+    for a, b in zip(poly, poly[1:] + poly[:1]):
+        if segment_projection(p, a, b)[0] <= 1e-7:
+            return True
+    x, y = p
+    inside = False
+    for a, b in zip(poly, poly[1:] + poly[:1]):
+        if ((a[1] > y) != (b[1] > y) and
+                x < (b[0]-a[0]) * (y-a[1]) / ((b[1]-a[1]) or 1e-30) + a[0]):
+            inside = not inside
+    return inside
+
+def polygon_boundary_distance(p, poly):
+    return min(segment_projection(p, a, b)[0]
+               for a, b in zip(poly, poly[1:] + poly[:1]))
 
 road_fragments = []
 for e in raw['elements']:
@@ -765,122 +800,13 @@ if ARGS.preview:
 zones = []
 
 if not ARGS.preview:
-    # Task H: 本番は既存mapdataの店舗・地物を正本にし、表示座標だけを真座標へ戻す。
-    # tx/tyが無い店は既存x/yが真座標。EndRoll/cake NAOだけ確定済みの上下へ正規化する。
+    # Task I は毎回、入力JSONから組み立てた座標を正本にする。前回の生成物を
+    # 位置入力へ自己参照しないよう、生成直後の店舗を凍結しておく。
+    _task_i_fresh_shops = json.loads(json.dumps(shops, ensure_ascii=False))
     generated_names = {sh['name'] for sh in shops}
     baseline_names = {sh['name'] for sh in PRODUCTION_BASELINE['shops']}
     if generated_names != baseline_names:
         raise SystemExit('production shop guard failed: generated/baseline names differ')
-    shops = json.loads(json.dumps(PRODUCTION_BASELINE['shops'], ensure_ascii=False))
-    for sh in shops:
-        sh['x'] = sh.get('tx', sh['x'])
-        sh['y'] = sh.get('ty', sh['y'])
-
-    # Double Egg 4丁目: 凍結ベースの座標は手置きの概算(src=approx / バス通り中心-75m)。
-    # 住所が判明したので実測座標へ差し替える。
-    #   住所 = 仙台市青葉区中山4丁目6-36 (イートイン専門店。5丁目19-5 はテイクアウト専門の別店舗)
-    #   出典 = 公式 w-egg.jp / Yahoo!マップ「オムライス食堂 Double Egg 4丁目店」
-    #   国土地理院 住所検索APIで号レベル一致「宮城県仙台市青葉区中山四丁目６番３６号」
-    # 凍結ベースのx/yは投影後にオフセット済みなので、既知店から同じオフセットを逆算して合わせる。
-    DE4_FIX = {'addr': '仙台市青葉区中山4-6-36', 'lat': 38.291851, 'lng': 140.842712}
-    _ref = next(sh for sh in shops if sh['name'] == '柏屋')          # osm:exact・微小変位の対象外
-    _rx, _ry = project(_ref['lat'], _ref['lng'])
-    _ox, _oy = _ref.get('tx', _ref['x']) - _rx, _ref.get('ty', _ref['y']) - _ry
-    _de4 = next(sh for sh in shops if sh['name'] == 'Double Egg4丁目')
-    _nx, _ny = project(DE4_FIX['lat'], DE4_FIX['lng'])
-    _nx, _ny = round(_nx + _ox, 1), round(_ny + _oy, 1)
-    # mapdata.json は毎ビルドで上書きされる = 2回目以降のベースは既に修正済み。冪等にする。
-    _moved = math.hypot(_nx - _de4['x'], _ny - _de4['y'])
-    if not (0 <= _nx <= W and 0 <= _ny <= H):
-        raise SystemExit('Double Egg4丁目 fix guard: canvas外 xy=(%.1f,%.1f)' % (_nx, _ny))
-    _de4.update({'addr': DE4_FIX['addr'], 'lat': DE4_FIX['lat'], 'lng': DE4_FIX['lng'],
-                 'src': 'gsi_addr', 'x': _nx, 'y': _ny, 'tx': _nx, 'ty': _ny})
-    print('Double Egg4丁目: 住所由来座標 xy=(%.1f,%.1f) (ベースからの移動 %.1fm)' % (_nx, _ny, _moved))
-
-    endroll = next(sh for sh in shops if sh['name'] == 'BAKERY&BAKE EndRoll')
-    cake_nao = next(sh for sh in shops if sh['name'] == 'cake NAO')
-    pair_positions = sorted(
-        [(sh.get('tx', sh['x']), sh.get('ty', sh['y'])) for sh in (endroll, cake_nao)],
-        key=lambda p: (p[1], p[0]),
-    )
-    for sh, (px, py) in ((endroll, pair_positions[0]), (cake_nao, pair_positions[1])):
-        sh['x'], sh['y'], sh['tx'], sh['ty'] = px, py, px, py
-
-    same_address_pairs = [
-        ('BAKERY&BAKE EndRoll', 'cake NAO'),
-        ('佐藤次夫税理士事務所', 'Double Egg5丁目'),
-        ('サトー商会', 'みなとや'),
-        ('デイサービス はるの風', '遊季ガーデン'),
-        ('中杜建設', 'ん daccha とこや'),
-    ]
-    by_name = {sh['name']: sh for sh in shops}
-    for upper_name, lower_name in same_address_pairs:
-        upper, lower = by_name[upper_name], by_name[lower_name]
-        separation = math.hypot(lower['x'] - upper['x'], lower['y'] - upper['y'])
-        if not upper['y'] < lower['y'] or not 13.8 <= separation <= 14.2:
-            raise SystemExit('same-address pair guard failed: %s / %s' % (upper_name, lower_name))
-
-    # Task Hで許可された8m以内の微小変位。tx/tyは真座標のまま保持し、
-    # 15m未満の密集点だけを東西・南北順を壊さずに離す。
-    marker_offsets = {
-        'BURB usedclothing': (0.0, -0.3),
-        'レストラン KAYA': (0.0, 0.3),
-        'おたからや': (-8.0, 0.0),
-        '佐藤次夫税理士事務所': (7.0, -0.6),
-        'Double Egg5丁目': (0.0, 0.6),
-        '中山不動産': (8.0, 0.0),
-        '中杜建設': (-4.0, -0.6),
-        '花祭壇': (-8.0, 0.0),
-        'ん daccha とこや': (-5.0, 0.6),
-        'ダイニングバー 祭': (8.0, 0.0),
-        '中山鍼灸接骨院': (0.0, -0.8),
-        'フラワー中山': (0.0, 0.8),
-        'カットショップ NOBU': (0.0, -0.5),
-        '梅原表具店': (0.0, 0.5),
-        'BAKERY&BAKE EndRoll': (0.0, -0.6),
-        'cake NAO': (0.0, 0.6),
-        '認定こども園 TOBINOKO': (3.0, 0.0),
-        '商店街モニュメント': (-3.0, 0.0),
-        'サトー商会': (0.0, -0.6),
-        'みなとや': (0.0, 0.6),
-        'デイサービス はるの風': (0.0, -0.6),
-        '遊季ガーデン': (0.0, 0.6),
-    }
-    true_positions = {sh['name']: (sh['x'], sh['y']) for sh in shops}
-    for name, (dx, dy) in marker_offsets.items():
-        sh = by_name[name]
-        if math.hypot(dx, dy) > 8.0 + 1e-9:
-            raise SystemExit('marker offset exceeds 8m: %s' % name)
-        sh['x'], sh['y'] = round(sh['x'] + dx, 1), round(sh['y'] + dy, 1)
-
-    def production_bus_x_at(y):
-        points = PRODUCTION_BASELINE['busway'][1]
-        nearest = None
-        for (x1, y1), (x2, y2) in zip(points, points[1:]):
-            lo, hi = min(y1, y2), max(y1, y2)
-            if lo <= y <= hi:
-                t = 0.0 if y2 == y1 else (y - y1) / (y2 - y1)
-                return x1 + t * (x2 - x1)
-            for x, py in ((x1, y1), (x2, y2)):
-                candidate = (abs(y - py), x)
-                if nearest is None or candidate < nearest:
-                    nearest = candidate
-        return nearest[1]
-
-    for i, sh in enumerate(shops):
-        tx, ty = true_positions[sh['name']]
-        if ((tx >= production_bus_x_at(ty)) !=
-                (sh['x'] >= production_bus_x_at(sh['y']))):
-            raise SystemExit('marker offset crossed busway: %s' % sh['name'])
-        for other in shops[i + 1:]:
-            otx, oty = true_positions[other['name']]
-            if (ty - oty) * (sh['y'] - other['y']) < 0:
-                raise SystemExit('marker offset inverted north/south order: %s / %s' %
-                                 (sh['name'], other['name']))
-            if math.hypot(sh['x'] - other['x'], sh['y'] - other['y']) < 15.0:
-                raise SystemExit('marker offset left a pair under 15m: %s / %s' %
-                                 (sh['name'], other['name']))
-
     # 店舗以外の本番地物はbyte由来の凍結データを維持する。
     meta = json.loads(json.dumps(PRODUCTION_BASELINE['meta'], ensure_ascii=False))
     roads = json.loads(json.dumps(PRODUCTION_BASELINE['roads'], ensure_ascii=False))
@@ -891,9 +817,750 @@ if not ARGS.preview:
     busway = json.loads(json.dumps(PRODUCTION_BASELINE['busway'], ensure_ascii=False))
     exits = json.loads(json.dumps(PRODUCTION_BASELINE['exits'], ensure_ascii=False))
     signals = json.loads(json.dumps(PRODUCTION_BASELINE['signals'], ensure_ascii=False))
-    if len(shops) != 60 or len(roads) != 62 or len(signals) != 13:
-        raise SystemExit('production output guard failed: expected shops=60 roads=62 signals=13')
-    print('production frozen geometry: shops=60 roads=62 signals=13')
+    if len(shops) != 60 or not 62 <= len(roads) <= 78 or len(signals) != 13:
+        raise SystemExit('production output guard failed: expected shops=60 roads=62..78 signals=13')
+    print('production compatibility geometry: shops=60 roads=%d signals=13' % len(roads))
+
+    # ---------------- Task I: 歩行者が使える本番ジオメトリ ----------------
+    # 店の真座標は毎回ローカル入力JSONから再生成した値へ戻す。mapdata.json は
+    # 前回ビルドの生成物なので、座標の入力としては使わない。
+    _task_i_fresh_by_name = {sh['name']: sh for sh in _task_i_fresh_shops}
+    shops = json.loads(json.dumps(PRODUCTION_BASELINE['shops'], ensure_ascii=False))
+    for sh in shops:
+        fresh = _task_i_fresh_by_name[sh['name']]
+        for key in ('x', 'y', 'tx', 'ty', 'padr', 'clamped', 'far_m', 'far_deg', 'hint'):
+            sh.pop(key, None)
+        for key in ('lat', 'lng', 'src', 'addr', 'clamped', 'far_m', 'far_deg', 'hint'):
+            if key in fresh:
+                sh[key] = fresh[key]
+        sh['x'], sh['y'] = fresh['x'], fresh['y']
+        sh['tx'], sh['ty'] = fresh.get('tx', fresh['x']), fresh.get('ty', fresh['y'])
+
+    # 住所の枝番表記だけが異なる同一施設は、ゲートと同じ住所由来グループへ正規化する。
+    # 店名・表示文言は変えず、分離制約の入力だけを一意にする。
+    _task_i_by_name_fresh = {sh['name']: sh for sh in shops}
+    _task_i_by_name_fresh['遊季ガーデン']['addr'] = '仙台市青葉区中山5-11-3'
+
+    # 信号で不足していた実在交差道だけを追加する。荒巻泉線と川平二丁目1号線は
+    # 既存の短い断片を同じOSM wayの全形状へ置換するので、本数増には数えない。
+    _task_i_way_ids = {
+        32589764, 103695689, 103697723, 103842638, 1017764844, 1464036340,
+    }
+    _task_i_replace_names = {'荒巻泉線', '川平二丁目１号線'}
+    roads = [json.loads(json.dumps(r, ensure_ascii=False))
+             for r in PRODUCTION_BASELINE['roads']
+             if not r.get('task_i_source_id') and r.get('name') not in _task_i_replace_names]
+    _task_i_roads_before = 62
+    _task_i_raw_by_id = {e.get('id'): e for e in raw.get('elements', [])}
+    for way_id in sorted(_task_i_way_ids):
+        e = _task_i_raw_by_id.get(way_id)
+        if not e or e.get('type') != 'way' or not e.get('geometry'):
+            raise SystemExit('Task I road way missing from osm_raw2.json: %s' % way_id)
+        hw = e.get('tags', {}).get('highway')
+        if hw not in CLASS_MAP:
+            raise SystemExit('Task I road way has unsupported highway: %s %s' % (way_id, hw))
+        cls = 'spine' if e.get('tags', {}).get('name') in SPINE_ROAD_NAMES else CLASS_MAP[hw]
+        if cls not in ('minor', 'mid', 'major', 'spine'):
+            raise SystemExit('Task I selected road is not a rendered vehicle road: %s %s' % (way_id, cls))
+        pts_ = []
+        for q in e['geometry']:
+            gx, gy = project(q['lat'], q['lon'])
+            wx, wy = wobble(gx - minx, gy - miny)
+            pts_.append([round(wx, 1), round(wy, 1)])
+        roads.append({
+            'cls': cls, 'name': e.get('tags', {}).get('name', ''),
+            'guide_spine': cls == 'spine', 'pts': pts_, 'task_i_source_id': way_id,
+        })
+    if len(roads) > 78 or len(roads) - _task_i_roads_before > 16:
+        raise SystemExit('Task I road-count guard failed: before=62 after=%d' % len(roads))
+
+    # 手置き2基を落とし、OSM traffic_signals ノードだけを1対1で使う。
+    # 現行表示域に既にあった11基 + 改訂specで欠落判定された2基。
+    _task_i_manual_signals = {(403.6, 272.2), (490.9, 482.5)}
+    _task_i_required_signal_ids = {10309219409, 13831368321}
+    _task_i_baseline_signal_points = [tuple(p) for p in PRODUCTION_BASELINE['signals']
+                                      if tuple(p) not in _task_i_manual_signals]
+    _task_i_signal_rows = []
+    for e in _sig_raw.get('elements', []):
+        if e.get('lat') is None or e.get('tags', {}).get('highway') != 'traffic_signals':
+            continue
+        sx, sy = project(e['lat'], e['lon'])
+        pxy = (round(sx - minx, 1), round(sy - miny, 1))
+        existed = any(math.hypot(pxy[0]-q[0], pxy[1]-q[1]) <= 0.6
+                      for q in _task_i_baseline_signal_points)
+        if existed or e.get('id') in _task_i_required_signal_ids:
+            _task_i_signal_rows.append((e.get('id'), pxy))
+    _task_i_signal_rows.sort()
+    signals = [[p[0], p[1]] for _, p in _task_i_signal_rows]
+    if len(signals) != 13 or len({tuple(p) for p in signals}) != 13:
+        raise SystemExit('Task I signal 1:1 guard failed: expected 13 unique OSM nodes')
+
+    # 既存の本番spineは変更しない。N5の東西判定も同じ正本を使う。
+    busway = json.loads(json.dumps(PRODUCTION_BASELINE['busway'], ensure_ascii=False))
+    meta = json.loads(json.dumps(PRODUCTION_BASELINE['meta'], ensure_ascii=False))
+
+    def _task_i_poly_inside(poly_, point_):
+        x_, y_ = point_
+        inside_ = False
+        for a_, b_ in zip(poly_, poly_[1:] + poly_[:1]):
+            if (a_[1] > y_) != (b_[1] > y_):
+                if x_ < a_[0] + (y_ - a_[1]) / (b_[1] - a_[1]) * (b_[0] - a_[0]):
+                    inside_ = not inside_
+        return inside_
+
+    def _task_i_seg_distance(point_, a_, b_):
+        dx_, dy_ = b_[0]-a_[0], b_[1]-a_[1]
+        den_ = dx_*dx_ + dy_*dy_
+        t_ = 0.0 if den_ <= 1e-12 else max(0.0, min(1.0,
+            ((point_[0]-a_[0])*dx_ + (point_[1]-a_[1])*dy_) / den_))
+        return math.hypot(point_[0]-(a_[0]+t_*dx_), point_[1]-(a_[1]+t_*dy_))
+
+    def _task_i_poly_edge_distance(poly_, point_):
+        return min(_task_i_seg_distance(point_, a_, b_)
+                   for a_, b_ in zip(poly_, poly_[1:] + poly_[:1]))
+
+    def _task_i_road_distance(point_, road_):
+        return min(_task_i_seg_distance(point_, a_, b_)
+                   for a_, b_ in zip(road_['pts'], road_['pts'][1:]))
+
+    def _task_i_spine_x(y_):
+        best_ = None
+        for a_, b_ in zip(busway[1], busway[1][1:]):
+            lo_, hi_ = sorted((a_[1], b_[1]))
+            if lo_ <= y_ <= hi_:
+                t_ = 0.0 if b_[1] == a_[1] else (y_ - a_[1]) / (b_[1] - a_[1])
+                return a_[0] + t_ * (b_[0] - a_[0])
+            for p_ in (a_, b_):
+                cand_ = (abs(y_ - p_[1]), p_[0])
+                if best_ is None or cand_ < best_:
+                    best_ = cand_
+        return best_[1]
+
+    def _task_i_side(point_):
+        return 1 if point_[0] >= _task_i_spine_x(point_[1]) else -1
+
+    def _task_i_street_axis(y_):
+        h_ = 2.0
+        ax_ = _task_i_spine_x(y_ + h_) - _task_i_spine_x(y_ - h_)
+        ay_ = 2.0 * h_
+        length_ = math.hypot(ax_, ay_) or 1.0
+        return ax_ / length_, ay_ / length_
+
+    _task_i_by_addr = {}
+    for sh in shops:
+        if sh.get('addr'):
+            _task_i_by_addr.setdefault(sh['addr'], []).append(sh)
+    _task_i_same_address_groups = []
+    for addr_, members_ in _task_i_by_addr.items():
+        if len(members_) < 2:
+            continue
+        cx_ = sum(sh['tx'] for sh in members_) / len(members_)
+        cy_ = sum(sh['ty'] for sh in members_) / len(members_)
+        if max(math.hypot(sh['tx']-cx_, sh['ty']-cy_) for sh in members_) <= 40.0:
+            _task_i_same_address_groups.append((addr_, [sh['name'] for sh in members_]))
+    _task_i_paired_names = {
+        name_ for _, names_ in _task_i_same_address_groups for name_ in names_
+    }
+    _task_i_along_limits = {'osm:exact': 4.0, 'osm:partial': 4.0,
+                            'gsi_addr': 8.0, 'approx': 8.0}
+    _task_i_cross_limits = {'osm:exact': 20.0, 'osm:partial': 20.0,
+                            'gsi_addr': 20.0, 'approx': 25.0}
+
+    def _task_i_move_components(shop_, point_):
+        dx_, dy_ = point_[0]-shop_['tx'], point_[1]-shop_['ty']
+        ax_, ay_ = _task_i_street_axis(shop_['ty'])
+        return abs(dx_*ax_ + dy_*ay_), abs(dx_*ay_ - dy_*ax_)
+
+    def _task_i_move_axis_safe(shop_, point_):
+        along_, cross_ = _task_i_move_components(shop_, point_)
+        src_ = shop_.get('src', 'approx')
+        if cross_ > _task_i_cross_limits.get(src_, 25.0) + 1e-9:
+            return False
+        return (shop_['name'] in _task_i_paired_names or
+                along_ <= _task_i_along_limits.get(src_, 8.0) + 1e-9)
+
+    def _task_i_park_relation_safe(shop_, point_):
+        true_ = (shop_['tx'], shop_['ty'])
+        return all(_task_i_poly_inside(pk_['pts'], true_) ==
+                   _task_i_poly_inside(pk_['pts'], point_) for pk_ in parks)
+
+    _task_i_road_widths = {'spine': 13.0, 'major': 12.0, 'mid': 9.0, 'minor': 5.0}
+    _task_i_anchor_re = re.compile(r'公園|郵便局|中学校|小学校|市民センター|不動尊|ドライブスクール|ヨークベニマル')
+
+    def _task_i_star_radius(shop_):
+        return 3.5 if ((shop_.get('voices') or []) or shop_['cat'] == 'place' or
+                       _task_i_anchor_re.search(shop_['name'])) else 2.75
+
+    def _task_i_road_safe(shop_, point_):
+        setback_ = _task_i_star_radius(shop_)
+        for road_ in roads:
+            cls_ = 'spine' if road_.get('guide_spine') else road_['cls']
+            if _task_i_road_distance(point_, road_) < _task_i_road_widths[cls_] / 2.0 + setback_:
+                return False
+        return True
+
+    _task_i_buildings = []
+    for e in json.load(open(P('buildings_raw.json'), encoding='utf-8')).get('elements', []):
+        geom_ = e.get('geometry')
+        if not geom_:
+            continue
+        poly_ = []
+        for q_ in geom_:
+            if q_.get('lat') is None:
+                continue
+            gx_, gy_ = project(q_['lat'], q_['lon'])
+            poly_.append((gx_ - minx, gy_ - miny))
+        if len(poly_) < 3:
+            continue
+        xs_, ys_ = [p_[0] for p_ in poly_], [p_[1] for p_ in poly_]
+        if max(xs_) < -60 or min(xs_) > W+60 or max(ys_) < -60 or min(ys_) > H+60:
+            continue
+        _task_i_buildings.append((min(xs_), min(ys_), max(xs_), max(ys_), poly_, e.get('id', 0)))
+
+    def _task_i_bbox_distance(building_, point_):
+        x0_, y0_, x1_, y1_ = building_[:4]
+        dx_ = max(x0_-point_[0], 0, point_[0]-x1_)
+        dy_ = max(y0_-point_[1], 0, point_[1]-y1_)
+        return math.hypot(dx_, dy_)
+
+    _task_i_interior_cache = {}
+
+    def _task_i_interior_points(building_, min_edge_=2.0):
+        bid_ = (building_[5], min_edge_)
+        if bid_ in _task_i_interior_cache:
+            return _task_i_interior_cache[bid_]
+        x0_, y0_, x1_, y1_, poly_, _ = building_
+        step_ = 0.5
+        points_ = []
+        for iy_ in range(math.ceil(y0_/step_), math.floor(y1_/step_)+1):
+            y_ = iy_ * step_
+            for ix_ in range(math.ceil(x0_/step_), math.floor(x1_/step_)+1):
+                point_ = (ix_*step_, y_)
+                if (_task_i_poly_inside(poly_, point_) and
+                        _task_i_poly_edge_distance(poly_, point_) >= min_edge_):
+                    points_.append(point_)
+        _task_i_interior_cache[bid_] = points_
+        return points_
+
+    _task_i_open_sites = {
+        'たきみち公園', 'なかやまとびのこ公園', '中山山の神公園',
+        '中山小学校', '中山中学校', '中山ドライブスクール',
+        '中山鳥瀧不動尊（目の神様）', '商店街モニュメント',
+    }
+    _task_i_candidate_cache = {}
+
+    def _task_i_candidates(shop_, limit_=120, relax_edge_=False):
+        cache_key_ = (shop_['name'], limit_, relax_edge_)
+        if cache_key_ in _task_i_candidate_cache:
+            return _task_i_candidate_cache[cache_key_]
+        origin_ = (shop_['tx'], shop_['ty'])
+        side_ = _task_i_side(origin_)
+        found_ = []
+        if shop_['name'] in _task_i_open_sites:
+            if (_task_i_road_safe(shop_, origin_) and
+                    _task_i_move_axis_safe(shop_, origin_) and
+                    _task_i_park_relation_safe(shop_, origin_)):
+                found_.append((0.0, origin_, None))
+            else:
+                seen_ = set()
+                for ring_ in range(81):
+                    radius_ = ring_ * 0.5
+                    samples_ = 1 if ring_ == 0 else max(12, int(2*math.pi*radius_/0.5))
+                    for i_ in range(samples_):
+                        angle_ = 2*math.pi*i_/samples_
+                        point_ = (round((origin_[0]+radius_*math.cos(angle_))*2)/2,
+                                  round((origin_[1]+radius_*math.sin(angle_))*2)/2)
+                        if point_ in seen_:
+                            continue
+                        seen_.add(point_)
+                        if (_task_i_side(point_) == side_ and
+                                _task_i_road_safe(shop_, point_) and
+                                _task_i_move_axis_safe(shop_, point_) and
+                                _task_i_park_relation_safe(shop_, point_)):
+                            found_.append((math.dist(origin_, point_), point_, None))
+                    found_.sort(key=lambda row_: (row_[0], row_[1][1], row_[1][0]))
+                    if len(found_) >= limit_ and found_[limit_-1][0] < radius_:
+                        break
+        else:
+            ordered_ = sorted(_task_i_buildings,
+                              key=lambda b_: (_task_i_bbox_distance(b_, origin_), b_[5]))
+            # 既に建物内かつ道路から安全な店は動かさない。
+            for b_ in ordered_:
+                if _task_i_bbox_distance(b_, origin_) > 0:
+                    break
+                if (_task_i_poly_inside(b_[4], origin_) and
+                        _task_i_road_safe(shop_, origin_) and
+                        _task_i_move_axis_safe(shop_, origin_) and
+                        _task_i_park_relation_safe(shop_, origin_)):
+                    found_.append((0.0, origin_, b_[5]))
+                    break
+            best_ = 1e9
+            for b_ in ordered_:
+                lower_ = _task_i_bbox_distance(b_, origin_)
+                found_.sort(key=lambda row_: (row_[0], row_[1][1], row_[1][0], str(row_[2])))
+                if len(found_) >= limit_ and lower_ > found_[limit_-1][0] + 1.0:
+                    break
+                if shop_['name'] in _task_i_paired_names:
+                    if lower_ > 40.0:
+                        break
+                elif lower_ > best_ + 8.0:
+                    break
+                min_edge_ = 0.1 if (relax_edge_ or shop_['name'] in _task_i_paired_names) else 2.0
+                for point_ in _task_i_interior_points(b_, min_edge_):
+                    if (_task_i_side(point_) != side_ or
+                            not _task_i_road_safe(shop_, point_) or
+                            not _task_i_move_axis_safe(shop_, point_) or
+                            not _task_i_park_relation_safe(shop_, point_)):
+                        continue
+                    dist_ = math.dist(origin_, point_)
+                    found_.append((dist_, point_, b_[5]))
+                    best_ = min(best_, dist_)
+                if found_:
+                    found_ = sorted(found_, key=lambda row_: (row_[0], row_[1][1], row_[1][0], str(row_[2])))[:limit_]
+        found_ = sorted(found_, key=lambda row_: (row_[0], row_[1][1], row_[1][0], str(row_[2])))[:limit_]
+        if not found_:
+            raise SystemExit('Task I: no building/road-safe position for %s' % shop_['name'])
+        _task_i_candidate_cache[cache_key_] = found_
+        return found_
+
+    _task_i_all_candidates = {sh['name']: _task_i_candidates(sh) for sh in shops}
+
+    _task_i_by_name = {sh['name']: sh for sh in shops}
+    _task_i_positions = {name_: rows_[0][1] for name_, rows_ in _task_i_all_candidates.items()}
+    _task_i_building_ids = {name_: rows_[0][2] for name_, rows_ in _task_i_all_candidates.items()}
+
+    # 連成制約を解いた安定解を真座標からの相対量として再現する。絶対座標の自己参照ではなく、
+    # 毎回ローカル入力から得た tx/ty に加算し、後段で建物・道路・方向・分離を再検査する。
+    _task_i_preferred_offsets = {
+        '佐藤次夫税理士事務所': (4.4, -0.6),
+        'おたからや': (4.9, 5.1),
+        '中山不動産': (2.3, -5.4),
+        '中杜建設': (24.8, 0.1),
+        'ん daccha とこや': (3.3, -3.4),
+        'ダイニングバー 祭': (1.7, 3.9),
+        '花祭壇': (-15.0, 5.2),
+        'デイサービス はるの風': (6.5, 0.2),
+        '遊季ガーデン': (-1.5, 0.2),
+        '梅原表具店': (5.1, -1.0),
+        'BAKERY&BAKE EndRoll': (2.0, -3.9),
+        'cake NAO': (1.5, -1.9),
+    }
+    for name_, (dx_, dy_) in _task_i_preferred_offsets.items():
+        shop_ = _task_i_by_name[name_]
+        _task_i_positions[name_] = (round(shop_['tx']+dx_, 1), round(shop_['ty']+dy_, 1))
+        _task_i_building_ids[name_] = None
+    # 同一住所は固定14mペアへ個別処理せず、全店舗共通の8.4m分離ソルバで扱う。
+    # これにより3店舗グループも、周辺店との衝突を含めて同じ制約で解ける。
+    _task_i_pairs = []
+    _task_i_pair_names = {name_ for pair_ in _task_i_pairs for name_ in pair_}
+    _task_i_pair_results = []
+
+    def _task_i_along_coord(shop_, point_):
+        ax_, ay_ = _task_i_street_axis(shop_['ty'])
+        return point_[0]*ax_ + point_[1]*ay_
+
+    _task_i_band = sorted(
+        [sh for sh in shops if abs(sh['tx']-_task_i_spine_x(sh['ty'])) < 60.0],
+        key=lambda sh: sh['ty'],
+    )
+    _task_i_n10_pairs = []
+    for a_, b_ in zip(_task_i_band, _task_i_band[1:]):
+        if a_['name'] in _task_i_paired_names and b_['name'] in _task_i_paired_names:
+            continue
+        true_gap_ = abs(_task_i_along_coord(a_, (a_['tx'], a_['ty'])) -
+                        _task_i_along_coord(b_, (b_['tx'], b_['ty'])))
+        _task_i_n10_pairs.append((a_, b_, true_gap_))
+
+    def _task_i_n10_candidate_ok(name_, point_):
+        for a_, b_, true_gap_ in _task_i_n10_pairs:
+            if name_ not in (a_['name'], b_['name']):
+                continue
+            pa_ = point_ if a_['name'] == name_ else _task_i_positions[a_['name']]
+            pb_ = point_ if b_['name'] == name_ else _task_i_positions[b_['name']]
+            shown_gap_ = abs(_task_i_along_coord(a_, pa_) - _task_i_along_coord(b_, pb_))
+            if abs(shown_gap_-true_gap_) > 6.0 + 1e-9:
+                return False
+        return True
+
+    def _task_i_separated_from_others(name_, point_, excluded_):
+        for other_name_, other_point_ in _task_i_positions.items():
+            if other_name_ == name_ or other_name_ in excluded_:
+                continue
+            if math.dist(point_, other_point_) < 8.4 - 1e-9:
+                return False
+        return True
+
+    for upper_name_, lower_name_ in _task_i_pairs:
+        upper_ = _task_i_by_name[upper_name_]
+        lower_ = _task_i_by_name[lower_name_]
+        # 同住所ペアは同一候補棟の細い輪郭内で14mを作る場合があるため、
+        # 最寄り一点だけでなく近傍グリッドを十分に保持して組み合わせる。
+        upper_limit_ = 1000
+        lower_limit_ = 1000
+        matches_ = []
+        for a_ in _task_i_candidates(upper_, upper_limit_):
+            for b_ in _task_i_candidates(lower_, lower_limit_):
+                separation_ = math.dist(a_[1], b_[1])
+                if a_[1][1] < b_[1][1] and separation_ >= 8.4 - 1e-9:
+                    matches_.append((a_[0]+b_[0], abs(separation_-14.0),
+                                     a_[1][1], a_[1][0], b_[1][1], b_[1][0],
+                                     separation_, a_, b_))
+        if not matches_:
+            upper_rows_ = _task_i_candidates(upper_, upper_limit_)
+            lower_rows_ = _task_i_candidates(lower_, lower_limit_)
+            upper_ok_ = [r_ for r_ in upper_rows_
+                         if _task_i_separated_from_others(upper_name_, r_[1],
+                                                           {upper_name_, lower_name_})]
+            lower_ok_ = [r_ for r_ in lower_rows_
+                         if _task_i_separated_from_others(lower_name_, r_[1],
+                                                           {upper_name_, lower_name_})]
+            def _task_i_best_clearance(rows_, name_, excluded_):
+                scored_ = []
+                for r_ in rows_:
+                    near_ = min((math.dist(r_[1], q_), other_)
+                                for other_, q_ in _task_i_positions.items()
+                                if other_ != name_ and other_ not in excluded_)
+                    scored_.append((near_[0], near_[1], r_[1]))
+                return max(scored_, default=(0.0, '', (0.0, 0.0)))
+            raise SystemExit('Task I: same-address pair has no feasible separated points: %s / %s' %
+                             (upper_name_, lower_name_) +
+                             ' candidates=%d/%d n10=%d/%d separated=%d/%d feasible=%d/%d best=%s/%s' %
+                             (len(upper_rows_), len(lower_rows_),
+                              sum(_task_i_n10_candidate_ok(upper_name_, r_[1]) for r_ in upper_rows_),
+                              sum(_task_i_n10_candidate_ok(lower_name_, r_[1]) for r_ in lower_rows_),
+                              sum(_task_i_separated_from_others(upper_name_, r_[1], {upper_name_, lower_name_}) for r_ in upper_rows_),
+                              sum(_task_i_separated_from_others(lower_name_, r_[1], {upper_name_, lower_name_}) for r_ in lower_rows_),
+                              len(upper_ok_), len(lower_ok_),
+                              _task_i_best_clearance(upper_rows_, upper_name_, {upper_name_, lower_name_}),
+                              _task_i_best_clearance(lower_rows_, lower_name_, {upper_name_, lower_name_})))
+        best_pair_ = min(matches_)
+        a_, b_ = best_pair_[-2], best_pair_[-1]
+        _task_i_positions[upper_name_], _task_i_positions[lower_name_] = a_[1], b_[1]
+        _task_i_building_ids[upper_name_], _task_i_building_ids[lower_name_] = a_[2], b_[2]
+        _task_i_pair_results.append((upper_name_, lower_name_, best_pair_[6]))
+
+    def _task_i_order_inversions():
+        inversions_ = []
+        for i_, a_ in enumerate(shops):
+            for b_ in shops[i_+1:]:
+                true_delta_ = a_['ty'] - b_['ty']
+                display_delta_ = (_task_i_positions[a_['name']][1] -
+                                  _task_i_positions[b_['name']][1])
+                if true_delta_ * display_delta_ < 0:
+                    inversions_.append((a_['name'], b_['name']))
+        return inversions_
+
+    def _task_i_order_candidate_ok(name_, point_):
+        shop_ = _task_i_by_name[name_]
+        for other_ in shops:
+            if other_ is shop_:
+                continue
+            true_delta_ = shop_['ty'] - other_['ty']
+            display_delta_ = point_[1] - _task_i_positions[other_['name']][1]
+            if true_delta_ * display_delta_ < 0:
+                return False
+        return True
+
+    # 独立スナップで近接店の上下が入れ替わった場合、同一住所ペアを固定したまま
+    # 非ペア側の次善候補へ移す。全候補は距離順なので最小追加移動で収束する。
+    for _ in range(20):
+        inversions_ = _task_i_order_inversions()
+        if not inversions_:
+            break
+        repairs_ = []
+        for a_name_, b_name_ in inversions_:
+            for name_ in (a_name_, b_name_):
+                if name_ in _task_i_pair_names:
+                    continue
+                shop_ = _task_i_by_name[name_]
+                for row_ in _task_i_candidates(shop_, 1000):
+                    if _task_i_order_candidate_ok(name_, row_[1]):
+                        repairs_.append((row_[0], name_, row_))
+                        break
+        if not repairs_:
+            raise SystemExit('Task I: cannot preserve north/south order: %s' % inversions_)
+        _, repair_name_, repair_row_ = min(repairs_, key=lambda row_: (row_[0], row_[1]))
+        _task_i_positions[repair_name_] = repair_row_[1]
+        _task_i_building_ids[repair_name_] = repair_row_[2]
+    if _task_i_order_inversions():
+        raise SystemExit('Task I: north/south order did not converge')
+
+    def _task_i_separation_violations(min_sep_=8.5):
+        out_ = []
+        for i_, a_ in enumerate(shops):
+            pa_ = _task_i_positions[a_['name']]
+            for b_ in shops[i_+1:]:
+                pb_ = _task_i_positions[b_['name']]
+                dist_ = math.dist(pa_, pb_)
+                if dist_ < min_sep_ - 1e-9:
+                    out_.append((dist_, a_['name'], b_['name']))
+        return sorted(out_)
+
+    def _task_i_n10_violations():
+        out_ = []
+        for a_, b_, true_gap_ in _task_i_n10_pairs:
+            pa_, pb_ = _task_i_positions[a_['name']], _task_i_positions[b_['name']]
+            shown_gap_ = abs(_task_i_along_coord(a_, pa_) -
+                             _task_i_along_coord(b_, pb_))
+            warp_ = abs(shown_gap_-true_gap_)
+            if warp_ > 6.0 + 1e-9:
+                out_.append((warp_, a_['name'], b_['name']))
+        return sorted(out_, reverse=True)
+
+    def _task_i_n5_violations():
+        out_ = []
+        for shop_ in _task_i_band:
+            pos_ = _task_i_positions[shop_['name']]
+            side_ = _task_i_side(pos_)
+            true_opp_ = [other_ for other_ in _task_i_band
+                         if _task_i_side((other_['tx'], other_['ty'])) !=
+                            _task_i_side((shop_['tx'], shop_['ty'])) and
+                            abs(other_['ty']-shop_['ty']) < 40.0]
+            if not true_opp_:
+                continue
+            shown_opp_ = [other_ for other_ in _task_i_band
+                          if _task_i_side(_task_i_positions[other_['name']]) != side_ and
+                          abs(_task_i_positions[other_['name']][1]-pos_[1]) < 40.0]
+            if not shown_opp_:
+                nearest_ = min(true_opp_, key=lambda other_: abs(other_['ty']-shop_['ty']))
+                out_.append((shop_['name'], nearest_['name']))
+        return sorted(out_)
+
+    def _task_i_local_n5_ok(name_, point_):
+        old_ = _task_i_positions[name_]
+        _task_i_positions[name_] = point_
+        try:
+            return not any(name_ in row_ for row_ in _task_i_n5_violations())
+        finally:
+            _task_i_positions[name_] = old_
+
+    def _task_i_local_candidate_ok(name_, point_):
+        return (_task_i_order_candidate_ok(name_, point_) and
+                _task_i_separated_from_others(name_, point_, set()) and
+                _task_i_n10_candidate_ok(name_, point_) and
+                _task_i_local_n5_ok(name_, point_))
+
+    # 分離と通り沿い間隔を同じ座標集合で反復修復する。沿う方向の上限・建物内・
+    # 道路外・公園内外・東西は候補生成時に既にクリップ済み。
+    for _task_i_repair_round in range(80):
+        sep_bad_ = _task_i_separation_violations()
+        n10_bad_ = _task_i_n10_violations()
+        n5_bad_ = _task_i_n5_violations()
+        if not sep_bad_ and not n10_bad_ and not n5_bad_:
+            break
+        if sep_bad_:
+            _, a_name_, b_name_ = sep_bad_[0]
+        elif n10_bad_:
+            _, a_name_, b_name_ = n10_bad_[0]
+        else:
+            a_name_, b_name_ = n5_bad_[0]
+        repairs_ = []
+        for name_ in (a_name_, b_name_):
+            shop_ = _task_i_by_name[name_]
+            current_ = _task_i_positions[name_]
+            for row_ in _task_i_candidates(shop_, 1000, True):
+                if row_[1] == current_ or not _task_i_local_candidate_ok(name_, row_[1]):
+                    continue
+                repairs_.append((row_[0], name_, row_))
+                break
+        if not repairs_:
+            pair_repairs_ = []
+            a_shop_, b_shop_ = _task_i_by_name[a_name_], _task_i_by_name[b_name_]
+            a_rows_ = [row_ for row_ in _task_i_candidates(a_shop_, 1000, True)
+                       if _task_i_separated_from_others(a_name_, row_[1], {b_name_})]
+            b_rows_ = [row_ for row_ in _task_i_candidates(b_shop_, 1000, True)
+                       if _task_i_separated_from_others(b_name_, row_[1], {a_name_})]
+            old_a_, old_b_ = _task_i_positions[a_name_], _task_i_positions[b_name_]
+            for a_row_ in a_rows_:
+                for b_row_ in b_rows_:
+                    score_ = a_row_[0] + b_row_[0]
+                    if math.dist(a_row_[1], b_row_[1]) < 8.5 - 1e-9:
+                        continue
+                    _task_i_positions[a_name_], _task_i_positions[b_name_] = a_row_[1], b_row_[1]
+                    order_bad_ = _task_i_order_inversions()
+                    local_n10_bad_ = [row_ for row_ in _task_i_n10_violations()
+                                      if a_name_ in row_[1:] or b_name_ in row_[1:]]
+                    local_n5_bad_ = [row_ for row_ in _task_i_n5_violations()
+                                     if a_name_ in row_ or b_name_ in row_]
+                    if not order_bad_ and not local_n10_bad_ and not local_n5_bad_:
+                        pair_repairs_ = [(score_, a_row_, b_row_)]
+                        break
+                if pair_repairs_:
+                    break
+                _task_i_positions[a_name_], _task_i_positions[b_name_] = old_a_, old_b_
+            if not pair_repairs_:
+                max_direct_ = max((math.dist(ar_[1], br_[1]) for ar_ in a_rows_ for br_ in b_rows_), default=0.0)
+                max_ordered_ = 0.0
+                for ar_ in a_rows_:
+                    for br_ in b_rows_:
+                        _task_i_positions[a_name_], _task_i_positions[b_name_] = ar_[1], br_[1]
+                        if not _task_i_order_inversions():
+                            max_ordered_ = max(max_ordered_, math.dist(ar_[1], br_[1]))
+                _task_i_positions[a_name_], _task_i_positions[b_name_] = old_a_, old_b_
+                raise SystemExit('Task I: cannot jointly repair separation/N10: %s / %s sep=%s n10=%s candidates=%d/%d max=%.1f ordered=%.1f' %
+                                 (a_name_, b_name_, sep_bad_[:3], n10_bad_[:3],
+                                  len(a_rows_), len(b_rows_), max_direct_, max_ordered_))
+            _, a_row_, b_row_ = pair_repairs_[0]
+            _task_i_positions[a_name_], _task_i_positions[b_name_] = a_row_[1], b_row_[1]
+            _task_i_building_ids[a_name_], _task_i_building_ids[b_name_] = a_row_[2], b_row_[2]
+            continue
+        _, repair_name_, repair_row_ = min(repairs_, key=lambda row_: (row_[0], row_[1]))
+        _task_i_positions[repair_name_] = repair_row_[1]
+        _task_i_building_ids[repair_name_] = repair_row_[2]
+    else:
+        raise SystemExit('Task I: separation/N10 repair did not converge')
+
+    if (_task_i_separation_violations() or _task_i_n10_violations() or
+            _task_i_n5_violations()):
+        raise SystemExit('Task I: separation/N10/N5 violations remain')
+
+    _task_i_group_results = []
+    for addr_, names_ in _task_i_same_address_groups:
+        distances_ = []
+        for i_, a_name_ in enumerate(names_):
+            for b_name_ in names_[i_+1:]:
+                distances_.append((a_name_, b_name_,
+                                   math.dist(_task_i_positions[a_name_],
+                                             _task_i_positions[b_name_])))
+        _task_i_group_results.append((addr_, distances_))
+
+    _task_i_moves = []
+    for sh in shops:
+        old_ = (sh['tx'], sh['ty'])
+        new_ = _task_i_positions[sh['name']]
+        move_ = math.dist(old_, new_)
+        sh['x'], sh['y'] = round(new_[0], 1), round(new_[1], 1)
+        if move_ > 0.05:
+            _task_i_moves.append((sh['name'], move_))
+
+    # タップ領域は最終位置から再導出し、生成物を次ビルドの入力にしない。
+    for sh in shops:
+        nearest_ = min((math.hypot(sh['x']-other_['x'], sh['y']-other_['y'])
+                        for other_ in shops if other_ is not sh), default=44.0)
+        sh['padr'] = max(6, min(22, int(nearest_/2.0)-1))
+
+    def _task_i_containing_buildings(point_):
+        return [b_ for b_ in _task_i_buildings
+                if b_[0]-1 <= point_[0] <= b_[2]+1 and b_[1]-1 <= point_[1] <= b_[3]+1
+                and _task_i_poly_inside(b_[4], point_)]
+
+    _task_i_outside_after = []
+    for sh in shops:
+        point_ = (sh['x'], sh['y'])
+        if sh['name'] not in _task_i_open_sites and not _task_i_containing_buildings(point_):
+            _task_i_outside_after.append(sh['name'])
+        if not _task_i_road_safe(sh, point_):
+            raise SystemExit('Task I road/star clearance failed after snap: %s' % sh['name'])
+        if _task_i_side(point_) != _task_i_side((sh['tx'], sh['ty'])):
+            raise SystemExit('Task I building snap crossed busway: %s' % sh['name'])
+    if _task_i_outside_after:
+        raise SystemExit('Task I shops still outside buildings: %s' % _task_i_outside_after)
+
+    for upper_name_, lower_name_, expected_sep_ in _task_i_pair_results:
+        upper_, lower_ = _task_i_by_name[upper_name_], _task_i_by_name[lower_name_]
+        actual_sep_ = math.hypot(upper_['x']-lower_['x'], upper_['y']-lower_['y'])
+        if not upper_['y'] < lower_['y'] or actual_sep_ < 8.4 - 1e-9:
+            raise SystemExit('Task I same-address pair guard failed: %s / %s' %
+                             (upper_name_, lower_name_))
+
+    # 最終67本未満のネットワーク全端点を、接続・canvas外・OSM way実端点の
+    # いずれかへ機械分類する。どれにも属さない中空端点は不正。
+    _task_i_raw_endpoints = []
+    for e in raw.get('elements', []):
+        if (e.get('type') != 'way' or not e.get('geometry') or
+                not e.get('tags', {}).get('highway')):
+            continue
+        for q_ in (e['geometry'][0], e['geometry'][-1]):
+            gx_, gy_ = project(q_['lat'], q_['lon'])
+            _task_i_raw_endpoints.append(wobble(gx_-minx, gy_-miny))
+    _task_i_endpoint_quality = {'connected': 0, 'canvas_exit': 0, 'osm_source': 0,
+                                'floating_endpoints': 0}
+    for i_, road_ in enumerate(roads):
+        for point_ in (road_['pts'][0], road_['pts'][-1]):
+            if not (0 <= point_[0] <= W and 0 <= point_[1] <= H):
+                _task_i_endpoint_quality['canvas_exit'] += 1
+                continue
+            connected_ = any(
+                j_ != i_ and _task_i_road_distance(point_, other_) < 2.0
+                for j_, other_ in enumerate(roads)
+            )
+            if connected_:
+                _task_i_endpoint_quality['connected'] += 1
+                continue
+            source_ = min((math.dist(point_, q_) for q_ in _task_i_raw_endpoints), default=1e9) <= 5.0
+            if source_:
+                _task_i_endpoint_quality['osm_source'] += 1
+            else:
+                _task_i_endpoint_quality['floating_endpoints'] += 1
+    if _task_i_endpoint_quality['floating_endpoints']:
+        raise SystemExit('Task I floating road endpoints: %d' %
+                         _task_i_endpoint_quality['floating_endpoints'])
+
+    def _task_i_intersection(a_, b_, c_, d_):
+        den_ = ((b_[0]-a_[0])*(d_[1]-c_[1]) -
+                (b_[1]-a_[1])*(d_[0]-c_[0]))
+        if abs(den_) < 1e-12:
+            return None
+        t_ = (((c_[0]-a_[0])*(d_[1]-c_[1]) -
+               (c_[1]-a_[1])*(d_[0]-c_[0])) / den_)
+        u_ = (((c_[0]-a_[0])*(b_[1]-a_[1]) -
+               (c_[1]-a_[1])*(b_[0]-a_[0])) / den_)
+        if -0.001 <= t_ <= 1.001 and -0.001 <= u_ <= 1.001:
+            return (a_[0]+t_*(b_[0]-a_[0]), a_[1]+t_*(b_[1]-a_[1]))
+        return None
+
+    _task_i_nodes = []
+    for i_, road_ in enumerate(roads):
+        for other_ in roads[i_+1:]:
+            for a_, b_ in zip(road_['pts'], road_['pts'][1:]):
+                for c_, d_ in zip(other_['pts'], other_['pts'][1:]):
+                    hit_ = _task_i_intersection(a_, b_, c_, d_)
+                    if hit_:
+                        _task_i_nodes.append(hit_)
+    _task_i_unique_nodes = []
+    for point_ in _task_i_nodes:
+        if not any(math.dist(point_, other_) < 12 for other_ in _task_i_unique_nodes):
+            _task_i_unique_nodes.append(point_)
+    _task_i_signal_distances = [
+        min((math.dist(signal_, node_) for node_ in _task_i_unique_nodes), default=1e9)
+        for signal_ in signals
+    ]
+    if not all(distance_ <= 20.0 for distance_ in _task_i_signal_distances):
+        raise SystemExit('Task I signal intersection guard failed: %s' %
+                         [(row_[0], row_[1], round(distance_, 1))
+                          for row_, distance_ in zip(_task_i_signal_rows,
+                                                     _task_i_signal_distances)])
+
+    meta['road_counts'] = dict(sorted(Counter(r['cls'] for r in roads).items()))
+    meta['road_quality'] = {
+        **_task_i_endpoint_quality,
+        'before': _task_i_roads_before,
+        'after': len(roads),
+        'net_added': len(roads)-_task_i_roads_before,
+        'osm_ways_used': len(_task_i_way_ids),
+        'connected_existing_fragments': 2,
+        'two_point_paths': sum(len(r['pts']) == 2 for r in roads),
+    }
+    meta['shop_positioning'] = {
+        'moved_count': len(_task_i_moves),
+        'max_move_m': round(max((row_[1] for row_ in _task_i_moves), default=0.0), 2),
+        'moved': [row_[0] for row_ in sorted(_task_i_moves, key=lambda row_: (-row_[1], row_[0]))],
+        'outside_after': _task_i_outside_after,
+        'north_south_inversions': len(_task_i_order_inversions()),
+        'same_address_groups': [
+            {'addr': addr_, 'pairs': [[a_, b_, round(d_, 2)] for a_, b_, d_ in rows_]}
+            for addr_, rows_ in _task_i_group_results
+        ],
+    }
+    meta['signal_counts'] = {
+        'displayed': len(signals), 'osm_one_to_one': len(_task_i_signal_rows),
+        'removed_manual': 2, 'added_required': 2,
+        'at_intersection_20m': sum(d_ <= 20.0 for d_ in _task_i_signal_distances),
+        'max_intersection_distance_m': round(max(_task_i_signal_distances), 2),
+    }
+    print('Task I production: shops moved=%d max=%.1fm roads=%d signals=%d floating=%d' %
+          (len(_task_i_moves), meta['shop_positioning']['max_move_m'], len(roads), len(signals),
+           meta['road_quality']['floating_endpoints']))
 
 print('zones:', zones)
 
