@@ -270,13 +270,27 @@ P("")
 fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
-# 同一住所ペア (±分離を人工的に入れているので、真座標との差はその分を許容する)
-SAME_ADDR_PAIRS = [("BAKERY&BAKE EndRoll", "cake NAO"),
-                   ("佐藤次夫税理士事務所", "Double Egg5丁目"),
-                   ("サトー商会", "みなとや"),
-                   ("デイサービス はるの風", "遊季ガーデン"),
-                   ("中杜建設", "ん daccha とこや")]
-PAIRED = {n for p in SAME_ADDR_PAIRS for n in p}
+# 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
+# 入れている。よって真座標との差はその分離量を許容する。
+# ハードコードだと取りこぼす (中山5-19-10 は3店・2026-07-30に実際に取りこぼした) ので
+# 住所から導出する。真座標が40m以内に固まっているものだけを「同一地点」とみなす。
+_by_addr = {}
+for _s in shops:
+    if _s.get("addr"):
+        _by_addr.setdefault(_s["addr"], []).append(_s)
+SAME_ADDR_GROUPS = []
+for _a, _v in _by_addr.items():
+    if len(_v) < 2:
+        continue
+    _cx = sum(TX(t) for t in _v) / len(_v)
+    _cy = sum(TY(t) for t in _v) / len(_v)
+    if max(math.hypot(TX(t) - _cx, TY(t) - _cy) for t in _v) <= 40:
+        SAME_ADDR_GROUPS.append((_a, [t["name"] for t in _v]))
+PAIRED = {n for _a, g in SAME_ADDR_GROUPS for n in g}
+P("同一住所グループ (通り沿いの移動制限を免除): %d組" % len(SAME_ADDR_GROUPS))
+for _a, _g in SAME_ADDR_GROUPS:
+    P("   %s : %s" % (_a, " / ".join(_g)))
+P("")
 # 移動の上限は「距離」ではなく「向き」で決める。2026-07-30 敵対レビュー2周目の実測より:
 #   住所ジオコーディング(gsi_addr)の点は街区の"道路に面した接点"にあるので、
 #   建物の奥へ入れる動き = 通りに直交する動き = 正しいセットバック補正。
