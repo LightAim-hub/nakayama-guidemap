@@ -8,7 +8,7 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N25 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N26 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
@@ -75,8 +75,18 @@ MAX_STAR_ROAD_BITE = 2.0
 TAP_MIN_PX = 44.0          # WCAG 2.5.5 / Apple HIG。操作要素の最小
 TEXT_MIN_PX = 14.0         # 高齢者も読める床
 ATTRIB_MIN_PX = 12.0       # 帰属表示 (OpenStreetMap ODbL 等) だけはこの床
-MAP_MIN_RATIO = 0.62       # 画面の高さに対する地図の最小比率
-UI_WIDTHS = [360, 390, 428]  # UI検査を回す画面幅 (小型Android / 標準 / 大型)
+# 地図の大きさの床。当初 0.62 (比率のみ) にしたが、背の低い実機を試さずに置いた値だった。
+# 実測 (2026-07-31): 360x640 では上下UIが295px = 画面の46%を占める。
+#   header 38 + カテゴリ2段 101 + 検索 50 + フッタ 106 = 295px
+# 62%を満たすには余白を243pxまで削る必要があり、チップを44px未満にしないと届かない
+# (= N20 の押しやすさを壊す)。44pxの操作要素と帰属表示(ODbL)の表示を保ったまま
+# 62%は達成不能なので、比率を下げるかわりに絶対値の床を併せて置いて歯止めにする。
+MAP_MIN_RATIO = 0.52       # 画面の高さに対する地図の最小比率
+MAP_MIN_PX = 330.0         # 地図の最小の高さ (実測 360x640 で345px)
+# UI検査を回す実機サイズ。幅だけ変えて高さを844固定にしていたため、
+# 360x640 (よくある小型Android) の実際の高さを一度も測っていなかった
+# (2026-07-31 発覚: そこでは上下UIが295pxを占め地図が53.9%しかない)。
+UI_DEVICES = [(360, 640), (375, 667), (390, 844), (428, 926)]
 
 # ---------------- GEO ----------------
 src = io.open(A.target, encoding="utf-8").read()
@@ -428,6 +438,23 @@ if not A.no_browser:
                   const vp = document.getElementById('viewport').getBoundingClientRect();
                   out.mapRatio = +(vp.height / innerHeight).toFixed(3);
                   out.mapH = Math.round(vp.height);
+                  out.vh = innerHeight;
+                  // N26 こどもの声の店のラベルが既定ズームで出ているか。
+                  // 本企画の看板機能なので、端末が小さくても消えてはいけない。
+                  out.voiceHidden = [];
+                  for (const h of document.querySelectorAll('g.hit')) {
+                    const sp = GEO.shops[+h.dataset.i];
+                    if (!(sp.voices && sp.voices.length)) continue;
+                    const st = h.querySelector('.star');
+                    const t = h.querySelector('text.shoplabel');
+                    if (!st) continue;
+                    const bb = st.getBoundingClientRect();
+                    const cx = bb.left + bb.width / 2, cy = bb.top + bb.height / 2;
+                    const inV = cx >= vp.left && cx <= vp.right && cy >= vp.top && cy <= vp.bottom;
+                    const vis = !!(t && getComputedStyle(t).display !== 'none'
+                                   && t.getBoundingClientRect().width > 1);
+                    if (inV && !vis) out.voiceHidden.push(sp.name);
+                  }
                   // nearby の半径 (チューザーが出る条件) を実際の関数から測る
                   let nb = null;
                   try { nb = (typeof nearby === 'function')
@@ -438,8 +465,8 @@ if not A.no_browser:
                   return out;
                 }"""
                 UI = []
-                for uw in UI_WIDTHS:
-                    up = br.new_page(viewport={"width": uw, "height": 844})
+                for uw, uh in UI_DEVICES:
+                    up = br.new_page(viewport={"width": uw, "height": uh})
                     up.goto(url, wait_until="load")
                     up.wait_for_timeout(1200)
                     up.evaluate("()=>document.getElementById('listbtn').click()")
@@ -471,7 +498,7 @@ P("")
 
 fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
                          "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
-                         "N20", "N21", "N22", "N23", "N24", "N25")}
+                         "N20", "N21", "N22", "N23", "N24", "N25", "N26")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -756,8 +783,14 @@ if REND:
             fails["N25"].append("「%s」が固定UIに%d%%覆われている [幅%d]"
                                 % (c["txt"], c["pct"], vw))
         if u["mapRatio"] < MAP_MIN_RATIO:
-            fails["N23"].append("地図が画面の%.0f%%しかない (床%.0f%%) [幅%d]"
-                                % (u["mapRatio"] * 100, MAP_MIN_RATIO * 100, vw))
+            fails["N23"].append("地図が画面の%.0f%%しかない (床%.0f%%) [%dx%d]"
+                                % (u["mapRatio"] * 100, MAP_MIN_RATIO * 100, vw, u.get("vh", 0)))
+        if u.get("mapH", 0) < MAP_MIN_PX:
+            fails["N23"].append("地図の高さが%dpxしかない (床%.0fpx) [%dx%d]"
+                                % (u["mapH"], MAP_MIN_PX, vw, u.get("vh", 0)))
+        for n in (u.get("voiceHidden") or []):
+            fails["N26"].append("%s のこどもの声ラベルが出ていない [%dx%d]"
+                                % (n, vw, u.get("vh", 0)))
     # N24 密集地でチューザーが出る店の数。既定ズームでは指(44px)が2店(最短8.5m=7.8px)を
     # 覆うので不可避。だが nearby が地図単位固定(22m)だとズームしても減らない
     # (2026-07-30 実測: 5px/m でも21件。店は42px離れているのに出る)。
@@ -795,10 +828,11 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N20": "操作要素が44x44px以上", "N21": "文字が14px以上 (帰属表示は12px)",
        "N22": "操作要素が画面の外に出ていない", "N23": "地図が画面の62%以上",
        "N24": "拡大すればチューザーなしで単一ボタンで押せる",
-       "N25": "固定UIが帰属表示・注記を覆っていない"}
+       "N25": "固定UIが帰属表示・注記を覆っていない",
+       "N26": "こどもの声の店のラベルが端末を問わず出ている"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
-          "N20", "N21", "N22", "N23", "N24", "N25"):
+          "N20", "N21", "N22", "N23", "N24", "N25", "N26"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -848,7 +882,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N25 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N26 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
