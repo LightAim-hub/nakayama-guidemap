@@ -231,11 +231,20 @@ if not A.no_browser:
                 pg.wait_for_timeout(1500)
                 REND = pg.evaluate(JS, WALK_PX_PER_M)
                 REND["jsErrors"] = len(errs)
-                # 歩きズーム(2px/m)での★サイズも測る
-                vb = "%f %f %f %f" % (400, 700, 390 / WALK_PX_PER_M, 844 / WALK_PX_PER_M)
-                pg.evaluate("v=>document.getElementById('map').setAttribute('viewBox',v)", vb)
-                pg.wait_for_timeout(500)
+                # 歩きズーム: viewBox幅から逆算すると初期倍率の影響でずれるので、
+                # 実DOM倍率を測りながら WALK_PX_PER_M に収束させる (Codex指摘のバグ修正)
+                w = 390 / WALK_PX_PER_M
+                for _ in range(6):
+                    pg.evaluate("v=>document.getElementById('map').setAttribute('viewBox',v)",
+                                "%f %f %f %f" % (400, 700, w, w * 844 / 390))
+                    pg.wait_for_timeout(300)
+                    got = pg.evaluate("""() => { const s=document.getElementById('map').getScreenCTM();
+                                                return Math.hypot(s.a,s.b); }""")
+                    if abs(got - WALK_PX_PER_M) / WALK_PX_PER_M < 0.02:
+                        break
+                    w = w * got / WALK_PX_PER_M
                 REND["walk"] = pg.evaluate(JS, WALK_PX_PER_M)
+                REND["walkPxPerMeter"] = round(got, 4)
                 br.close()
         except Exception as e:
             P("!! ブラウザ実測に失敗: %s: %s" % (type(e).__name__, e))
@@ -258,8 +267,18 @@ else:
     P("!! ブラウザ実測なし → N3/N4 の画面判定はスキップ (合格にはしない)")
 P("")
 
-fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6")}
+fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
+
+# 同一住所ペア (±分離を人工的に入れているので、真座標との差はその分を許容する)
+SAME_ADDR_PAIRS = [("BAKERY&BAKE EndRoll", "cake NAO"),
+                   ("佐藤次夫税理士事務所", "Double Egg5丁目"),
+                   ("サトー商会", "みなとや"),
+                   ("デイサービス はるの風", "遊季ガーデン"),
+                   ("中杜建設", "ん daccha とこや")]
+PAIRED = {n for p in SAME_ADDR_PAIRS for n in p}
+MAX_DRIFT = 12.0          # 建物に入れるための移動として許す上限
+MAX_WARP = 0.25           # 隣接ペアの相対距離の歪み上限 (±25%)
 
 for s in shops:
     nm, x, y = s["name"], s["x"], s["y"]
@@ -316,10 +335,48 @@ for s in shops:
             d = min((math.hypot(sx - q[0], sy - q[1]) for q in XN), default=1e9)
             fails["N6"].append("%s の目印になる信号(%.0f,%.0f)が交差点にない(%.0fm)" % (nm, sx, sy, d))
 
+# ---- N7 真座標からの乖離 (建物に入れる移動は許すが、歪ませてはいけない) ----
+for s in shops:
+    if s["name"] in PAIRED:
+        continue                      # ±分離を人工的に入れている組は対象外
+    d = math.hypot(s["x"] - TX(s), s["y"] - TY(s))
+    if d > MAX_DRIFT:
+        fails["N7"].append("%s が真座標から%.1fm (上限%.0fm)" % (s["name"], d, MAX_DRIFT))
+
+# ---- N8 ★同士が重ならない (歩きズームでの★直径より離れている) ----
+star_m = max((r["starMapM"] for r in (REND.get("walk", {}).get("rows", []) if REND else [])), default=4.0)
+MIN_SEP = max(3.0, star_m * 1.2)
+for i in range(len(shops)):
+    for j in range(i + 1, len(shops)):
+        a, b = shops[i], shops[j]
+        d = math.hypot(a["x"] - b["x"], a["y"] - b["y"])
+        if d < MIN_SEP:
+            fails["N8"].append("%s ⇔ %s が%.1fm (★直径%.1fm・最低%.1fm)"
+                               % (a["name"], b["name"], d, star_m, MIN_SEP))
+
+# ---- N9 公園ポリゴンとの内外が真座標と一致 ----
+for pk in parks:
+    for s in shops:
+        if poly_inside(pk["pts"], TX(s), TY(s)) != poly_inside(pk["pts"], s["x"], s["y"]):
+            fails["N9"].append("%s と %s の内外が真座標と違う" % (s["name"], pk["name"]))
+
+# ---- N10 隣接ペアの相対距離が歪んでいない (歩いて距離感が合うこと) ----
+bs = sorted(band, key=lambda s: TY(s))
+for a, b in zip(bs, bs[1:]):
+    if a["name"] in PAIRED and b["name"] in PAIRED:
+        continue
+    dt = math.hypot(TX(a) - TX(b), TY(a) - TY(b))
+    dd = math.hypot(a["x"] - b["x"], a["y"] - b["y"])
+    if dt >= 10 and abs(dd / dt - 1.0) > MAX_WARP:
+        fails["N10"].append("%s ⇔ %s 真%.1fm → 表示%.1fm (%+.0f%%)"
+                            % (a["name"], b["name"], dt, dd, (dd / dt - 1) * 100))
+
 LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N3": "歩きズームで★が道路にかからず見える大きさ", "N4": "ラベルが自分の★に一意に結びつく",
-       "N5": "通りの東西と向かい合いが成立", "N6": "目印の信号が使える"}
-for k in ("N1", "N2", "N3", "N4", "N5", "N6"):
+       "N5": "通りの東西と向かい合いが成立", "N6": "目印の信号が使える",
+       "N7": "真座標から離れすぎていない", "N8": "★同士が重なっていない",
+       "N9": "公園との内外が真座標と一致", "N10": "隣接ペアの距離感が歪んでいない"}
+for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -335,9 +392,16 @@ if REND:
     P("  ★表示数: %d / 60" % len(REND["rows"]))
     if len(REND["rows"]) != 60:
         gfail.append("★が60件でない")
-    P("  ラベル可視 %d / bbox交差 %d" % (REND["labelsVisible"], REND["labelCross"]))
+    wv = REND.get("walk", {}).get("labelsVisible", 0)
+    P("  ラベル可視: デフォルト %d / 歩きズーム %d / bbox交差 %d"
+      % (REND["labelsVisible"], wv, REND["labelCross"]))
     if REND["labelCross"]:
         gfail.append("ラベルbbox交差 %d件" % REND["labelCross"])
+    # N4 は「ラベルを全部隠せば通る」盲点があるので、可視数の下限を全体側で見る
+    if REND["labelsVisible"] < 40:
+        gfail.append("デフォルトのラベル可視が%d件 (40件未満は情報が落ちすぎ)" % REND["labelsVisible"])
+    if wv and wv < 60:
+        gfail.append("歩きズームでもラベルが%d件しか出ない (60件必要)" % wv)
     P("  JSエラー: %d" % REND["jsErrors"])
     if REND["jsErrors"]:
         gfail.append("JSエラー %d件" % REND["jsErrors"])
@@ -362,7 +426,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N6 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N10 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
