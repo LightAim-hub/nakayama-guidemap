@@ -8,13 +8,14 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N17 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N19 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
   N11..N15 概観ズーム (開いた瞬間の画面) での見やすさ  ← 2026-07-30 追加
   N16      座標の出典 (src) の書き換え検出              ← 2026-07-30 追加
   N17      固定UI (お店一覧/ズーム) が店名を覆わない    ← 2026-07-30 追加
+  N18-N19  こどもの声バッジ / 信号アイコン               ← 2026-07-30 追加
 
 usage:
   python tools/v2-build/gate.py [--url http://127.0.0.1:PORT/index.html] [--json out.json]
@@ -280,8 +281,44 @@ if not A.no_browser:
                                   pct: Math.round(100 * ox * oy / ((r2 - l) * (bo - tp)))});
                 }
               }
+              // こどもの声バッジ / 信号アイコン。★と同じく「地図単位固定で大きすぎる」
+              // 問題を持ちうるのに見ていなかった (2026-07-30 9周目で発覚)。
+              const starList = [...document.querySelectorAll('g.hit')].map(h => {
+                const st = h.querySelector('.star');
+                if (!st) return null;
+                const b = st.getBoundingClientRect();
+                return {n: GEO.shops[+h.dataset.i].name,
+                        cx: b.left + b.width / 2, cy: b.top + b.height / 2, b: b};
+              }).filter(Boolean);
+              const badges = [...document.querySelectorAll('g.voice-badge')].map(g => {
+                const b = g.getBoundingClientRect();
+                const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+                const own = g.closest('g.hit');
+                const on = own ? GEO.shops[+own.dataset.i].name : null;
+                let bn = null, bd = 1e9, od = -1;
+                for (const s of starList) {
+                  const d = Math.hypot(s.cx - cx, s.cy - cy);
+                  if (d < bd) { bd = d; bn = s.n; }
+                  if (s.n === on) od = d;
+                }
+                return {own: on, nearest: bn, nearestPx: +bd.toFixed(1),
+                        ownPx: +od.toFixed(1), wPx: +b.width.toFixed(1)};
+              });
+              const ovl = (a, b) => (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1)
+                                 && (Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1);
+              const sigBoxes = [...svg.querySelectorAll('rect')]
+                .filter(r => r.getAttribute('rx') === '5.5' && r.getAttribute('width') === '22')
+                .map(r => r.parentNode.getBoundingClientRect());
+              const sigHit = [];
+              for (const g of sigBoxes) {
+                for (const s of starList) if (ovl(g, s.b)) sigHit.push({n: s.n, kind: '★'});
+                for (const t of vis) if (ovl(g, t.getBoundingClientRect()))
+                  sigHit.push({n: t.textContent.trim(), kind: 'ラベル'});
+              }
               return {pxPerMeter:+s0.toFixed(4), rows, roadPx, labelCross:cross,
-                      labelsVisible:vis.length, uiCovered:covered, jsErrors:0};
+                      labelsVisible:vis.length, uiCovered:covered,
+                      badges, sigW: sigBoxes.length ? +sigBoxes[0].width.toFixed(1) : 0,
+                      sigCount: sigBoxes.length, sigHit, jsErrors:0};
             }"""
             with sync_playwright() as pw:
                 br = pw.chromium.launch()
@@ -329,7 +366,7 @@ else:
 P("")
 
 fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
-                         "N11", "N12", "N13", "N14", "N15", "N16", "N17")}
+                         "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -578,6 +615,24 @@ if REND:
             fails["N17"].append("%s のラベルが固定UIに%d%%覆われている (既定ズーム)"
                                 % (c["name"], c["pct"]))
 
+    # N18 こどもの声バッジが自分の★に一意に結びつくか。
+    # 2026-07-30: 11個中4個が他店の★のほうが近く、声の持ち主を取り違える。
+    # バッジは★から約17.5m (地図単位固定) の位置に出るが、隣の店は8.4mまで近づける。
+    # N19 信号アイコンと★/ラベルが重なっていないか。
+    # 描画順は gRoads(信号) → gShops(★/ラベル) なので、隠れるのは信号のほう。
+    # 店は読めるが、N6 で「歩く時の目印」として使う信号が読めなくなる。
+    # 信号は22m (道路13mの1.68倍) の地図単位固定で、カットショップ NOBU と重なっていた。
+    for zk, zn in (("", "既定ズーム"), ("walk", "歩きズーム")):
+        D = REND if not zk else REND.get(zk)
+        if not D:
+            continue
+        for b in (D.get("badges") or []):
+            if b.get("own") and b.get("nearest") and b["nearest"] != b["own"]:
+                fails["N18"].append("%s の声バッジが %s の★のほうに近い (自分%.0fpx / 相手%.0fpx) (%s)"
+                                    % (b["own"], b["nearest"], b["ownPx"], b["nearestPx"], zn))
+        for h in (D.get("sigHit") or []):
+            fails["N19"].append("信号アイコンが %s の%sを覆っている (%s)" % (h["n"], h["kind"], zn))
+
 # ---- N16 座標の出典 (src) が書き換えられていない ----
 # src は N7 の上限を決めるキーなので、書き換えれば閾値を緩めたのと同じになる。
 # 2026-07-30、同一住所の分離のために10店が gsi_addr → approx に変わり、
@@ -600,9 +655,11 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N13": "ラベルが他店の★を内包しない", "N14": "ラベルの縁から自分の★が明確に最近傍",
        "N15": "★が道路の帯の上に乗っていない",
        "N16": "座標の出典(src)が書き換えられていない",
-       "N17": "固定UIが店名を覆っていない"}
+       "N17": "固定UIが店名を覆っていない",
+       "N18": "こどもの声バッジが自分の★に一意に結びつく",
+       "N19": "信号アイコンが★やラベルと重なっていない"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
-          "N11", "N12", "N13", "N14", "N15", "N16", "N17"):
+          "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -652,7 +709,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N17 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N19 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
