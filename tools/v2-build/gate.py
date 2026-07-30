@@ -580,22 +580,18 @@ if not A.no_browser:
                     }
                   }
                   // N29 文字が入れ物からはみ出していないか (検索の説明文など)。
+                  // 幅の引き算で見積もると外す。入力欄の中の文字領域は
+                  // 「幅 - 余白 - 枠」より狭く、2026-07-31 は見積もりで「収まっている」と
+                  // 判定した所が実際には15px切れていた。実際に文字を入れて溢れを測る。
                   const clip = [];
                   for (const e of document.querySelectorAll('input')) {
                     if (!vis(e) || !e.placeholder) continue;
-                    const cs = getComputedStyle(e);
-                    const probe = document.createElement('span');
-                    probe.style.cssText =
-                      'position:absolute;visibility:hidden;white-space:pre;font:' + cs.font;
-                    probe.textContent = e.placeholder;
-                    document.body.appendChild(probe);
-                    const need = probe.getBoundingClientRect().width;
-                    probe.remove();
-                    const has = e.getBoundingClientRect().width
-                              - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-                    if (need > has + 1)
-                      clip.push({state, sel:sel(e), txt:e.placeholder,
-                                 need:Math.round(need), has:Math.round(has)});
+                    const before = e.value;
+                    e.value = e.placeholder;                 // 入力イベントは発生しない
+                    const need = e.scrollWidth, has = e.clientWidth;
+                    e.value = before;                        // 数字は戻す前に取る
+                    if (need - has > 0)
+                      clip.push({state, sel:sel(e), txt:e.placeholder, need, has});
                   }
                   return {texts, taps, wrap, clip};
                 }"""
