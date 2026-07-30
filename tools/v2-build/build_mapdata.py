@@ -29,6 +29,17 @@ else:
     OUT_HTMLS = [P('v2_index.html')]
     TEMPLATE_HTML = P('preview.template.html' if ARGS.preview else 'template.html')
 
+# 通常ビルドは、現在の本番mapdataを位置修正前の凍結ベースとして使う。
+# preview側で増えた道路・信号・meta・店舗付帯情報を本番へ混ぜないための境界。
+PRODUCTION_BASELINE = None
+if not ARGS.preview:
+    with open(P('mapdata.json'), encoding='utf-8') as f:
+        PRODUCTION_BASELINE = json.load(f)
+    if (len(PRODUCTION_BASELINE.get('shops', [])) != 60 or
+            len(PRODUCTION_BASELINE.get('roads', [])) != 62 or
+            len(PRODUCTION_BASELINE.get('signals', [])) != 13):
+        raise SystemExit('production baseline guard failed: expected shops=60 roads=62 signals=13')
+
 LAT0, LON0 = 38.2935, 140.8435
 COSF = math.cos(math.radians(LAT0))
 ROT = math.radians(46.4)  # バス通り(方位133.6°)を画面下向きにする時計回り回転
@@ -698,8 +709,9 @@ road_quality = {
 for road in roads:
     for key in ('_start_source', '_end_source', '_start_boundary', '_end_boundary'):
         road.pop(key)
-print('roads by class:', road_counts)
-print('road endpoint quality (final GEO):', road_quality)
+if ARGS.preview:
+    print('roads by class:', road_counts)
+    print('road endpoint quality (final GEO):', road_quality)
 
 # 方面表記 (道路の縁到達点から)
 def edge_exit(road_name, pick):
@@ -770,10 +782,122 @@ for _, sx, sy in sorted(_signal_elements):
     signals.append([round(sx, 1), round(sy, 1)])
 meta['signal_counts'] = {'raw_canvas': len(_signal_elements), 'displayed': len(signals)}
 assert meta['signal_counts']['raw_canvas'] == meta['signal_counts']['displayed']
-print('signals raw canvas/displayed:', len(_signal_elements), '/', len(signals))
+if ARGS.preview:
+    print('signals raw canvas/displayed:', len(_signal_elements), '/', len(signals))
 
 # 旧来の密集ゾーン展開は廃止。星は固定し、ラベルだけをブラウザ側で整理する。
 zones = []
+
+if not ARGS.preview:
+    # Task H: 本番は既存mapdataの店舗・地物を正本にし、表示座標だけを真座標へ戻す。
+    # tx/tyが無い店は既存x/yが真座標。EndRoll/cake NAOだけ確定済みの上下へ正規化する。
+    generated_names = {sh['name'] for sh in shops}
+    baseline_names = {sh['name'] for sh in PRODUCTION_BASELINE['shops']}
+    if generated_names != baseline_names:
+        raise SystemExit('production shop guard failed: generated/baseline names differ')
+    shops = json.loads(json.dumps(PRODUCTION_BASELINE['shops'], ensure_ascii=False))
+    for sh in shops:
+        sh['x'] = sh.get('tx', sh['x'])
+        sh['y'] = sh.get('ty', sh['y'])
+
+    endroll = next(sh for sh in shops if sh['name'] == 'BAKERY&BAKE EndRoll')
+    cake_nao = next(sh for sh in shops if sh['name'] == 'cake NAO')
+    pair_positions = sorted(
+        [(sh.get('tx', sh['x']), sh.get('ty', sh['y'])) for sh in (endroll, cake_nao)],
+        key=lambda p: (p[1], p[0]),
+    )
+    for sh, (px, py) in ((endroll, pair_positions[0]), (cake_nao, pair_positions[1])):
+        sh['x'], sh['y'], sh['tx'], sh['ty'] = px, py, px, py
+
+    same_address_pairs = [
+        ('BAKERY&BAKE EndRoll', 'cake NAO'),
+        ('佐藤次夫税理士事務所', 'Double Egg5丁目'),
+        ('サトー商会', 'みなとや'),
+        ('デイサービス はるの風', '遊季ガーデン'),
+        ('中杜建設', 'ん daccha とこや'),
+    ]
+    by_name = {sh['name']: sh for sh in shops}
+    for upper_name, lower_name in same_address_pairs:
+        upper, lower = by_name[upper_name], by_name[lower_name]
+        separation = math.hypot(lower['x'] - upper['x'], lower['y'] - upper['y'])
+        if not upper['y'] < lower['y'] or not 13.8 <= separation <= 14.2:
+            raise SystemExit('same-address pair guard failed: %s / %s' % (upper_name, lower_name))
+
+    # Task Hで許可された8m以内の微小変位。tx/tyは真座標のまま保持し、
+    # 15m未満の密集点だけを東西・南北順を壊さずに離す。
+    marker_offsets = {
+        'BURB usedclothing': (0.0, -0.3),
+        'レストラン KAYA': (0.0, 0.3),
+        'おたからや': (-8.0, 0.0),
+        '佐藤次夫税理士事務所': (7.0, -0.6),
+        'Double Egg5丁目': (0.0, 0.6),
+        '中山不動産': (8.0, 0.0),
+        '中杜建設': (-4.0, -0.6),
+        '花祭壇': (-8.0, 0.0),
+        'ん daccha とこや': (-5.0, 0.6),
+        'ダイニングバー 祭': (8.0, 0.0),
+        '中山鍼灸接骨院': (0.0, -0.8),
+        'フラワー中山': (0.0, 0.8),
+        'カットショップ NOBU': (0.0, -0.5),
+        '梅原表具店': (0.0, 0.5),
+        'BAKERY&BAKE EndRoll': (0.0, -0.6),
+        'cake NAO': (0.0, 0.6),
+        '認定こども園 TOBINOKO': (3.0, 0.0),
+        '商店街モニュメント': (-3.0, 0.0),
+        'サトー商会': (0.0, -0.6),
+        'みなとや': (0.0, 0.6),
+        'デイサービス はるの風': (0.0, -0.6),
+        '遊季ガーデン': (0.0, 0.6),
+    }
+    true_positions = {sh['name']: (sh['x'], sh['y']) for sh in shops}
+    for name, (dx, dy) in marker_offsets.items():
+        sh = by_name[name]
+        if math.hypot(dx, dy) > 8.0 + 1e-9:
+            raise SystemExit('marker offset exceeds 8m: %s' % name)
+        sh['x'], sh['y'] = round(sh['x'] + dx, 1), round(sh['y'] + dy, 1)
+
+    def production_bus_x_at(y):
+        points = PRODUCTION_BASELINE['busway'][1]
+        nearest = None
+        for (x1, y1), (x2, y2) in zip(points, points[1:]):
+            lo, hi = min(y1, y2), max(y1, y2)
+            if lo <= y <= hi:
+                t = 0.0 if y2 == y1 else (y - y1) / (y2 - y1)
+                return x1 + t * (x2 - x1)
+            for x, py in ((x1, y1), (x2, y2)):
+                candidate = (abs(y - py), x)
+                if nearest is None or candidate < nearest:
+                    nearest = candidate
+        return nearest[1]
+
+    for i, sh in enumerate(shops):
+        tx, ty = true_positions[sh['name']]
+        if ((tx >= production_bus_x_at(ty)) !=
+                (sh['x'] >= production_bus_x_at(sh['y']))):
+            raise SystemExit('marker offset crossed busway: %s' % sh['name'])
+        for other in shops[i + 1:]:
+            otx, oty = true_positions[other['name']]
+            if (ty - oty) * (sh['y'] - other['y']) < 0:
+                raise SystemExit('marker offset inverted north/south order: %s / %s' %
+                                 (sh['name'], other['name']))
+            if math.hypot(sh['x'] - other['x'], sh['y'] - other['y']) < 15.0:
+                raise SystemExit('marker offset left a pair under 15m: %s / %s' %
+                                 (sh['name'], other['name']))
+
+    # 店舗以外の本番地物はbyte由来の凍結データを維持する。
+    meta = json.loads(json.dumps(PRODUCTION_BASELINE['meta'], ensure_ascii=False))
+    roads = json.loads(json.dumps(PRODUCTION_BASELINE['roads'], ensure_ascii=False))
+    rivers = json.loads(json.dumps(PRODUCTION_BASELINE['rivers'], ensure_ascii=False))
+    parks = json.loads(json.dumps(PRODUCTION_BASELINE['parks'], ensure_ascii=False))
+    waters = json.loads(json.dumps(PRODUCTION_BASELINE['waters'], ensure_ascii=False))
+    sando = json.loads(json.dumps(PRODUCTION_BASELINE['sando'], ensure_ascii=False))
+    busway = json.loads(json.dumps(PRODUCTION_BASELINE['busway'], ensure_ascii=False))
+    exits = json.loads(json.dumps(PRODUCTION_BASELINE['exits'], ensure_ascii=False))
+    signals = json.loads(json.dumps(PRODUCTION_BASELINE['signals'], ensure_ascii=False))
+    if len(shops) != 60 or len(roads) != 62 or len(signals) != 13:
+        raise SystemExit('production output guard failed: expected shops=60 roads=62 signals=13')
+    print('production frozen geometry: shops=60 roads=62 signals=13')
+
 print('zones:', zones)
 
 data = {'meta': meta, 'shops': shops, 'roads': roads, 'rivers': rivers,

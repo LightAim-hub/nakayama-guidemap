@@ -516,6 +516,8 @@ function busXAtY(y){
 function distToBus(s){ return Math.abs(s.x - busXAtY(s.y)); }
 
 const FS = 16.5, LABEL_GAP = 20;
+const LABEL_TOP = -13, LABEL_BOTTOM = 10, LABEL_EXTRA_BOTTOM = 27, LABEL_CLEARANCE = 4;
+const LABEL_MIN_Y = -PAD + 14, LABEL_MAX_Y = H + PAD - 14;
 function estW(name){
   let w = 0;
   for (const ch of name) w += ch.charCodeAt(0) < 256 ? 0.56 : 1.02;
@@ -527,101 +529,83 @@ function preferredLabelSide(s){
   if (h.anchor === 'end') return -1;
   return s.x >= busXAtY(s.y) ? 1 : -1;
 }
-function labelCandidate(s, side){
-  const w = estW(s.name);
-  const lx = s.x + side * LABEL_GAP;
-  const x0 = side > 0 ? lx : lx - w;
-  return {s, side, lx, x0, x1:x0+w, y0:s.y-FS*.62, y1:s.y+FS*.62};
+function labelPriority(s){
+  if ((s.voices||[]).length) return 3;
+  if (s.url && s.url !== '#') return 2;
+  return 1;
 }
-function resolveHorizontalOverlaps(boxes){
-  for (let pass=0; pass<12; pass++){
-    let moved = false;
-    for (let a=0; a<boxes.length; a++) for (let b=a+1; b<boxes.length; b++){
-      const A=boxes[a], B=boxes[b];
-      const ox = Math.min(A.x1, B.x1) - Math.max(A.x0, B.x0);
-      const oy = Math.min(A.y1, B.y1) - Math.max(A.y0, B.y0);
-      if (ox <= 0 || oy <= 0) continue;
-      const delta = ox + 8;
-      if (A.side === B.side){
-        const target = A.side > 0
-          ? (A.s.x >= B.s.x ? A : B)
-          : (A.s.x <= B.s.x ? A : B);
-        const shift = target.side * delta;
-        target.lx += shift; target.x0 += shift; target.x1 += shift;
-      } else {
-        const shift = delta / 2;
-        [A, B].forEach(box => {
-          box.lx += box.side * shift;
-          box.x0 += box.side * shift;
-          box.x1 += box.side * shift;
-        });
-      }
-      moved = true;
-    }
-    boxes.forEach(box => {
-      GEO.shops.forEach(other => {
-        if (other === box.s) return;
-        const hitsX = other.x > box.x0-10 && other.x < box.x1+10;
-        const hitsY = other.y > box.y0-10 && other.y < box.y1+10;
-        if (!hitsX || !hitsY) return;
-        const shift = box.side > 0
-          ? Math.max(0, other.x + 12 - box.x0)
-          : -Math.max(0, box.x1 - (other.x - 12));
-        if (!shift) return;
-        box.lx += shift; box.x0 += shift; box.x1 += shift;
-        moved = true;
-      });
-    });
-    if (!moved) break;
+function labelPlacement(s, side){
+  const w = estW(s.name);
+  const minX = -PAD + 12, maxX = W + PAD - 12;
+  let lx = s.x + side * LABEL_GAP;
+  let x0 = side > 0 ? lx : lx - w;
+  let x1 = x0 + w;
+  if (x0 < minX){ lx += minX - x0; x1 += minX - x0; x0 = minX; }
+  if (x1 > maxX){ lx -= x1 - maxX; x0 -= x1 - maxX; x1 = maxX; }
+  return {lx, x0, x1};
+}
+function labelExtents(s){
+  return {top:LABEL_TOP, bottom:s.clamped && s.far_m > 0 ? LABEL_EXTRA_BOTTOM : LABEL_BOTTOM};
+}
+function labelCapacity(){
+  return Math.floor((LABEL_MAX_Y - LABEL_MIN_Y) / (FS * 1.6)) + 1;
+}
+function solveOrderedLabelYs(items){
+  const sorted = items.slice().sort((a,b) => a.s.y-b.s.y || a.s.x-b.s.x || a.idx-b.idx);
+  if (!sorted.length) return sorted;
+  const offsets = [0];
+  for (let i=1; i<sorted.length; i++){
+    const prev = labelExtents(sorted[i-1].s), cur = labelExtents(sorted[i].s);
+    offsets[i] = offsets[i-1] + prev.bottom - cur.top + LABEL_CLEARANCE;
   }
+  const blocks = [];
+  sorted.forEach((item, i) => {
+    const value = item.s.y - offsets[i];
+    blocks.push({start:i, end:i, weight:1, sum:value, mean:value});
+    while (blocks.length > 1 && blocks[blocks.length-2].mean > blocks[blocks.length-1].mean){
+      const right = blocks.pop(), left = blocks.pop();
+      const merged = {start:left.start, end:right.end, weight:left.weight+right.weight, sum:left.sum+right.sum};
+      merged.mean = merged.sum / merged.weight;
+      blocks.push(merged);
+    }
+  });
+  const solved = new Array(sorted.length);
+  blocks.forEach(block => {
+    for (let i=block.start; i<=block.end; i++) solved[i] = block.mean + offsets[i];
+  });
+  const firstExtent = labelExtents(sorted[0].s), lastExtent = labelExtents(sorted[sorted.length-1].s);
+  const lowShift = LABEL_MIN_Y - (solved[0] + firstExtent.top);
+  const highShift = LABEL_MAX_Y - (solved[solved.length-1] + lastExtent.bottom);
+  if (lowShift > highShift) throw new Error('label separation constraints do not fit the map');
+  const shift = Math.max(lowShift, Math.min(highShift, 0));
+  sorted.forEach((item, i) => { item.ly = solved[i] + shift; });
+  return sorted;
 }
 function layoutLabels(){
-  const parent = GEO.shops.map((_, i) => i);
-  const find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
-  const unite = (a, b) => { a=find(a); b=find(b); if (a!==b) parent[a]=b; };
-  for (let i=0; i<GEO.shops.length; i++) for (let j=i+1; j<GEO.shops.length; j++){
-    if (Math.abs(GEO.shops[i].y - GEO.shops[j].y) < FS * 1.24) unite(i, j);
-  }
-  const groups = new Map();
-  GEO.shops.forEach((_, i) => {
-    const root = find(i);
-    if (!groups.has(root)) groups.set(root, []);
-    groups.get(root).push(i);
-  });
-  groups.forEach(indices => {
-    let best = null;
-    for (let mask=0; mask<(1<<indices.length); mask++){
-      const boxes = indices.map((idx, bit) => labelCandidate(GEO.shops[idx], (mask & (1<<bit)) ? 1 : -1));
-      resolveHorizontalOverlaps(boxes);
-      let score = 0;
-      boxes.forEach((box, bit) => {
-        if (box.x0 < -PAD+12) score += (-PAD+12-box.x0) * 10000;
-        if (box.x1 > W+PAD-12) score += (box.x1-(W+PAD-12)) * 10000;
-        if (box.side !== preferredLabelSide(GEO.shops[indices[bit]])) score += 1;
-        score += Math.max(0, Math.abs(box.lx-box.s.x)-LABEL_GAP) * .1;
-        GEO.shops.forEach((other, oi) => {
-          if (oi === indices[bit]) return;
-          if (other.x > box.x0-10 && other.x < box.x1+10 && other.y > box.y0-10 && other.y < box.y1+10) score += 1000;
-        });
-      });
-      for (let a=0; a<boxes.length; a++) for (let b=a+1; b<boxes.length; b++){
-        const ox = Math.min(boxes[a].x1, boxes[b].x1) - Math.max(boxes[a].x0, boxes[b].x0);
-        const oy = Math.min(boxes[a].y1, boxes[b].y1) - Math.max(boxes[a].y0, boxes[b].y0);
-        if (ox > 0 && oy > 0) score += 100000 + ox * oy;
-      }
-      if (!best || score < best.score) best = {score, boxes};
-    }
-    indices.forEach((idx, i) => {
-      const s = GEO.shops[idx], box = best.boxes[i];
-      s.anchor = box.side > 0 ? 'start' : 'end';
-      s.lx = box.lx;
-      s.ly = s.y;
-    });
+  const all = GEO.shops.map((s, idx) => ({s, idx}));
+  const ranked = all.slice().sort((a,b) => labelPriority(b.s)-labelPriority(a.s) || a.s.y-b.s.y || a.idx-b.idx);
+  const keep = new Set(ranked.slice(0, labelCapacity()).map(item => item.idx));
+  all.forEach(item => { item.s.labelVisible = keep.has(item.idx); item.s.labelLeader = false; });
+  solveOrderedLabelYs(all.filter(item => keep.has(item.idx))).forEach(item => {
+    const s = item.s, side = preferredLabelSide(s), placed = labelPlacement(s, side);
+    s.anchor = side > 0 ? 'start' : 'end';
+    s.lx = placed.lx;
+    s.ly = item.ly;
+    s.labelLeader = Math.hypot(s.lx-s.x, s.ly-s.y) > 34;
   });
 }
 
 let selectedIndex = -1;
-function starSize(s){ return s.name.indexOf('公園')>=0 || s.cat==='place' ? 1.15 : 1; }
+function nearestStarDistance(s){
+  let nearest = Infinity;
+  GEO.shops.forEach(other => { if (other !== s) nearest = Math.min(nearest, Math.hypot(s.x-other.x, s.y-other.y)); });
+  return nearest;
+}
+function starSize(s){
+  const base = s.name.indexOf('公園')>=0 || s.cat==='place' ? 1.15 : 1;
+  const noOverlap = (nearestStarDistance(s) - 1) / 20;
+  return Math.max(.12, Math.min(base, noOverlap));
+}
 function isPrimaryLabel(s){
   return s.cat === 'place' || /郵便局|中学校|小学校|市民センター|不動尊|ドライブスクール|ヨークベニマル/.test(s.name);
 }
@@ -648,6 +632,12 @@ function drawShops(){
       const ex = s.x + 30*Math.cos(rad), ey = s.y - 30*Math.sin(rad);
       el('path', {d:'M'+s.x+','+s.y+' L'+ex+','+ey, class:'faraway '+(primary?'primary':'detail'), 'marker-end':''}, gLead);
       el('path', {d:'M'+ex+','+ey+' l'+(-7*Math.cos(rad-0.5))+','+(7*Math.sin(rad-0.5))+' M'+ex+','+ey+' l'+(-7*Math.cos(rad+0.5))+','+(7*Math.sin(rad+0.5)), class:'faraway '+(primary?'primary':'detail')}, gLead);
+    }
+    if (s.labelVisible && s.labelLeader){
+      const dx = s.lx-s.x, dy = s.ly-s.y, dist = Math.hypot(dx,dy) || 1;
+      const sx = s.x + dx*Math.min(10/dist,.4), sy = s.y + dy*Math.min(10/dist,.4);
+      const ex = s.lx - dx*Math.min(5/dist,.25), ey = s.ly - dy*Math.min(5/dist,.25);
+      el('path', {d:'M'+sx+','+sy+' L'+ex+','+ey, class:'faraway label-leader'}, gLead);
     }
     const hasVoices = (s.voices||[]).length > 0;
     const g = el('g', {class:'hit'+(idx===selectedIndex?' selected':''), tabindex:0, role:'button',
@@ -676,13 +666,15 @@ function drawShops(){
       const c = {'osm:exact':'#2e9e44','osm:partial':'#d1a520','gsi_addr':'#2e6fd1','approx':'#d13030'}[s.src]||'#888';
       el('circle', {cx:s.x, cy:s.y, r:14, fill:'none', stroke:c, 'stroke-width':2, 'stroke-dasharray':'3 3'}, g);
     }
-    const t = el('text', {x:s.lx, y:s.ly+FS*0.35, class:'shoplabel '+(primary?'primary b':'detail'),
-      'font-size':FS, 'text-anchor':s.anchor}, g);
-    t.textContent = s.name;
-    if (s.clamped && s.far_m > 0){
-      const ft = el('text', {x:s.lx, y:s.ly+FS*0.35+15, class:'shoplabel '+(primary?'primary':'detail'), 'font-size':10.5,
-        'text-anchor':s.anchor, opacity:.8}, g);
-      ft.textContent = '実際は約'+(s.far_m>=1000? (s.far_m/1000).toFixed(1)+'km':(s.far_m+'m'))+'先';
+    if (s.labelVisible){
+      const t = el('text', {x:s.lx, y:s.ly+FS*0.35, class:'shoplabel '+(primary?'primary b':'detail'),
+        'font-size':FS, 'text-anchor':s.anchor}, g);
+      t.textContent = s.name;
+      if (s.clamped && s.far_m > 0){
+        const ft = el('text', {x:s.lx, y:s.ly+FS*0.35+15, class:'shoplabel '+(primary?'primary':'detail'), 'font-size':10.5,
+          'text-anchor':s.anchor, opacity:.8}, g);
+        ft.textContent = '実際は約'+(s.far_m>=1000? (s.far_m/1000).toFixed(1)+'km':(s.far_m+'m'))+'先';
+      }
     }
   });
   applyFilter();
