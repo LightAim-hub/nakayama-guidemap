@@ -8,12 +8,13 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N16 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N17 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
   N11..N15 概観ズーム (開いた瞬間の画面) での見やすさ  ← 2026-07-30 追加
   N16      座標の出典 (src) の書き換え検出              ← 2026-07-30 追加
+  N17      固定UI (お店一覧/ズーム) が店名を覆わない    ← 2026-07-30 追加
 
 usage:
   python tools/v2-build/gate.py [--url http://127.0.0.1:PORT/index.html] [--json out.json]
@@ -254,8 +255,33 @@ if not A.no_browser:
                 const oy = Math.min(bx[i].bottom,bx[j].bottom)-Math.max(bx[i].top,bx[j].top);
                 if (ox>0.5 && oy>0.5) cross++;
               }
+              // 固定UI (position:fixed) が可視ラベルを覆っていないか。
+              // 表示域の外に出ているぶんはクリップされて見えないだけなので除く
+              // (パン可能な地図では端で切れるのは正常)。
+              const vpr = document.getElementById('viewport').getBoundingClientRect();
+              const fx = ['#listbtn', '.zoomctl', '#editbar', '#srcinfo']
+                .map(q => document.querySelector(q))
+                .filter(e => e && getComputedStyle(e).position === 'fixed'
+                               && getComputedStyle(e).display !== 'none')
+                .map(e => e.getBoundingClientRect());
+              const covered = [];
+              for (const t of document.querySelectorAll('text.shoplabel')) {
+                if (getComputedStyle(t).display === 'none') continue;
+                const b = t.getBoundingClientRect();
+                if (b.width < 1) continue;
+                const l = Math.max(b.left, vpr.left),  r2 = Math.min(b.right, vpr.right);
+                const tp = Math.max(b.top, vpr.top),   bo = Math.min(b.bottom, vpr.bottom);
+                if (r2 <= l || bo <= tp) continue;
+                for (const f of fx) {
+                  const ox = Math.min(r2, f.right) - Math.max(l, f.left);
+                  const oy = Math.min(bo, f.bottom) - Math.max(tp, f.top);
+                  if (ox > 1 && oy > 1)
+                    covered.push({name: t.textContent.trim(),
+                                  pct: Math.round(100 * ox * oy / ((r2 - l) * (bo - tp)))});
+                }
+              }
               return {pxPerMeter:+s0.toFixed(4), rows, roadPx, labelCross:cross,
-                      labelsVisible:vis.length, jsErrors:0};
+                      labelsVisible:vis.length, uiCovered:covered, jsErrors:0};
             }"""
             with sync_playwright() as pw:
                 br = pw.chromium.launch()
@@ -303,7 +329,7 @@ else:
 P("")
 
 fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
-                         "N11", "N12", "N13", "N14", "N15", "N16")}
+                         "N11", "N12", "N13", "N14", "N15", "N16", "N17")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -544,6 +570,13 @@ def _zoom_checks(D, zname, is_default):
 if REND:
     _zoom_checks(REND, "既定ズーム", True)
     _zoom_checks(REND.get("walk"), "歩きズーム", False)
+    # N17 固定UI (お店一覧ボタン / ズーム操作) が店名を覆っていないか。
+    # 2026-07-30: 西原歯科医院 のラベルが「お店一覧」に36%覆われていた。
+    # 表示域の端で切れるぶんは正常なので除いてある (パンで届く)。
+    for c in (REND.get("uiCovered") or []):
+        if c["pct"] >= 10:
+            fails["N17"].append("%s のラベルが固定UIに%d%%覆われている (既定ズーム)"
+                                % (c["name"], c["pct"]))
 
 # ---- N16 座標の出典 (src) が書き換えられていない ----
 # src は N7 の上限を決めるキーなので、書き換えれば閾値を緩めたのと同じになる。
@@ -566,9 +599,10 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N11": "既定ズームで通りが通りとして読める", "N12": "既定ズームで★が通りを覆わない",
        "N13": "ラベルが他店の★を内包しない", "N14": "ラベルの縁から自分の★が明確に最近傍",
        "N15": "★が道路の帯の上に乗っていない",
-       "N16": "座標の出典(src)が書き換えられていない"}
+       "N16": "座標の出典(src)が書き換えられていない",
+       "N17": "固定UIが店名を覆っていない"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
-          "N11", "N12", "N13", "N14", "N15", "N16"):
+          "N11", "N12", "N13", "N14", "N15", "N16", "N17"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -618,7 +652,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N16 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N17 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
