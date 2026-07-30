@@ -1,0 +1,379 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""なかやまマップ 単一合格ゲート — 「地図を見ながら歩いて、正しくその店に行けるか」
+
+ボスの合格定義 (2026-07-30):
+  「使いやすいな見やすいなって思うのと同時に、この店舗はここの向かい側あってるね
+    みたいな、そのマップを見ながら歩いた時に正しくその店に行けるようにしないといけない」
+
+= 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
+
+店ごとに N1..N6 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+1件でも落ちれば exit 1。
+
+usage:
+  python tools/v2-build/gate.py [--url http://127.0.0.1:PORT/index.html] [--json out.json]
+  (--url 省略時は index.html を file:// で開く)
+"""
+import argparse, io, json, math, os, re, socket, subprocess, sys, threading, time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
+
+ap = argparse.ArgumentParser()
+ap.add_argument("--url", default=None)
+ap.add_argument("--json", default=None)
+ap.add_argument("--target", default=os.path.join(ROOT, "index.html"))
+ap.add_argument("--no-browser", action="store_true")
+A = ap.parse_args()
+
+OUT = []
+def P(*a):
+    OUT.append(" ".join(str(x) for x in a))
+
+# 建物が無い敷地 (建物内判定の除外)。公園はポリゴンで別途判定する。
+OPEN_SITES = {"たきみち公園", "なかやまとびのこ公園", "中山山の神公園",
+              "中山小学校", "中山中学校", "中山ドライブスクール",
+              "中山鳥瀧不動尊（目の神様）", "商店街モニュメント"}
+
+# 歩きながら見るズーム。1m が画面2px = 通り1本が26px で見える倍率。
+WALK_PX_PER_M = 2.0
+MIN_STAR_PX = 6.0          # これ未満の★は見えない
+SETBACK = 2.0              # 道路の帯からこれだけ離れていること
+
+# ---------------- GEO ----------------
+src = io.open(A.target, encoding="utf-8").read()
+G = json.loads(re.search(r"const GEO = (\{.*?\});\s*\n", src, re.S).group(1).replace("<\\/", "</"))
+shops, roads, signals, parks = G["shops"], G["roads"], G["signals"], G["parks"]
+meta = G["meta"]
+SPINE = G["busway"][1]
+
+# 描画幅を生成物から読む (固定値を置かない)
+FILLW = {}
+for m in re.finditer(r"class:'(road-[a-z-]+)-f', 'stroke-width':([\d.]+)", src):
+    FILLW[m.group(1)] = float(m.group(2))
+SPINE_W = FILLW.get("road-main", 13.0)
+CLSMAP = {"minor": "road-minor", "mid": "road-mid", "major": "road-major",
+          "service": "road-service", "path": "road-path"}
+
+
+def road_w(r):
+    if r.get("guide_spine"):
+        return SPINE_W
+    return FILLW.get(CLSMAP.get(r["cls"], "road-mid"), 9.0)
+
+
+def seg_d(px, py, x1, y1, x2, y2):
+    dx, dy = x2 - x1, y2 - y1
+    L2 = dx * dx + dy * dy
+    t = 0.0 if L2 == 0 else max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / L2))
+    return math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
+
+
+def road_d(px, py, r):
+    return min(seg_d(px, py, a[0], a[1], b[0], b[1]) for a, b in zip(r["pts"], r["pts"][1:]))
+
+
+def spine_x(y):
+    best = None
+    for (x1, y1), (x2, y2) in zip(SPINE, SPINE[1:]):
+        lo, hi = min(y1, y2), max(y1, y2)
+        if lo <= y <= hi:
+            t = 0.0 if abs(y2 - y1) < 1e-9 else (y - y1) / (y2 - y1)
+            return x1 + t * (x2 - x1)
+        d = min(abs(y - lo), abs(y - hi))
+        if best is None or d < best[0]:
+            best = (d, x1 if abs(y - y1) < abs(y - y2) else x2)
+    return best[1]
+
+
+def TX(s): return s.get("tx", s["x"])
+def TY(s): return s.get("ty", s["y"])
+def side(x, y): return 1 if x >= spine_x(y) else -1
+
+
+def poly_inside(pl, x, y):
+    c = False
+    n = len(pl)
+    for i in range(n):
+        x1, y1 = pl[i]; x2, y2 = pl[(i + 1) % n]
+        if (y1 > y) != (y2 > y):
+            if x < x1 + (y - y1) / (y2 - y1) * (x2 - x1):
+                c = not c
+    return c
+
+
+# ---------------- 建物ポリゴン ----------------
+BLD = []
+bpath = os.path.join(HERE, "buildings_raw.json")
+if os.path.exists(bpath):
+    p = meta["proj"]
+    R = math.radians(p["rot_deg"]); CA, SA = math.cos(R), math.sin(R)
+    mnx, mny = meta["minx"], meta["miny"]
+
+    def proj(lat, lng):
+        mx = (lng - p["lon0"]) * p["cosf"] * 111320.0
+        my = (lat - p["lat0"]) * 111320.0
+        return mx * CA + my * SA - mnx, mx * SA - my * CA - mny
+
+    W, H = meta["W"], meta["H"]
+    for e in json.load(io.open(bpath, encoding="utf-8"))["elements"]:
+        g = e.get("geometry")
+        if not g:
+            continue
+        pts = [proj(q["lat"], q["lon"]) for q in g if q.get("lat") is not None]
+        if len(pts) < 3:
+            continue
+        xs = [q[0] for q in pts]; ys = [q[1] for q in pts]
+        if max(xs) < -60 or min(xs) > W + 60 or max(ys) < -60 or min(ys) > H + 60:
+            continue
+        BLD.append((min(xs), min(ys), max(xs), max(ys), pts))
+
+
+def in_building(x, y):
+    for x0, y0, x1, y1, pts in BLD:
+        if x0 - 1 <= x <= x1 + 1 and y0 - 1 <= y <= y1 + 1 and poly_inside(pts, x, y):
+            return True
+    return False
+
+
+# ---------------- 交差点 ----------------
+def _ix(p1, p2, p3, p4):
+    x1, y1 = p1; x2, y2 = p2; x3, y3 = p3; x4, y4 = p4
+    d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3)
+    if abs(d) < 1e-12:
+        return None
+    t = ((x3 - x1) * (y4 - y3) - (y3 - y1) * (x4 - x3)) / d
+    u = ((x3 - x1) * (y2 - y1) - (y3 - y1) * (x2 - x1)) / d
+    if -0.001 <= t <= 1.001 and -0.001 <= u <= 1.001:
+        return (x1 + t * (x2 - x1), y1 + t * (y2 - y1))
+    return None
+
+
+NODES = []
+for i in range(len(roads)):
+    si = list(zip(roads[i]["pts"], roads[i]["pts"][1:]))
+    for j in range(i + 1, len(roads)):
+        for a, b in si:
+            for c, e in zip(roads[j]["pts"], roads[j]["pts"][1:]):
+                q = _ix(a, b, c, e)
+                if q:
+                    NODES.append(q)
+XN = []
+for q in NODES:
+    if not any(math.hypot(q[0] - r[0], q[1] - r[1]) < 12 for r in XN):
+        XN.append(q)
+
+SIG_OK = []       # 交差点に立っている信号 (waypointとして使える)
+for sx, sy in signals:
+    d = min((math.hypot(sx - q[0], sy - q[1]) for q in XN), default=1e9)
+    SIG_OK.append(d <= 20)
+
+# ---------------- ブラウザ側の実測 ----------------
+REND = None
+if not A.no_browser:
+    url = A.url
+    srv = None
+    if not url:
+        s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
+        srv = subprocess.Popen([sys.executable, "-m", "http.server", str(port), "--bind", "127.0.0.1"],
+                               cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        url = "http://127.0.0.1:%d/index.html" % port
+        ok = False
+        for _ in range(30):
+            try:
+                import urllib.request
+                urllib.request.urlopen(url, timeout=1).read(1)
+                ok = True; break
+            except Exception:
+                time.sleep(1)
+        if not ok:
+            srv.terminate(); srv = None; url = None
+    if url:
+        try:
+            from playwright.sync_api import sync_playwright
+            JS = """(walkPxPerM) => {
+              const svg = document.getElementById('map');
+              const s0 = Math.hypot(svg.getScreenCTM().a, svg.getScreenCTM().b);
+              const rows = [...document.querySelectorAll('g.hit')].map(h => {
+                const i = +h.dataset.i, s = GEO.shops[i];
+                const st = h.querySelector('.star'), t = h.querySelector('text.shoplabel');
+                const bb = st ? st.getBBox() : null;
+                const m  = st ? st.getScreenCTM() : null;
+                const sc = m ? Math.hypot(m.a, m.b) : 0;
+                const tb = t ? t.getBBox() : null;
+                return {i, name: s.name,
+                        starPxNow:  bb ? +(bb.width * sc).toFixed(2) : 0,
+                        starMapM:   bb && sc ? +(bb.width * sc / s0).toFixed(2) : 0,
+                        labelShown: !!(t && getComputedStyle(t).display !== 'none' && +getComputedStyle(t).opacity > 0),
+                        lx: s.lx, ly: s.ly,
+                        labelMapW: tb ? +tb.width.toFixed(1) : 0};
+              });
+              // ラベルbbox交差
+              const vis = [...document.querySelectorAll('text.shoplabel')].filter(t =>
+                getComputedStyle(t).display !== 'none' && t.getBoundingClientRect().width > 1);
+              let cross = 0;
+              const bx = vis.map(t => t.getBoundingClientRect());
+              for (let i=0;i<bx.length;i++) for (let j=i+1;j<bx.length;j++){
+                const ox = Math.min(bx[i].right,bx[j].right)-Math.max(bx[i].left,bx[j].left);
+                const oy = Math.min(bx[i].bottom,bx[j].bottom)-Math.max(bx[i].top,bx[j].top);
+                if (ox>0.5 && oy>0.5) cross++;
+              }
+              return {pxPerMeter:+s0.toFixed(4), rows, labelCross:cross, labelsVisible:vis.length,
+                      jsErrors:0};
+            }"""
+            with sync_playwright() as pw:
+                br = pw.chromium.launch()
+                pg = br.new_page(viewport={"width": 390, "height": 844})
+                errs = []
+                pg.on("pageerror", lambda e: errs.append(str(e)))
+                pg.goto(url, wait_until="load")
+                pg.wait_for_timeout(1500)
+                REND = pg.evaluate(JS, WALK_PX_PER_M)
+                REND["jsErrors"] = len(errs)
+                # 歩きズーム(2px/m)での★サイズも測る
+                vb = "%f %f %f %f" % (400, 700, 390 / WALK_PX_PER_M, 844 / WALK_PX_PER_M)
+                pg.evaluate("v=>document.getElementById('map').setAttribute('viewBox',v)", vb)
+                pg.wait_for_timeout(500)
+                REND["walk"] = pg.evaluate(JS, WALK_PX_PER_M)
+                br.close()
+        except Exception as e:
+            P("!! ブラウザ実測に失敗: %s: %s" % (type(e).__name__, e))
+        if srv:
+            srv.terminate()
+
+byname = {r["name"]: r for r in (REND["rows"] if REND else [])}
+walkby = {r["name"]: r for r in (REND.get("walk", {}).get("rows", []) if REND else [])}
+
+# ---------------- 店ごとの判定 ----------------
+P("=" * 78)
+P("歩行者ゲート — 「地図を見ながら歩いて正しくその店に行けるか」")
+P("=" * 78)
+P("道路の塗り幅:", json.dumps({**FILLW, "spine": SPINE_W}, ensure_ascii=False))
+P("建物ポリゴン(canvas内): %d / 交差点: %d / 信号: %d (うち交差点上 %d)"
+  % (len(BLD), len(XN), len(signals), sum(SIG_OK)))
+if REND:
+    P("実測倍率: %.4f px/m (デフォルト) / 歩きズーム %.1f px/m を別測" % (REND["pxPerMeter"], WALK_PX_PER_M))
+else:
+    P("!! ブラウザ実測なし → N3/N4 の画面判定はスキップ (合格にはしない)")
+P("")
+
+fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6")}
+band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
+
+for s in shops:
+    nm, x, y = s["name"], s["x"], s["y"]
+
+    # N1 建物の中にいる (公園は自分のポリゴン内)
+    if nm not in OPEN_SITES:
+        if BLD and not in_building(x, y):
+            fails["N1"].append(nm)
+    else:
+        pk = next((p for p in parks if p["name"] == nm), None)
+        if pk and not poly_inside(pk["pts"], x, y):
+            fails["N1"].append(nm + "(公園ポリゴン外)")
+
+    # N2 道路の帯の内側にいない
+    for r in roads:
+        if road_d(x, y, r) < road_w(r) / 2.0 + SETBACK:
+            fails["N2"].append("%s ← %s (%.1fm)" % (nm, r.get("name") or "(無名 " + r["cls"] + ")", road_d(x, y, r)))
+            break
+
+    # N3 歩きズームで★の絵が道路の帯にかからない / 見える大きさである
+    w = walkby.get(nm)
+    if w:
+        rad = w["starMapM"] / 2.0
+        hit = next((r for r in roads if road_d(x, y, r) < road_w(r) / 2.0 + rad), None)
+        if hit:
+            fails["N3"].append("%s ★%.1fm が %s にかかる" % (nm, w["starMapM"], hit.get("name") or hit["cls"]))
+        if w["starPxNow"] < MIN_STAR_PX:
+            fails["N3"].append("%s ★が%.1fpx (最小%.0f)" % (nm, w["starPxNow"], MIN_STAR_PX))
+
+    # N4 ラベルが自分の★に一意に結びつく
+    b = byname.get(nm)
+    if b and b.get("labelShown") and b.get("lx") is not None:
+        dself = math.hypot(b["lx"] - x, b["ly"] - y)
+        dother = min((math.hypot(b["lx"] - o["x"], b["ly"] - o["y"]) for o in shops if o is not s), default=1e9)
+        if dother <= dself:
+            fails["N4"].append("%s (自分%.0fm / 他人%.0fm)" % (nm, dself, dother))
+
+    # N5 バス通り沿い: 東西が実座標と一致 + 向かいの店が反対側にいる
+    if s in band:
+        if side(x, y) != side(TX(s), TY(s)):
+            fails["N5"].append("%s 東西が反転" % nm)
+        opp = [o for o in band if side(o["x"], o["y"]) != side(x, y) and abs(o["y"] - y) < 40]
+        opp_true = [o for o in band if side(TX(o), TY(o)) != side(TX(s), TY(s)) and abs(TY(o) - TY(s)) < 40]
+        if opp_true and not opp:
+            fails["N5"].append("%s 真では向かいに店があるのに表示では無い" % nm)
+
+    # N6 最寄り信号との南北関係 + その信号が交差点にある
+    if s in band and signals:
+        k = min(range(len(signals)), key=lambda i: math.hypot(signals[i][0] - TX(s), signals[i][1] - TY(s)))
+        sx, sy = signals[k]
+        if abs(TY(s) - sy) >= 15 and (TY(s) - sy) * (y - sy) < 0:
+            fails["N6"].append("%s 信号との上下が逆" % nm)
+        if not SIG_OK[k]:
+            d = min((math.hypot(sx - q[0], sy - q[1]) for q in XN), default=1e9)
+            fails["N6"].append("%s の目印になる信号(%.0f,%.0f)が交差点にない(%.0fm)" % (nm, sx, sy, d))
+
+LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
+       "N3": "歩きズームで★が道路にかからず見える大きさ", "N4": "ラベルが自分の★に一意に結びつく",
+       "N5": "通りの東西と向かい合いが成立", "N6": "目印の信号が使える"}
+for k in ("N1", "N2", "N3", "N4", "N5", "N6"):
+    v = sorted(set(fails[k]))
+    P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
+    for t in v[:14]:
+        P("      " + t)
+    if len(v) > 14:
+        P("      ...他 %d件" % (len(v) - 14))
+
+# ---------------- 全体 ----------------
+P("")
+P("【全体】")
+gfail = []
+if REND:
+    P("  ★表示数: %d / 60" % len(REND["rows"]))
+    if len(REND["rows"]) != 60:
+        gfail.append("★が60件でない")
+    P("  ラベル可視 %d / bbox交差 %d" % (REND["labelsVisible"], REND["labelCross"]))
+    if REND["labelCross"]:
+        gfail.append("ラベルbbox交差 %d件" % REND["labelCross"])
+    P("  JSエラー: %d" % REND["jsErrors"])
+    if REND["jsErrors"]:
+        gfail.append("JSエラー %d件" % REND["jsErrors"])
+    mn = min((r["starPxNow"] for r in REND["rows"]), default=0)
+    P("  ★の画面サイズ (デフォルト): 最小 %.1fpx" % mn)
+    if mn < MIN_STAR_PX:
+        gfail.append("★が%.1fpx (最小%.0f)" % (mn, MIN_STAR_PX))
+    smap = sorted({r["starMapM"] for r in REND["rows"]})
+    wmap = sorted({r["starMapM"] for r in REND.get("walk", {}).get("rows", [])})
+    P("  ★の地図空間サイズ: デフォルト %s m / 歩きズーム %s m" % (smap[:3], wmap[:3]))
+    if wmap and wmap[-1] > 12.0:
+        gfail.append("歩きズームで★が%.1fm (実店舗の間口10m超・縮尺の外)" % wmap[-1])
+else:
+    gfail.append("ブラウザ実測なし")
+P("  信号が交差点に立っている: %d / %d" % (sum(SIG_OK), len(signals)))
+if sum(SIG_OK) != len(signals):
+    gfail.append("交差点にない信号 %d基" % (len(signals) - sum(SIG_OK)))
+
+nav_fail = set()
+for k in fails:
+    for t in fails[k]:
+        nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
+P("")
+P("=" * 78)
+P("歩ける店 (N1..N6 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
+total = sum(len(set(v)) for v in fails.values()) + len(gfail)
+P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
+P("=" * 78)
+
+if A.json:
+    io.open(A.json, "w", encoding="utf-8").write(json.dumps(
+        {"fails": {k: sorted(set(v)) for k, v in fails.items()}, "global": gfail,
+         "navigable": len(shops) - len(nav_fail), "shops": len(shops),
+         "verdict": "PASS" if total == 0 else "FAIL"}, ensure_ascii=False, indent=1))
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+print("\n".join(OUT))
+sys.exit(0 if total == 0 else 1)
