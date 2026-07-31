@@ -763,6 +763,46 @@ if not A.no_browser:
                     UI.append(u)
                     up.close()
                 REND["ui"] = UI
+                # N33 追加: 指で届く範囲とキーボードで届く範囲が一致しているか。
+                # お店一覧を開いた状態で、外のカテゴリ・検索は指では押せて一覧に効く
+                # (2026-07-31 実測: 60→11→1→60)。ところが Tab はパネルの中に
+                # 閉じ込められていて、キーボードだけの人はその機能に届かない。
+                kp = br.new_page(viewport={"width": 390, "height": 844})
+                kp.goto(url, wait_until="load")
+                kp.wait_for_timeout(1200)
+                kp.evaluate("()=>document.getElementById('listbtn').click()")
+                kp.wait_for_timeout(450)
+                LIVE_OUTSIDE = """() => {
+                  const out = [];
+                  for (const e of document.querySelectorAll('button,a[href],input,[role="button"]')) {
+                    if (e.closest('#listpanel') || e.closest('svg')) continue;
+                    if (e.hasAttribute('inert') || e.closest('[inert]')) continue;
+                    if (e.closest('[aria-hidden="true"]')) continue;
+                    const cs = getComputedStyle(e);
+                    if (cs.display === 'none' || cs.visibility === 'hidden'
+                        || cs.pointerEvents === 'none') continue;
+                    const r = e.getBoundingClientRect();
+                    if (r.width < 1 || r.height < 1) continue;
+                    const hit = document.elementFromPoint(r.left + r.width/2, r.top + r.height/2);
+                    if (hit && (hit === e || e.contains(hit)))
+                      out.push((e.getAttribute('aria-label')||e.textContent||'').trim().slice(0,16));
+                  }
+                  return out;
+                }"""
+                live_outside = kp.evaluate(LIVE_OUTSIDE)
+                kp.evaluate("()=>{const c=document.getElementById('listclose'); if(c) c.focus();}")
+                reached = set()
+                for _ in range(40):
+                    kp.keyboard.press("Tab")
+                    w = kp.evaluate("""() => { const a = document.activeElement;
+                      if (!a || a === document.body) return null;
+                      return {inPanel: !!a.closest('#listpanel'),
+                              nm:(a.getAttribute('aria-label')||a.textContent||'').trim().slice(0,16)};}""")
+                    if w and not w["inPanel"]:
+                        reached.add(w["nm"])
+                REND["keyboardParity"] = {"liveOutside": live_outside,
+                                          "reachedByTab": sorted(reached)}
+                kp.close()
                 # N32 動きを減らす設定を尊重しているか。0.08秒でも「尊重していない」
                 # には違いないが、影響の大小は別に見えるよう秒数も残す。
                 rp = br.new_page(viewport={"width": 390, "height": 844})
@@ -1173,6 +1213,13 @@ if REND:
                                 "Tab の順と食い違う [%s]"
                                 % (r["sel"], r["nm"], r["order"], _dev))
         break                      # 端末ごとに同じ話なので1台分だけ出す
+    kpar = REND.get("keyboardParity") or {}
+    _unreach = [n for n in (kpar.get("liveOutside") or [])
+                if n not in set(kpar.get("reachedByTab") or [])]
+    if _unreach:
+        fails["N33"].append("お店一覧を開くと %s が指では押せる (一覧に効く) のに "
+                            "Tab では届かない — キーボードだけの人がその機能を使えない"
+                            % "／".join(_unreach[:5]))
 
     for _k, _n, _fmt in (("wrap", "N28", "%s (%s) が「%s」で改行される [%s]"),
                          ("clip", "N29", "%s (%s) が入れ物に収まらない 必要%dpx / 幅%dpx [%s]")):
