@@ -281,7 +281,7 @@
   #listpanel .lhead{ flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; padding:10px 14px; }
   #listpanel .lhead h2{ font-size:.95rem; font-family:'Yusei Magic',sans-serif; }
   #listpanel .lclose{ width:44px; height:44px; border:0; background:transparent; font-size:1.1rem; color:var(--ink-soft); cursor:pointer; }
-  #listrows{ overflow:auto; -webkit-overflow-scrolling:touch; padding:0 8px 14px; }
+  #listrows{ overflow:auto; -webkit-overflow-scrolling:touch; padding:8px 8px 14px; }
   .lrow{ display:grid; grid-template-columns:14px minmax(0,1fr) auto; align-items:center; gap:4px 10px; width:100%; min-height:60px;
     border:0; border-bottom:1.5px dashed rgba(122,92,59,.25); background:transparent; padding:9px 10px;
     font:inherit; color:var(--ink); cursor:pointer; text-align:left; }
@@ -1178,7 +1178,9 @@ function segmentIntersectsRect(segment,rect){
 }
 function labelLeaderSegment(entry,rect,starCenters){
   const own=starCenters.get(entry.idx);
-  return own ? {x1:own.x,y1:own.y,x2:(rect.left+rect.right)/2,y2:(rect.top+rect.bottom)/2} : null;
+  return own ? {x1:own.x,y1:own.y,
+    x2:Math.max(rect.left,Math.min(own.x,rect.right)),
+    y2:Math.max(rect.top,Math.min(own.y,rect.bottom))} : null;
 }
 function leaderSegmentIsClear(entry,segment,starCenters,labelRects){
   for (const [idx,point] of starCenters){
@@ -1199,7 +1201,8 @@ function updateLabelLeader(entry,scale){
     return;
   }
   const ox=starRect.left+starRect.width/2, oy=starRect.top+starRect.height/2;
-  const tx=mainRect.left+mainRect.width/2, ty=mainRect.top+mainRect.height/2;
+  const tx=Math.max(mainRect.left,Math.min(ox,mainRect.right));
+  const ty=Math.max(mainRect.top,Math.min(oy,mainRect.bottom));
   const dx=tx-ox, dy=ty-oy, dist=Math.hypot(dx,dy);
   if (!(dist > 0)){
     path.style.display='none';
@@ -1436,7 +1439,6 @@ Object.keys(CATS).forEach(k => {
 const STRIP_PX_PER_M = 1.3;
 const STRIP_TOP_PAD = 26;
 const STRIP_GAP_FLOOR = 8;
-const STRIP_FACING_MAX = 47;
 const mainBusway = (GEO.busway || []).slice().sort((a,b) => b.length-a.length)[0] || [];
 function trueShopPoint(s){
   return {
@@ -1544,12 +1546,10 @@ function layoutStripRows(){
       const corrections=new Map();
       west.forEach(item => east.filter(other => Math.abs(other.entry.y-item.entry.y) <= 20)
         .forEach(other => {
-          const delta=other.center-item.center;
-          if (Math.abs(delta) <= STRIP_FACING_MAX) return;
-          const correction=(Math.abs(delta)-STRIP_FACING_MAX)/2;
-          const eastCorrection=delta > 0 ? -correction : correction;
-          corrections.set(other,(corrections.get(other)||0)+eastCorrection);
-          corrections.set(item,(corrections.get(item)||0)-eastCorrection);
+          const want=(other.entry.y-item.entry.y)*STRIP_PX_PER_M;
+          const error=(other.center-item.center)-want;
+          corrections.set(other,(corrections.get(other)||0)-error/2);
+          corrections.set(item,(corrections.get(item)||0)+error/2);
         }));
       corrections.forEach((correction,item) => { item.center+=correction; });
     }
