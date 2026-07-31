@@ -85,7 +85,7 @@
     header h1 small{ display:none; }
   }
 
-  #viewport{ flex:1; overflow:auto; position:relative; background:var(--paper); -webkit-overflow-scrolling:touch; }
+  #viewport{ flex:1; overflow:auto; position:relative; background:var(--paper); -webkit-overflow-scrolling:touch; touch-action:pan-x pan-y; }
   #mapwrap{ width:100%; max-width:1000px; margin:0 auto; position:relative; }
   svg{ display:block; width:100%; height:auto; }
   text{ user-select:none; }
@@ -788,7 +788,7 @@ function isPrimaryLabel(s){
 }
 let currentMapScale = 1, currentStarTargetPx = MAX_STAR_PX, mapStyleFrame = 0;
 function starTargetPx(){ return currentStarTargetPx; }
-function labelTargetPx(s){ return isPrimaryLabel(s) ? 15 : 12; }
+function labelTargetPx(s){ return isPrimaryLabel(s) ? 17 : 14; }
 function starSize(s){
   return starTargetPx(s) / (20 * Math.max(.001, currentMapScale));
 }
@@ -1333,8 +1333,12 @@ function showChooser(list, s){
   chooser.classList.add('show');
   const first = chooser.querySelector('.copt'); if (first) first.focus();
 }
+let suppressMapClickUntil = 0;
 gShops.addEventListener('click', e => {
   const h = e.target.closest('.hit'); if (!h) return;
+  if (performance.now() < suppressMapClickUntil){
+    e.preventDefault(); e.stopPropagation(); return;
+  }
   e.stopPropagation();
   lastFocusHit = h;
   const s = GEO.shops[+h.dataset.i];
@@ -1368,7 +1372,7 @@ chooser.addEventListener('click', e => e.stopPropagation());
 document.addEventListener('click', () => { hideDetail(); hideChooser(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape'){ hideDetail(true); hideChooser(); } });
 
-/* ---------- ズーム (viewBox中心を維持・全canvasまで縮小可) ---------- */
+/* ---------- ズーム (操作位置を中心に維持・全canvasまで縮小可) ---------- */
 const wrap = document.getElementById('mapwrap');
 const ZOOM_STEP = 1.45;
 const MIN_VIEWBOX = {width:176, height:268};
@@ -1392,17 +1396,121 @@ function updateZoomButtons(){
   document.getElementById('zout').disabled = vb.width >= FULL_VIEWBOX.width - .01 &&
     vb.height >= FULL_VIEWBOX.height - .01;
 }
-function zoomViewBox(factor){
-  const vb = svg.viewBox.baseVal, cx = vb.x + vb.width/2, cy = vb.y + vb.height/2;
+function zoomViewBoxAt(factor, clientX, clientY){
+  const vb = svg.viewBox.baseVal;
+  let anchorX = vb.x + vb.width/2, anchorY = vb.y + vb.height/2;
+  let ratioX = .5, ratioY = .5;
+  const matrix = svg.getScreenCTM();
+  if (matrix && Number.isFinite(clientX) && Number.isFinite(clientY)){
+    const point = svg.createSVGPoint(); point.x = clientX; point.y = clientY;
+    const anchor = point.matrixTransform(matrix.inverse());
+    anchorX = anchor.x; anchorY = anchor.y;
+    ratioX = Math.max(0, Math.min(1, (anchorX-vb.x)/vb.width));
+    ratioY = Math.max(0, Math.min(1, (anchorY-vb.y)/vb.height));
+  }
   let width = vb.width * factor, height = vb.height * factor;
   if (factor > 1 && (width >= FULL_VIEWBOX.width || height >= FULL_VIEWBOX.height)){
     width = FULL_VIEWBOX.width; height = FULL_VIEWBOX.height;
   }
-  setMapViewBox({x:cx-width/2, y:cy-height/2, width, height});
+  setMapViewBox({x:anchorX-width*ratioX, y:anchorY-height*ratioY, width, height});
   hideDetail(); hideChooser();
 }
+function zoomViewBox(factor){ zoomViewBoxAt(factor, NaN, NaN); }
 document.getElementById('zin').addEventListener('click', () => zoomViewBox(1/ZOOM_STEP));
 document.getElementById('zout').addEventListener('click', () => zoomViewBox(ZOOM_STEP));
+
+let gestureZoomFrame = 0, gestureZoomFactor = 1, gestureZoomPoint = null;
+function queueGestureZoom(factor, clientX, clientY){
+  gestureZoomFactor *= factor;
+  gestureZoomPoint = {x:clientX, y:clientY};
+  if (gestureZoomFrame) return;
+  gestureZoomFrame = requestAnimationFrame(() => {
+    const queuedFactor = gestureZoomFactor, point = gestureZoomPoint;
+    gestureZoomFrame = 0; gestureZoomFactor = 1; gestureZoomPoint = null;
+    if (point && Math.abs(queuedFactor-1) > .001)
+      zoomViewBoxAt(queuedFactor, point.x, point.y);
+  });
+}
+function touchDistance(a, b){ return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+let pinchGesture = null, singleTouch = null, lastTap = null, lastTouchZoomAt = 0;
+viewport.addEventListener('touchstart', e => {
+  if (e.touches.length === 2){
+    const a=e.touches[0], b=e.touches[1];
+    pinchGesture = {distance:touchDistance(a,b)};
+    singleTouch = null; lastTap = null;
+    suppressMapClickUntil = performance.now() + 700;
+  } else if (e.touches.length === 1 && !pinchGesture){
+    const t=e.touches[0];
+    singleTouch = {x:t.clientX, y:t.clientY, target:e.target, moved:false};
+  }
+}, {passive:true});
+viewport.addEventListener('touchmove', e => {
+  if (e.touches.length >= 2){
+    e.preventDefault();
+    const a=e.touches[0], b=e.touches[1], distance=touchDistance(a,b);
+    if (!pinchGesture) pinchGesture={distance};
+    if (distance > 0 && pinchGesture.distance > 0){
+      queueGestureZoom(pinchGesture.distance/distance,
+        (a.clientX+b.clientX)/2, (a.clientY+b.clientY)/2);
+      pinchGesture.distance=distance;
+    }
+    singleTouch=null;
+    suppressMapClickUntil=performance.now()+700;
+  } else if (singleTouch && e.touches.length === 1){
+    const t=e.touches[0];
+    if (Math.hypot(t.clientX-singleTouch.x,t.clientY-singleTouch.y) > 10){
+      singleTouch.moved=true;
+      suppressMapClickUntil=performance.now()+500;
+    }
+  }
+}, {passive:false});
+viewport.addEventListener('touchend', e => {
+  if (pinchGesture && e.touches.length < 2){
+    pinchGesture=null; singleTouch=null;
+    suppressMapClickUntil=performance.now()+700;
+    return;
+  }
+  if (!singleTouch || e.touches.length) return;
+  const moved=singleTouch.moved;
+  singleTouch=null;
+  if (moved) lastTap=null;
+}, {passive:true});
+document.addEventListener('touchend', e => {
+  if (pinchGesture || e.touches.length || e.changedTouches.length !== 1) return;
+  if (singleTouch && singleTouch.moved){ lastTap=null; return; }
+  const t=e.changedTouches[0], rect=viewport.getBoundingClientRect();
+  if (t.clientX < rect.left || t.clientX > rect.right ||
+      t.clientY < rect.top || t.clientY > rect.bottom){
+    lastTap=null; return;
+  }
+  const now=performance.now();
+  if (lastTap && now-lastTap.time <= 320 &&
+      Math.hypot(t.clientX-lastTap.x,t.clientY-lastTap.y) <= 28){
+    e.preventDefault();
+    suppressMapClickUntil=now+500;
+    lastTouchZoomAt=now;
+    queueGestureZoom(1/ZOOM_STEP,t.clientX,t.clientY);
+    lastTap=null;
+  } else {
+    lastTap={time:now,x:t.clientX,y:t.clientY};
+  }
+}, {passive:false,capture:true});
+viewport.addEventListener('touchcancel', () => {
+  pinchGesture=null; singleTouch=null; lastTap=null;
+  suppressMapClickUntil=performance.now()+500;
+}, {passive:true});
+viewport.addEventListener('dblclick', e => {
+  e.preventDefault();
+  if (performance.now()-lastTouchZoomAt < 550) return;
+  if (e.target.closest('.hit,button,input,a,.chooser,.detail-panel')) return;
+  suppressMapClickUntil=performance.now()+500;
+  queueGestureZoom(1/ZOOM_STEP,e.clientX,e.clientY);
+});
+viewport.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor=Math.max(.72,Math.min(1.39,Math.exp(e.deltaY*.0015)));
+  queueGestureZoom(factor,e.clientX,e.clientY);
+}, {passive:false});
 window.addEventListener('resize', () => {
   hideChooser();
   scheduleMapScaleStyles();

@@ -8,7 +8,7 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N36 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N37 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
@@ -298,7 +298,9 @@ if not A.no_browser:
                         labelRect: (tr && tr.width > 1)
                                    ? [+tr.left.toFixed(1), +tr.top.toFixed(1),
                                       +tr.right.toFixed(1), +tr.bottom.toFixed(1)] : null,
-                        labelMapW: tb ? +tb.width.toFixed(1) : 0};
+                        labelMapW: tb ? +tb.width.toFixed(1) : 0,
+                        // 引き出し線で結ばれているラベルか (N14 の除外 / N37 の対象)
+                        leader: !!(GEO.shops[i] && GEO.shops[i].labelLeader)};
               });
               // ラベルbbox交差
               const vis = [...document.querySelectorAll('text.shoplabel')].filter(t =>
@@ -476,19 +478,18 @@ if not A.no_browser:
                   out.vh = innerHeight;
                   // N26 こどもの声の店のラベルが既定ズームで出ているか。
                   // 本企画の看板機能なので、端末が小さくても消えてはいけない。
+                  // 表示域の中だけを見ていたため、画面外に出た声の店が
+                  // 名前を失っても気づけなかった (2026-07-31: 文字を14pxにした時に
+                  // フラワー中山 が canvas 全体で消えたのを N26 が見逃した)。
+                  // 動かせば見える所なので、canvas 全体で判定する。
                   out.voiceHidden = [];
                   for (const h of document.querySelectorAll('g.hit')) {
                     const sp = GEO.shops[+h.dataset.i];
                     if (!(sp.voices && sp.voices.length)) continue;
-                    const st = h.querySelector('.star');
                     const t = h.querySelector('text.shoplabel');
-                    if (!st) continue;
-                    const bb = st.getBoundingClientRect();
-                    const cx = bb.left + bb.width / 2, cy = bb.top + bb.height / 2;
-                    const inV = cx >= vp.left && cx <= vp.right && cy >= vp.top && cy <= vp.bottom;
                     const vis = !!(t && getComputedStyle(t).display !== 'none'
                                    && t.getBoundingClientRect().width > 1);
-                    if (inV && !vis) out.voiceHidden.push(sp.name);
+                    if (!vis) out.voiceHidden.push(sp.name);
                   }
                   // nearby の半径 (チューザーが出る条件) を実際の関数から測る
                   let nb = null;
@@ -922,7 +923,7 @@ P("")
 fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
                          "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
                          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27",
-                         "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36")}
+                         "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -1087,6 +1088,25 @@ def _rect_d(rc, sx, sy):
     return math.hypot(max(l - sx, 0.0, sx - r), max(t - sy, 0.0, sy - b))
 
 
+def _seg_rect_hit(x1, y1, x2, y2, rc):
+    """線分が矩形と交わるか。引き出し線が他店のラベルを横切るかの判定に使う。"""
+    l, t, r, b = rc
+    if max(x1, x2) < l or min(x1, x2) > r or max(y1, y2) < t or min(y1, y2) > b:
+        return False
+    if l <= x1 <= r and t <= y1 <= b:
+        return True
+    if l <= x2 <= r and t <= y2 <= b:
+        return True
+    for ax, ay, bx, by in ((l, t, r, t), (r, t, r, b), (r, b, l, b), (l, b, l, t)):
+        d1 = (x2-x1)*(ay-y1) - (y2-y1)*(ax-x1)
+        d2 = (x2-x1)*(by-y1) - (y2-y1)*(bx-x1)
+        d3 = (bx-ax)*(y1-ay) - (by-ay)*(x1-ax)
+        d4 = (bx-ax)*(y2-ay) - (by-ay)*(x2-ax)
+        if ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0)):
+            return True
+    return False
+
+
 def _zoom_checks(D, zname, is_default):
     if not D:
         return
@@ -1155,9 +1175,35 @@ def _zoom_checks(D, zname, is_default):
         own = _rect_d(rc, r["starCx"], r["starCy"])
         oth = sorted((_rect_d(rc, o["starCx"], o["starCy"]), o["name"])
                      for o in stars if o["i"] != r["i"])
+        # 引き出し線で自分の★と結ばれているラベルは、近さでなく線で対応が分かる。
+        # 近さの判定から外すかわりに、線そのものの分かりやすさを N37 で見る。
+        if r.get("leader"):
+            continue
         if oth and (own > LABEL_MARGIN_MAX * oth[0][0] if oth[0][0] > 0 else own > 0):
             fails["N14"].append("%s のラベル 自分%.0fpx / %s %.0fpx (%s)"
                                 % (r["name"], own, oth[0][1], oth[0][0], zname))
+
+    # ---- N37 引き出し線がどの★のものか紛れないか ----
+    # 引き出し線は「近さ」の代わりに対応を示すので、線そのものが紛れてはいけない。
+    #   ・他店の★のそば (6px以内) を通らない  ・他店のラベルを横切らない
+    for r in rows:
+        if not r.get("leader") or not r.get("labelRect") or r.get("starCx") is None:
+            continue
+        rc = r["labelRect"]
+        ex, ey = (rc[0] + rc[2]) / 2.0, (rc[1] + rc[3]) / 2.0
+        sx, sy = r["starCx"], r["starCy"]
+        for o in stars:
+            if o["i"] == r["i"]:
+                continue
+            if seg_d(o["starCx"], o["starCy"], sx, sy, ex, ey) < 6.0:
+                fails["N37"].append("%s の引き出し線が %s の★のそばを通る (%s)"
+                                    % (r["name"], o["name"], zname))
+        for o in rows:
+            if o["i"] == r["i"] or not o.get("labelRect"):
+                continue
+            if _seg_rect_hit(sx, sy, ex, ey, o["labelRect"]):
+                fails["N37"].append("%s の引き出し線が %s のラベルを横切る (%s)"
+                                    % (r["name"], o["name"], zname))
 
 
 if REND:
@@ -1380,11 +1426,12 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N33": "キーボードで地図を飛ばせる・タブ順が見た目と合う",
        "N34": "絵文字をアイコン代わりに使っていない",
        "N35": "地図の店名が読める大きさ",
-       "N36": "指で地図を拡大できる"}
+       "N36": "指で地図を拡大できる",
+       "N37": "引き出し線がどの★のものか紛れない"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
-              "N30", "N31", "N32", "N33", "N34", "N35", "N36"):
+              "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -1434,7 +1481,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N36 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N37 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
