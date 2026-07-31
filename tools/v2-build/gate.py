@@ -110,18 +110,22 @@ MAP_FRAME_JS = """() => {
             cy:Math.round(r.top+r.height/2)}; });
 
   // 画面の中にある店名が、縁で切れていないか / 覆いに隠れていないか
+  // 判定の基準は「地図として見えている帯」であって画面ぜんぶではない。
+  // 2026-07-31 の最初の版は画面座標 (0..innerHeight) で外れを判定していたため、
+  // 帯の外へスクロールして隠れている (= overflow で見えない) ラベルまで
+  // 「切れている」と数えて26件の偽陽性を出した。帯にかかるものだけを見る。
   for (const t of document.querySelectorAll('#map text')) {
     const r = t.getBoundingClientRect();
     const s = (t.textContent||'').trim();
     if (!s || r.width<1) continue;
-    if (r.bottom <= 0 || r.top >= innerHeight) continue;   // 完全に画面外は対象外
-    if (r.right <= 0 || r.x >= innerWidth) continue;
+    if (r.bottom <= top || r.top >= bot) continue;        // 帯に全くかからない = 見えていない
+    if (r.right <= v.x || r.x >= v.right) continue;
     let why = null;
-    if (r.x < -0.5) why = '左で切れる';
-    else if (r.right > innerWidth+0.5) why = '右で切れる';
+    if (r.x < v.x - 0.5) why = '左で切れる';
+    else if (r.right > v.right + 0.5) why = '右で切れる';
     else if (r.top < top - 0.5) why = '上の縁で切れる';
     else if (r.bottom > bot + 0.5) why = '下の覆いに隠れる';
-    else if (r.x < MAP_PAD || r.right > innerWidth-MAP_PAD
+    else if (r.x < v.x+MAP_PAD || r.right > v.right-MAP_PAD
              || r.top < top+MAP_PAD || r.bottom > bot-MAP_PAD) why = '縁ぎりぎり';
     if (why) R.cut.push({t:s.slice(0,22), why,
       rect:[Math.round(r.x),Math.round(r.y),Math.round(r.width),Math.round(r.height)]});
@@ -286,7 +290,10 @@ SEARCH_WORDS = [
     ("銀行",   "七十七銀行中山支店"),
     ("郵便",   "中山郵便局"),
     ("病院",   "クリニック"),
-    ("カフェ", "cafe"),
+    # 「カフェ」の正解に "cafe" を置いていたが、60店に cafe も喫茶も無い。
+    # 存在しない文字列を正解にしていた検査側の誤り (2026-07-31 訂正)。
+    # 座って飲食できる先を探して打つ言葉なので、食べる・飲む の店に当たれば正しい。
+    ("カフェ", "cake NAO"),
 ]
 SEARCH_HITS_MAX = 14       # 1語で14件超が返るなら絞れていない (全部に当てる実装よけ)
 # 横向きの地図の床。実測 (2026-07-31) では 640x360 で地図が57px・844x390 で51px しかなく、

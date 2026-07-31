@@ -339,6 +339,7 @@
   .strip-guide .road-guide{ font-size:12px; line-height:1.15; }
   #strip{ position:relative; width:100%; max-width:780px; min-height:400px; margin:0 auto;
     border-bottom:2px dashed rgba(92,67,39,.28); }
+  #strip.compact{ min-height:52px; }
   .strip-road{ position:absolute; z-index:0; left:50%; top:16px; bottom:16px; width:52px;
     transform:translateX(-50%); border:2px solid rgba(122,92,59,.48); border-radius:24px;
     background:#f7e7bf; box-shadow:inset 8px 0 0 rgba(255,250,240,.48), inset -8px 0 0 rgba(255,250,240,.48); }
@@ -349,14 +350,19 @@
     font-family:'Yusei Magic',sans-serif; font-size:11px; line-height:1; letter-spacing:.08em; }
   .strip-row{ --cat-color:var(--accent); position:absolute; z-index:3; width:calc(50% - 40px);
     min-height:44px; display:flex; align-items:center; gap:6px; padding:7px 9px;
-    border:2px solid color-mix(in srgb, var(--cat-color) 58%, var(--ink-soft)); border-radius:15px;
-    background:#fffaf0; color:var(--ink); box-shadow:1px 2px 0 rgba(92,67,39,.2);
+    border:2px solid color-mix(in srgb, var(--cat-color) 58%, var(--ink-soft)); border-radius:20px;
+    background:#fffaf0; color:var(--ink); box-shadow:2px 4px 0 rgba(92,67,39,.26), 0 6px 12px rgba(92,67,39,.09);
     font:inherit; font-size:14px; font-weight:700; line-height:1.25; cursor:pointer;
     transform:translateY(-50%); }
   .strip-row[data-side="west"]{ right:calc(50% + 34px); flex-direction:row-reverse; text-align:right; }
   .strip-row[data-side="east"]{ left:calc(50% + 34px); text-align:left; }
   .strip-row[hidden]{ display:none; }
+  #strip .strip-row.displaced::after{ content:""; position:absolute; top:calc(50% + var(--leader-offset,0px));
+    width:22px; border-top:2px dashed rgba(122,92,59,.62); pointer-events:none; }
+  #strip .strip-row.displaced[data-side="west"]::after{ left:100%; }
+  #strip .strip-row.displaced[data-side="east"]::after{ right:100%; }
   .strip-row:active{ transform:translateY(calc(-50% + 2px)); box-shadow:none; }
+  .strip-row.glowing{ border-color:var(--voice); box-shadow:0 0 0 3px rgba(38,116,123,.2), 2px 4px 0 rgba(92,67,39,.26); }
   .strip-row:focus-visible{ outline:3px solid rgba(201,123,61,.45); outline-offset:2px; }
   .strip-shop-dot{ flex:0 0 auto; width:11px; height:11px; border-radius:50%;
     background:var(--cat-color); border:1.5px solid rgba(92,67,39,.42); }
@@ -372,6 +378,7 @@
   .strip-signal::before{ content:""; width:7px; height:14px; border-radius:5px;
     border:1.5px solid var(--ink); background:linear-gradient(#dc5c4b 0 31%,#e6bd45 32% 65%,#58a965 66%); }
   .far-section{ max-width:780px; margin:0 auto; padding:20px 10px 28px; }
+  .far-section[hidden]{ display:none; }
   .far-section h2{ font-family:'Yusei Magic',sans-serif; font-size:1.05rem; }
   .far-section > p{ margin:5px 0 12px; color:var(--ink-soft); font-size:14px; line-height:1.5; }
   #stripfar{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 10px; align-items:stretch; }
@@ -383,6 +390,7 @@
   #stripfar .strip-row[data-side="east"]{ border-right-width:5px; }
   .strip-far-main{ display:flex; align-items:center; gap:6px; min-width:0; }
   .strip-distance{ color:var(--ink-soft); font-size:13px; font-weight:500; }
+  .map-filter-badge, #mapback{ display:none; }
 
   #controls{ flex:0 0 var(--controls-h); height:var(--controls-h); z-index:30; display:grid;
     grid-template-columns:minmax(0,1fr); grid-template-rows:44px 44px 44px;
@@ -406,19 +414,49 @@
   #mapbtn:focus-visible, #listbtn:focus-visible{ outline:3px solid rgba(201,123,61,.45); outline-offset:2px; }
 
   #viewport{ display:none; }
-  body.map-open #viewport{ display:block; position:fixed; inset:0; z-index:24; overflow:auto;
-    width:100%; height:100dvh; background:var(--paper); }
+  body.map-open{ --map-head-h:44px; --map-controls-h:56px; }
+  body.map-open #viewport{ display:block; position:fixed; inset:var(--map-head-h) 0 var(--map-controls-h); z-index:24;
+    overflow:auto; width:100%; height:auto; background:var(--paper); }
   body.map-open #mapwrap{ min-height:100%; }
-  body.map-open header{ visibility:hidden; }
+  body.map-open header{ position:fixed; inset:0 0 auto; z-index:31; height:var(--map-head-h); padding:0 6px;
+    display:grid; grid-template-columns:minmax(138px,1fr) auto auto; align-items:center; gap:5px;
+    border-bottom:2px dashed rgba(92,67,39,.35); overflow:hidden; }
+  body.map-open header h1{ min-width:0; display:block; font-size:14px; line-height:1.1; white-space:nowrap; }
+  body.map-open header h1 small, body.map-open header p{ display:none; }
+  body.map-open .map-filter-badge{ display:none; min-width:0; max-width:112px; padding:3px 7px;
+    border:1.5px solid var(--voice); border-radius:999px; color:var(--voice); background:#edf6f3;
+    font-size:12px; font-weight:700; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  body.map-open .map-filter-badge:not(:empty){ display:block; }
+  body.map-open #mapback{ display:inline-flex; min-width:44px; height:44px; padding:0 8px; align-items:center;
+    justify-content:center; border:0; background:transparent; color:var(--ink); font:inherit; font-size:14px;
+    font-weight:700; line-height:1.1; white-space:nowrap; cursor:pointer; }
+  body.map-open #mapback:focus-visible{ outline:3px solid rgba(201,123,61,.45); outline-offset:-3px; }
+  body.map-open.map-filtering header{ grid-template-columns:minmax(138px,1fr) minmax(0,138px) 90px; }
+  body.map-open.map-filtering .map-filter-badge{ max-width:138px; }
+  body.map-open.map-filtering #mapback{ width:90px; padding-inline:2px; white-space:normal; }
   body.map-open #stripview{ visibility:hidden; }
   .zoomctl, #editbar, #srcinfo{ display:none; }
-  body.map-open .zoomctl{ display:flex; z-index:32; bottom:calc(var(--controls-h) + 70px); }
-  body.map-open.edit #editbar{ display:flex; bottom:calc(var(--controls-h) + 70px); }
-  body.map-open.debug #srcinfo{ display:block; bottom:calc(var(--controls-h) + 120px); }
+  body.map-open #controls{ position:fixed; inset:auto 0 0; z-index:31; height:var(--map-controls-h); min-height:var(--map-controls-h);
+    padding:6px 112px 6px 82px; display:block; border-top:2px dashed rgba(92,67,39,.35); }
+  body.map-open #controls .filters, body.map-open #controls .searchbar{ display:none; }
+  body.map-open #controls .control-actions{ height:44px; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:8px; }
+  body.map-open #mapbtn, body.map-open #listbtn{ padding-inline:4px; font-size:14px; }
+  body.map-open .zoomctl{ display:flex; z-index:32; right:8px; bottom:6px; flex-direction:row; gap:8px; }
+  body.map-open.edit #editbar{ display:flex; bottom:calc(var(--map-controls-h) + 8px); }
+  body.map-open.debug #srcinfo{ display:block; bottom:calc(var(--map-controls-h) + 58px); }
   footer.credit{ display:none; }
-  body.map-open footer.credit{ position:fixed; left:0; right:0; bottom:var(--controls-h); z-index:28;
-    display:flex; width:100%; height:auto; max-height:64px; overflow:auto; padding:4px 10px;
-    background:rgba(251,244,226,.96); border-top:1.5px dashed rgba(92,67,39,.28); }
+  .credit-summary{ display:none; }
+  body.map-open footer.credit{ position:fixed; left:4px; bottom:6px; z-index:32; display:block; width:70px; height:44px;
+    padding:0; overflow:visible; background:transparent; }
+  body.map-open .credit-summary{ display:flex; width:70px; height:44px; align-items:center; justify-content:center;
+    padding:3px 5px; border:1.5px solid var(--ink-soft); border-radius:9px; background:#fffaf0; color:var(--ink-soft);
+    font:inherit; font-size:12px; font-weight:700; line-height:1.1; text-align:center; cursor:pointer; }
+  body.map-open .credit-summary:focus-visible{ outline:3px solid rgba(201,123,61,.45); outline-offset:2px; }
+  body.map-open .credit-details{ display:none; position:fixed; left:7px; right:7px; bottom:calc(var(--map-controls-h) + 6px);
+    max-height:min(220px,45vh); overflow:auto; padding:12px 14px; border:2px solid #d8c4a0; border-radius:14px;
+    background:#fffaf0; box-shadow:0 -8px 24px rgba(80,60,30,.24); font-size:12px; line-height:1.55; }
+  body.map-open footer.credit.expanded .credit-details{ display:flex; align-items:flex-start; flex-wrap:wrap; gap:5px 9px; }
+  body.map-open footer.credit.expanded .credit-summary{ background:var(--paper-deep); }
   body.detail-open #controls{ pointer-events:none; }
 
   @media(max-width:759px) and (orientation:portrait){
@@ -448,9 +486,8 @@
     #controls .searchbar{ grid-column:1; grid-row:2; }
     #controls .control-actions{ grid-column:2; grid-row:2; }
     #controls .chip{ font-size:14px; }
-    body.map-open footer.credit{ max-height:54px; }
-    body.map-open .zoomctl, body.map-open.edit #editbar{ bottom:calc(var(--controls-h) + 60px); }
-    body.map-open.debug #srcinfo{ bottom:calc(var(--controls-h) + 110px); }
+    body.map-open.edit #editbar{ bottom:calc(var(--map-controls-h) + 8px); }
+    body.map-open.debug #srcinfo{ bottom:calc(var(--map-controls-h) + 58px); }
   }
   @media(prefers-reduced-motion:reduce){
     .chip, #chooser, .detail-panel{ transition:none; }
@@ -463,6 +500,8 @@
 
 <header>
   <h1>なかやま商店街マップ <small>実測デジタル版</small></h1>
+  <span class="map-filter-badge" id="mapFilterBadge" role="status" aria-live="polite"></span>
+  <button id="mapback" type="button" aria-controls="viewport">✕ 通り沿い<wbr>にもどる</button>
   <p>西側・東側を実際の南北位置に合わせて並べています。お店をタップすると詳細を確認でき、「地図で見る」で全体へ切り替えられます。</p>
 </header>
 
@@ -521,9 +560,12 @@
 <div id="srcinfo">debug: 緑=OSM実測 / 黄=OSM近似 / 青=住所ジオコーディング / 赤=概算</div>
 
 <footer class="credit">
-  <span class="asof" id="infoAsOf"></span>
-  <span class="sources"><span class="source-line">地図データ © OpenStreetMap contributors（ODbL）／</span><span class="source-line">位置参照: 国土地理院 地名検索API／</span><span class="source-line">店舗情報: なかやま商店街振興組合・nakayaman.com</span></span>
-  <span class="partner" id="partnerLogo" hidden><span>協力：</span><img id="partnerLogoImage" alt=""><span>宮城大学 事業構想学群 宮﨑ゼミ</span></span>
+  <button class="credit-summary" id="creditSummary" type="button" aria-expanded="false" aria-controls="creditDetails">© OSM ⓘ</button>
+  <span class="credit-details" id="creditDetails">
+    <span class="asof" id="infoAsOf"></span>
+    <span class="sources"><span class="source-line">地図データ © OpenStreetMap contributors（ODbL）／</span><span class="source-line">位置参照: 国土地理院 地名検索API／</span><span class="source-line">店舗情報: なかやま商店街振興組合・nakayaman.com</span></span>
+    <span class="partner" id="partnerLogo" hidden><span>協力：</span><img id="partnerLogoImage" alt=""><span>宮城大学 事業構想学群 宮﨑ゼミ</span></span>
+  </span>
 </footer>
 
 <script>
@@ -559,6 +601,9 @@ const INITIAL_VIEWBOX = {x:362, y:677, width:424, height:646};
 svg.setAttribute('viewBox', [INITIAL_VIEWBOX.x, INITIAL_VIEWBOX.y,
   INITIAL_VIEWBOX.width, INITIAL_VIEWBOX.height].join(' '));
 const mapButton = document.getElementById('mapbtn');
+const mapBackButton = document.getElementById('mapback');
+const credit = document.querySelector('footer.credit');
+const creditSummary = document.getElementById('creditSummary');
 function setMapOpen(open, restoreFocus){
   document.body.classList.toggle('map-open', open);
   const viewportNode = document.getElementById('viewport');
@@ -568,7 +613,7 @@ function setMapOpen(open, restoreFocus){
   stripViewNode.setAttribute('aria-hidden', open ? 'true' : 'false');
   stripViewNode.inert = open;
   mapButton.setAttribute('aria-expanded', open ? 'true' : 'false');
-  mapButton.textContent = open ? '通り沿いに戻る' : '地図で見る';
+  mapButton.textContent = open ? '通り沿いへ' : '地図で見る';
   if (open){
     requestAnimationFrame(() => {
       drawShops();
@@ -577,6 +622,8 @@ function setMapOpen(open, restoreFocus){
     });
   } else {
     hideChooser();
+    credit.classList.remove('expanded');
+    creditSummary.setAttribute('aria-expanded','false');
     if (restoreFocus) mapButton.focus({preventScroll:true});
   }
 }
@@ -584,6 +631,16 @@ document.getElementById('viewport').inert = true;
 mapButton.addEventListener('click', e => {
   e.stopPropagation();
   setMapOpen(!document.body.classList.contains('map-open'), true);
+});
+mapBackButton.addEventListener('click', e => {
+  e.stopPropagation();
+  setMapOpen(false, true);
+});
+creditSummary.addEventListener('click', e => {
+  e.stopPropagation();
+  const open = !credit.classList.contains('expanded');
+  credit.classList.toggle('expanded', open);
+  creditSummary.setAttribute('aria-expanded', open ? 'true' : 'false');
 });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape' || !document.body.classList.contains('map-open')) return;
@@ -828,9 +885,14 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       return Math.min(rect.right,blocked.right)-Math.max(rect.left,blocked.left) > .05 &&
         Math.min(rect.bottom,blocked.bottom)-Math.max(rect.top,blocked.top) > .05;
     });
-    const labelInsideViewport = rect => !viewportRect ||
-      rect.left >= viewportRect.left && rect.right <= viewportRect.right &&
-      rect.top >= viewportRect.top && rect.bottom <= viewportRect.bottom;
+    const labelInsideViewport = rect => {
+      if (!viewportRect) return true;
+      const intersects = rect.right > viewportRect.left && rect.left < viewportRect.right &&
+        rect.bottom > viewportRect.top && rect.top < viewportRect.bottom;
+      if (!intersects) return true;
+      return rect.left >= viewportRect.left+6 && rect.right <= viewportRect.right-6 &&
+        rect.top >= viewportRect.top+6 && rect.bottom <= viewportRect.bottom-6;
+    };
     entries.forEach(hideLabel);
     const kept = [];
     const leaderSegments = [];
@@ -843,7 +905,7 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       } else if (!labelAnchorBelongsToOwnStar(entry,starCenters) ||
                  !labelBelongsToOwnStar(entry,mainRect,starCenters)) return false;
       const rect = labelRect(entry);
-      if (overlapsKeepOut(rect) || overlapsMapSymbol(entry,rect) || labelHitsLeader(rect) ||
+      if (!labelInsideViewport(rect) || overlapsKeepOut(rect) || overlapsMapSymbol(entry,rect) || labelHitsLeader(rect) ||
           kept.some(other => labelsCollide(rect,other))) return false;
       let segment = null;
       if (withLeader){
@@ -878,7 +940,7 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
         if (!labelAnchorBelongsToOwnStar(entry, starCenters) ||
             !labelBelongsToOwnStar(entry, mainRect, starCenters)) continue;
         const rect = labelRect(entry);
-        if (!overlapsKeepOut(rect) && !overlapsMapSymbol(entry, rect)){
+        if (labelInsideViewport(rect) && !overlapsKeepOut(rect) && !overlapsMapSymbol(entry, rect)){
           options.push({candidate, rect});
         }
       }
@@ -1344,7 +1406,7 @@ Object.keys(CATS).forEach(k => {
 });
 
 /* ---------- 通り沿い二列表示 (Task AE) ---------- */
-const STRIP_PX_PER_M = 1;
+const STRIP_PX_PER_M = 1.3;
 const STRIP_TOP_PAD = 26;
 const STRIP_GAP_FLOOR = 8;
 const STRIP_FACING_MAX = 47;
@@ -1389,30 +1451,36 @@ function stripMeasuredRows(){
     const rendered=row && !row.hidden ? row.getBoundingClientRect().height : 0;
     if (rendered > 0) stripRowHeights.set(entry.i,rendered);
     return {entry,row,h:stripRowHeights.get(entry.i)||44,center:stripIdealCenter(entry)};
-  });
+  }).filter(item => item.row && !item.row.hidden);
 }
-function stripChooseCenter(item, desired, previous, low, high){
-  low=Math.max(low,item.h/2);
-  desired=Math.min(high,Math.max(low,desired));
-  if (!previous) return desired;
-  const touching=previous.center+(previous.h+item.h)/2;
-  const candidates=[];
-  if (touching >= low && touching <= high) candidates.push(touching);
-  const separated=Math.max(touching+STRIP_GAP_FLOOR,low,desired);
-  if (separated <= high) candidates.push(separated);
-  if (!candidates.length) return touching;
-  return candidates.reduce((best,value) =>
-    Math.abs(value-desired) < Math.abs(best-desired) ? value : best);
-}
-function stripPlaceColumn(items, desiredFor){
-  const placed=[];
-  items.sort((a,b) => a.entry.y-b.entry.y || a.entry.x-b.entry.x || a.entry.i-b.entry.i)
-    .forEach(item => {
-      const bounds=desiredFor(item);
-      item.center=stripChooseCenter(item,bounds.desired,placed[placed.length-1],
-        bounds.low,bounds.high);
-      placed.push(item);
+function stripPackColumn(items, compact){
+  const placed=items.slice().sort((a,b) => a.entry.y-b.entry.y || a.entry.x-b.entry.x || a.entry.i-b.entry.i);
+  if (!placed.length) return placed;
+  if (compact){
+    placed.forEach((item,i) => {
+      item.center = i ? placed[i-1].center+(placed[i-1].h+item.h)/2+STRIP_GAP_FLOOR
+        : STRIP_TOP_PAD+item.h/2;
     });
+    return placed;
+  }
+  const cumulative=[0];
+  for (let i=1; i<placed.length; i++){
+    cumulative[i]=cumulative[i-1]+(placed[i-1].h+placed[i].h)/2+STRIP_GAP_FLOOR;
+  }
+  const blocks=[];
+  placed.forEach((item,i) => {
+    const ideal=stripIdealCenter(item.entry)-cumulative[i];
+    blocks.push({start:i,end:i,total:ideal,count:1,value:ideal});
+    while (blocks.length > 1 && blocks[blocks.length-2].value > blocks[blocks.length-1].value){
+      const b=blocks.pop(), a=blocks.pop();
+      const merged={start:a.start,end:b.end,total:a.total+b.total,count:a.count+b.count};
+      merged.value=merged.total/merged.count;
+      blocks.push(merged);
+    }
+  });
+  blocks.forEach(block => {
+    for (let i=block.start; i<=block.end; i++) placed[i].center=block.value+cumulative[i];
+  });
   return placed;
 }
 function stripCenterForY(y, placed){
@@ -1434,28 +1502,45 @@ function stripCenterForY(y, placed){
 }
 function layoutStripRows(){
   stripLayoutFrame=0;
+  const compact=query.length > 0 || voiceOnly || activeCats.size > 0;
   const measured=stripMeasuredRows();
-  const east=stripPlaceColumn(measured.filter(p => p.entry.side === 'east'),
-    item => ({desired:stripIdealCenter(item.entry),low:-Infinity,high:Infinity}));
-  const west=stripPlaceColumn(measured.filter(p => p.entry.side === 'west'), item => {
-    const facing=east.filter(other => Math.abs(other.entry.y-item.entry.y) <= 20);
-    if (!facing.length) return {desired:stripIdealCenter(item.entry),low:-Infinity,high:Infinity};
-    const low=Math.max(...facing.map(other => other.center-STRIP_FACING_MAX));
-    const high=Math.min(...facing.map(other => other.center+STRIP_FACING_MAX));
-    return {desired:(Math.min(...facing.map(other => other.center))+
-      Math.max(...facing.map(other => other.center)))/2,low,high};
-  });
+  const east=stripPackColumn(measured.filter(p => p.entry.side === 'east'),compact);
+  const west=stripPackColumn(measured.filter(p => p.entry.side === 'west'),compact);
+  const facingBounds=[];
+  if (!compact) west.forEach(item => east.filter(other => Math.abs(other.entry.y-item.entry.y) <= 20)
+    .forEach(other => facingBounds.push({low:other.center-item.center-STRIP_FACING_MAX,
+      high:other.center-item.center+STRIP_FACING_MAX})));
+  if (facingBounds.length){
+    const low=Math.max(...facingBounds.map(b => b.low));
+    const high=Math.min(...facingBounds.map(b => b.high));
+    const shift=low <= high ? Math.max(low,Math.min(high,0)) : (low+high)/2;
+    west.forEach(item => { item.center+=shift; });
+  }
   const placed=east.concat(west);
-  placed.forEach(item => { item.row.style.top=item.center+'px'; });
+  const topShift=placed.length ? Math.max(0,STRIP_TOP_PAD-Math.min(...placed.map(item => item.center-item.h/2))) : 0;
+  if (topShift) placed.forEach(item => { item.center+=topShift; });
+  placed.forEach(item => {
+    item.row.style.top=item.center+'px';
+    const displacement=stripIdealCenter(item.entry)+topShift-item.center;
+    item.row.classList.toggle('displaced',!compact && Math.abs(displacement) > 12);
+    item.row.style.setProperty('--leader-offset',displacement+'px');
+  });
   stripSignalNodes.forEach(item => {
+    item.node.hidden=compact;
     item.node.style.top=stripCenterForY(item.y,placed)+'px';
   });
   const rowBottom=Math.max(0,...placed.map(item => item.center+item.h/2));
-  const signalBottom=Math.max(0,...stripSignalNodes.map(item =>
+  const signalBottom=compact ? 0 : Math.max(0,...stripSignalNodes.map(item =>
     stripCenterForY(item.y,placed)+12));
-  const geoBottom=stripCenterForY(stripYMax,placed);
-  document.getElementById('strip').style.height=
-    Math.ceil(Math.max(rowBottom,signalBottom,geoBottom)+STRIP_TOP_PAD)+'px';
+  const geoBottom=compact ? 0 : stripCenterForY(stripYMax,placed);
+  const strip=document.getElementById('strip');
+  strip.classList.toggle('compact',compact);
+  strip.style.height=Math.ceil(Math.max(rowBottom,signalBottom,geoBottom,compact ? 26 : 0)+STRIP_TOP_PAD)+'px';
+  const visibleFar=stripFar.some(entry => {
+    const row=document.querySelector('#stripfar .strip-row[data-i="'+entry.i+'"]');
+    return row && !row.hidden;
+  });
+  document.querySelector('.far-section').hidden=compact && !visibleFar;
 }
 function scheduleStripLayout(){
   if (stripLayoutFrame) return;
@@ -1549,17 +1634,50 @@ document.getElementById('q').addEventListener('input', e => {
   }
 });
 function norm(s){ return s.toLowerCase().replace(/[ァ-ン]/g, m=>String.fromCharCode(m.charCodeAt(0)-0x60)); }
+const SEARCH_ALIASES = {
+  'ぱん':['bakery','bake'],
+  'けーき':['cake'],
+  '歯医者':['歯科'],
+  'はいしゃ':['歯科'],
+  'しか':['歯科'],
+  '床屋':['とこや','カットショップ nobu'],
+  'とこや':['とこや','カットショップ nobu'],
+  '散髪':['とこや','カットショップ nobu'],
+  'さんぱつ':['とこや','カットショップ nobu'],
+  '理容':['とこや','カットショップ nobu'],
+  'りよう':['とこや','カットショップ nobu'],
+  'くすり':['薬局','ウエルシア'],
+  'どらっぐ':['薬局','ウエルシア'],
+  '花':['フラワー','生花'],
+  'はな':['フラワー','生花'],
+  'ぎんこう':['銀行'],
+  'ゆうびん':['郵便局'],
+  '病院':['クリニック','医院','内科','外科'],
+  'びょういん':['クリニック','医院','内科','外科'],
+  '医者':['クリニック','医院','内科','外科'],
+  'いしゃ':['クリニック','医院','内科','外科'],
+  'かふぇ':['食べる・飲む・食料'],
+  '喫茶':['食べる・飲む・食料'],
+  'きっさ':['食べる・飲む・食料']
+};
+function expandedSearchTerms(value){
+  const key=norm(value).trim();
+  return [key,...(SEARCH_ALIASES[key]||[])].map(norm);
+}
 function searchText(s){
-  return norm(s.name + ' ' + (s.addr||'') + ' ' + (s.note||'') + ' ' + (s.voices||[]).map(v=>v.text).join(' '));
+  return norm(s.name + ' ' + CATS[s.cat].label + ' ' + (s.addr||'') + ' ' + (s.note||'') + ' ' +
+    (s.voices||[]).map(v=>v.text).join(' '));
 }
 function matchesFilter(s){
   if (activeCats.size && !activeCats.has(s.cat)) return false;
   if (voiceOnly && !(s.voices||[]).length) return false;
-  if (query && searchText(s).indexOf(norm(query)) < 0) return false;
+  if (query && !expandedSearchTerms(query).some(term => searchText(s).includes(term))) return false;
   return true;
 }
 function applyFilter({fromSearch=false} = {}){
   const matched = [];
+  const filtering = query.length > 0 || voiceOnly || activeCats.size > 0;
+  document.body.classList.toggle('map-filtering',filtering);
   document.querySelectorAll('.hit').forEach(h => {
     const s = GEO.shops[+h.dataset.i];
     const ok = matchesFilter(s);
@@ -1572,34 +1690,42 @@ function applyFilter({fromSearch=false} = {}){
     h.setAttribute('tabindex', ok ? 0 : -1);
   });
   document.querySelectorAll('.strip-row').forEach(row => {
-    const ok=matchesFilter(GEO.shops[+row.dataset.i]);
+    const s=GEO.shops[+row.dataset.i];
+    const ok=matchesFilter(s);
+    const name=row.querySelector('.strip-shop-name');
+    const cafeFallback=['かふぇ','喫茶','きっさ'].includes(norm(query)) && s.cat === 'food' && ok;
+    if (name) name.textContent=(cafeFallback ? 'cafe候補：' : '')+s.name;
     row.hidden=!ok;
+    row.classList.toggle('glowing',filtering && matched.length === 1 && ok);
     row.tabIndex=ok ? 0 : -1;
     row.setAttribute('aria-hidden',ok ? 'false' : 'true');
   });
   scheduleStripLayout();
   const status = document.getElementById('searchstatus');
-  const filtering = query.length > 0 || voiceOnly || activeCats.size > 0;
   status.textContent = filtering ? (matched.length ? matched.length+'件' : '見つかりません') : '';
   status.classList.toggle('empty', filtering && matched.length === 0);
+  const mapFilterBadge = document.getElementById('mapFilterBadge');
+  const filterParts = [];
+  if (query) filterParts.push('「'+query+'」');
+  if (voiceOnly) filterParts.push('こどもの声');
+  if (activeCats.size) filterParts.push([...activeCats].map(k => CATS[k].label).join('・'));
+  mapFilterBadge.textContent = filtering ? filterParts.join('・')+' '+matched.length+'件' : '';
+  mapFilterBadge.title = mapFilterBadge.textContent;
 
   if (query) renderList(null, '検索結果'); else renderList();
 
   if (fromSearch){
     const enough = Array.from(query).length >= 2;
-    if (enough && matched.length === 1){
+    if (enough){
       setListOpen(false);
       searchOpenedList = false;
-      focusShopOnMap(matched[0], true);
-    } else if (enough && matched.length > 1){
-      setSelectedShop(null);
-      renderList(null, '検索結果');
-      setListOpen(true);
-      searchOpenedList = true;
-    } else if (enough && matched.length === 0){
-      setListOpen(false);
-      searchOpenedList = false;
-      setSelectedShop(null);
+      setSelectedShop(matched.length === 1 ? matched[0] : null);
+      if (matched.length === 1){
+        requestAnimationFrame(() => {
+          const row=document.querySelector('.strip-row[data-i="'+GEO.shops.indexOf(matched[0])+'"]');
+          if (row) row.scrollIntoView({block:'nearest'});
+        });
+      }
     } else if (searchOpenedList){
       setListOpen(false);
       searchOpenedList = false;
