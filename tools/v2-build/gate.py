@@ -8,7 +8,7 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N44 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N50 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
@@ -54,6 +54,155 @@ def _open_map(page):
         return bool(page.evaluate(OPEN_MAP))
     except Exception:
         return False
+
+
+# 地図を開いた画面を測る。地図の面積比だけでなく
+#   ・何が地図の上に乗っているか ・見出しと閉じる手段があるか
+#   ・画面の中にある店名が縁で切れていないか
+# を返す。「比率は通るのに中身が切れている」を捕まえるため。
+MAP_FRAME_JS = """() => {
+  const MAP_PAD = 6;
+  const vp = document.getElementById('viewport');
+  if (!vp) return {ok:false};
+  const v = vp.getBoundingClientRect();
+  const R = {vp:[v.x,v.y,v.width,v.height], screen:[innerWidth,innerHeight], occ:[], cut:[]};
+
+  // 地図の矩形に重なって見えている要素を、地図より手前(z)にあるものだけ拾う
+  const cands = ['header','#controls','footer.credit','.zoomctl','#srcinfo','#editbar',
+                 '.strip-guide','#stripview','.detail-panel','#listpanel'];
+  for (const sel of cands) {
+    for (const e of document.querySelectorAll(sel)) {
+      const c = getComputedStyle(e);
+      if (c.display==='none' || c.visibility==='hidden' || +c.opacity===0) continue;
+      const r = e.getBoundingClientRect();
+      if (r.width<1 || r.height<1) continue;
+      const ox = Math.max(0, Math.min(r.right, v.right) - Math.max(r.x, v.x));
+      const oy = Math.max(0, Math.min(r.bottom, v.bottom) - Math.max(r.y, v.y));
+      if (ox<=0 || oy<=0) continue;
+      R.occ.push({sel, area: Math.round(ox*oy), rect:[Math.round(r.x),Math.round(r.y),
+                  Math.round(r.width),Math.round(r.height)], z:c.zIndex});
+    }
+  }
+  // 地図が本当に見えている縦幅 = viewport から 上下の覆いを引いたもの
+  let top = v.y, bot = v.bottom;
+  for (const o of R.occ) {
+    const [x,y,w,h] = o.rect;
+    if (x <= v.x+1 && x+w >= v.right-1) {          // 横いっぱいに覆うものだけ帯として扱う
+      if (y <= top+1 && y+h > top) top = y+h;
+      if (y+h >= bot-1 && y < bot) bot = y;
+    }
+  }
+  R.band = [Math.round(top), Math.round(bot)];
+  R.openRatio = +(Math.max(0, bot-top) / innerHeight).toFixed(3);
+
+  // 見出しと「地図を閉じる/戻る」手段が、地図の帯の外(上か下の固定部)にあるか
+  const vis = e => { if(!e) return false; const c=getComputedStyle(e);
+    if (c.display==='none'||c.visibility==='hidden'||+c.opacity===0) return false;
+    const r=e.getBoundingClientRect();
+    return r.width>0 && r.height>0 && r.bottom>0 && r.top<innerHeight; };
+  R.heading = [...document.querySelectorAll('h1,h2,[role="heading"],.map-title')]
+    .filter(vis).map(e=>e.textContent.trim().slice(0,24));
+  const back = [...document.querySelectorAll('button,a[href],[role="button"]')]
+    .filter(vis).filter(e => /戻|閉じ|一覧|通り沿い|地図をとじ/.test(
+      (e.getAttribute('aria-label')||'') + ' ' + e.textContent));
+  R.back = back.map(e => { const r=e.getBoundingClientRect();
+    return {t:(e.getAttribute('aria-label')||e.textContent).trim().slice(0,20),
+            cy:Math.round(r.top+r.height/2)}; });
+
+  // 画面の中にある店名が、縁で切れていないか / 覆いに隠れていないか
+  for (const t of document.querySelectorAll('#map text')) {
+    const r = t.getBoundingClientRect();
+    const s = (t.textContent||'').trim();
+    if (!s || r.width<1) continue;
+    if (r.bottom <= 0 || r.top >= innerHeight) continue;   // 完全に画面外は対象外
+    if (r.right <= 0 || r.x >= innerWidth) continue;
+    let why = null;
+    if (r.x < -0.5) why = '左で切れる';
+    else if (r.right > innerWidth+0.5) why = '右で切れる';
+    else if (r.top < top - 0.5) why = '上の縁で切れる';
+    else if (r.bottom > bot + 0.5) why = '下の覆いに隠れる';
+    else if (r.x < MAP_PAD || r.right > innerWidth-MAP_PAD
+             || r.top < top+MAP_PAD || r.bottom > bot-MAP_PAD) why = '縁ぎりぎり';
+    if (why) R.cut.push({t:s.slice(0,22), why,
+      rect:[Math.round(r.x),Math.round(r.y),Math.round(r.width),Math.round(r.height)]});
+  }
+  return R;
+}"""
+
+# 同じ側で縦に隣り合うカードの隙間。0pxで接していると1枚の板に見えて押し分けられない。
+STRIP_GAP_JS = """() => {
+  const by = {west:[], east:[]};
+  for (const e of document.querySelectorAll('#strip .strip-row')) {
+    if (e.hidden) continue;
+    const r = e.getBoundingClientRect();
+    if (r.height < 1) continue;
+    by[e.dataset.side||'east'].push({top:r.top, bot:r.bottom,
+      n:((e.querySelector('.strip-shop-name')||e).textContent||'').trim().slice(0,18)});
+  }
+  const out = [];
+  for (const side of ['west','east']) {
+    const a = by[side].sort((x,y)=>x.top-y.top);
+    for (let i=1;i<a.length;i++)
+      out.push({side, gap:+(a[i].top-a[i-1].bot).toFixed(1), a:a[i-1].n, b:a[i].n});
+  }
+  out.sort((x,y)=>x.gap-y.gap);
+  return {pairs: out.length, tight: out.filter(x=>x.gap < 8).slice(0, 40),
+          min: out.length ? out[0].gap : null};
+}"""
+
+# 絞り込んだとき、該当が1画面にいくつ見えるか。「11件」と出ているのに
+# 画面には1件しか無い状態を捕まえる。
+FILTER_VIEW_JS = """async () => {
+  const wait = ms => new Promise(r=>setTimeout(r,ms));
+  const box = () => { const v=document.getElementById('stripview');
+    return v ? v.getBoundingClientRect() : null; };
+  const seen = () => { const vb = box(); if(!vb) return {t:0,v:0};
+    const rows=[...document.querySelectorAll('#strip .strip-row, #stripfar .strip-row')]
+      .filter(r=>!r.hidden);
+    let vis=0;
+    for (const r of rows){ const b=r.getBoundingClientRect();
+      if (b.bottom>vb.top+2 && b.top<vb.bottom-2 && b.height>1) vis++; }
+    return {t:rows.length, v:vis}; };
+  const out = [];
+  const vf = document.querySelector('.chip.voice-filter');
+  if (vf) { vf.click(); await wait(700);
+    const s = seen(); out.push({how:'こどもの声で絞り込み', total:s.t, visible:s.v});
+    vf.click(); await wait(500); }
+  const chips = [...document.querySelectorAll('.chip')].filter(c=>!c.classList.contains('voice-filter'));
+  if (chips.length) { chips[0].click(); await wait(700);
+    const s = seen();
+    out.push({how:'「'+(chips[0].textContent||'').trim().slice(0,10)+'」で絞り込み',
+              total:s.t, visible:s.v});
+    chips[0].click(); await wait(500); }
+  const q = document.getElementById('q');
+  if (q) { q.value='中山'; q.dispatchEvent(new Event('input',{bubbles:true})); await wait(800);
+    const s = seen(); out.push({how:'「中山」で検索', total:s.t, visible:s.v});
+    q.value=''; q.dispatchEvent(new Event('input',{bubbles:true})); await wait(500);
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+    await wait(300); }
+  return out;
+}"""
+
+# 歩きながら探す人が打ちそうな言葉。店名にその字が無くても引っかかるべき。
+SEARCH_WORDS_JS = """async (words) => {
+  const wait = ms => new Promise(r=>setTimeout(r,ms));
+  const q = document.getElementById('q');
+  if (!q) return [];
+  const out = [];
+  for (const w of words) {
+    q.value = w; q.dispatchEvent(new Event('input',{bubbles:true}));
+    await wait(420);
+    const got = [...document.querySelectorAll('#strip .strip-row, #stripfar .strip-row')]
+      .filter(r=>!r.hidden)
+      .map(r=>((r.querySelector('.strip-shop-name')||r).textContent||'').trim());
+    out.push({w, hits:got.length, names:got.slice(0, 20)});
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+    await wait(120);
+  }
+  q.value=''; q.dispatchEvent(new Event('input',{bubbles:true}));
+  await wait(400);
+  return out;
+}"""
 
 
 OUT = []
@@ -113,6 +262,33 @@ UI_DEVICES = [(360, 640), (375, 667), (390, 844), (428, 926)]
 # N20/N21 はここでも見る。一方 N23 (地図の大きさ) は横向きだと前提が変わるので
 # 縦向きだけで判定する — 横向きは「地図が主」でなく「一覧が主」の使い方になる。
 UI_LANDSCAPE = [(640, 360), (844, 390)]
+
+# ---- 2026-07-31 追加 (N45-N50) ----
+# ここまでの N1-N44 は「数えられるもの」だけを見ていた。地図を開いた画面を一度も
+# 撮らずに通していたため、ボスに「マップの方見切れてない?」と言われるまで
+#   ・地図に見出しが無い ・上下左右で店名が切れる ・帰属表示が地図に重なる
+#   ・カード同士が0pxで接している ・絞り込み11件で1件しか見えない
+# を全部素通りさせた。以下は「絵を見て分かること」を数字に落としたもの。
+MAP_OCCLUDE_MAX_PX = 0.0    # 地図の上に他のUIが乗ってよい面積 (乗ってはいけない)
+MAP_EDGE_PAD_PX = 6.0       # 画面の縁と店名の間に要る余白
+MAP_OPEN_MIN_RATIO = 0.78   # 地図を開いたら画面の78%以上が地図
+STRIP_GAP_MIN_PX = 8.0      # 二列のカード同士の縦の隙間 (押し間違い防止)
+FILTER_VISIBLE_MIN = 6      # 絞り込んだとき1画面に見えるべき該当件数 (該当が少なければ全部)
+# 語が「何かに当たればOK」では、全部に当てる実装で通ってしまう。
+# 当たるべき店を名指しで書き、その店が結果に入っていることまで見る。
+SEARCH_WORDS = [
+    ("パン",   "BAKERY&BAKE EndRoll"),
+    ("ケーキ", "cake NAO"),
+    ("歯医者", "歯科"),
+    ("床屋",   "とこや"),
+    ("薬",     "ウエルシア薬局"),
+    ("花",     "フラワー中山"),
+    ("銀行",   "七十七銀行中山支店"),
+    ("郵便",   "中山郵便局"),
+    ("病院",   "クリニック"),
+    ("カフェ", "cafe"),
+]
+SEARCH_HITS_MAX = 14       # 1語で14件超が返るなら絞れていない (全部に当てる実装よけ)
 # 横向きの地図の床。実測 (2026-07-31) では 640x360 で地図が57px・844x390 で51px しかなく、
 # 上下のUIが画面の87%を占めていた。この状態では地図として使えない。
 # 横向きは横に余裕があるので、カテゴリと検索を横の列へ逃がせば縦は
@@ -888,12 +1064,20 @@ if not A.no_browser:
                             || document.getElementById('viewport');
                       return e ? Math.round(e.getBoundingClientRect().height) : 0;
                     }""")
+                    # N48 二列のカード同士の縦の隙間 (同じ側の隣どうし)
+                    u["stripGaps"] = up.evaluate(STRIP_GAP_JS)
+                    # N49 絞り込んだとき、該当が1画面にいくつ見えるか
+                    u["filterView"] = up.evaluate(FILTER_VIEW_JS)
+                    # N50 探しそうな言葉が引っかかるか
+                    u["searchWords"] = up.evaluate(SEARCH_WORDS_JS, [w for w, _ in SEARCH_WORDS])
                     if _open_map(up):
                         up.wait_for_timeout(900)
                         m2 = up.evaluate(UIJS)
                         u["mapRatio"] = m2["mapRatio"]
                         u["mapH"] = m2["mapH"]
                         u["voiceHidden"] = m2["voiceHidden"]
+                        # N45-N47 地図の画面。開いた地図を実際に測る (2026-07-31 追加)
+                        u["mapFrame"] = up.evaluate(MAP_FRAME_JS)
                     u["vh"] = uh
                     u["portrait"] = uh > uw
                     u["sweep"] = sweep
@@ -1055,7 +1239,8 @@ fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "
                          "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
                          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27",
                          "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39",
-                         "N40", "N41", "N42", "N43", "N44")}
+                         "N40", "N41", "N42", "N43", "N44",
+                         "N45", "N46", "N47", "N48", "N49", "N50")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -1613,6 +1798,79 @@ if REND:
                                     "(片手だと親指が届かない) [%s]"
                                     % (c["nm"], c["cy"], st["h"], dev))
 
+    # ---- N45-N50 (2026-07-31) 絵を見て分かることを数字にしたもの ----
+    _seen_gap, _seen_filter, _seen_word = set(), set(), set()
+    for u in (REND.get("ui") or []):
+        dev = "%dx%d" % (u["vw"], u.get("vh", 0))
+        port = u.get("portrait")
+
+        # N45 地図の上に何も乗っていない / N46 見出しと戻る手段 / N47 縁で切れない
+        mf = u.get("mapFrame")
+        if mf and mf.get("vp"):
+            for o in sorted(mf.get("occ") or [], key=lambda x: -x["area"]):
+                fails["N45"].append("地図の上に %s が %dpx² 乗っている %s [%s]"
+                                    % (o["sel"], o["area"], o["rect"], dev))
+            if port and mf.get("openRatio", 0) < MAP_OPEN_MIN_RATIO:
+                fails["N45"].append("地図を開いても地図は画面の%.0f%%しかない (最低%.0f%%) [%s]"
+                                    % (mf["openRatio"] * 100, MAP_OPEN_MIN_RATIO * 100, dev))
+            band = mf.get("band") or [0, 0]
+            if not (mf.get("heading") or []):
+                fails["N46"].append("地図の画面に見出しが1つも無い (今どこにいるか分からない) [%s]" % dev)
+            back = mf.get("back") or []
+            top_back = [b for b in back if b["cy"] < band[0] + 8 or b["cy"] > band[1] - 8]
+            if not back:
+                fails["N46"].append("地図から戻る手段が画面に無い [%s]" % dev)
+            elif not top_back:
+                fails["N46"].append("地図から戻る手段が地図の中に埋もれている "
+                                    "(帯の外に置く) [%s]" % dev)
+            for c in (mf.get("cut") or []):
+                fails["N47"].append("地図の「%s」が%s %s [%s]"
+                                    % (c["t"], c["why"], c["rect"], dev))
+
+        # N48 カード同士の隙間
+        sg = u.get("stripGaps")
+        if sg and sg.get("pairs") and dev not in _seen_gap:
+            _seen_gap.add(dev)
+            for t in (sg.get("tight") or [])[:12]:
+                fails["N48"].append("「%s」と「%s」の隙間が%.1fpx (最低%.0f・境目が見えない) [%s]"
+                                    % (t["a"], t["b"], t["gap"], STRIP_GAP_MIN_PX, dev))
+            if len(sg.get("tight") or []) > 12:
+                fails["N48"].append("ほか%d組も隙間が%.0fpx未満 [%s]"
+                                    % (len(sg["tight"]) - 12, STRIP_GAP_MIN_PX, dev))
+
+        # N49 絞り込んだとき1画面に何件見えるか
+        for f in (u.get("filterView") or []):
+            key = dev + f["how"]
+            if key in _seen_filter:
+                continue
+            _seen_filter.add(key)
+            want = min(f["total"], FILTER_VISIBLE_MIN)
+            if f["total"] and f["visible"] < want:
+                fails["N49"].append("%s で%d件のはずが、画面には%d件しか見えない "
+                                    "(最低%d件) [%s]"
+                                    % (f["how"], f["total"], f["visible"], want, dev))
+
+        # N50 探しそうな言葉が、当たるべき店に当たるか
+        _anchor = dict(SEARCH_WORDS)
+        for s in (u.get("searchWords") or []):
+            if s["w"] in _seen_word:
+                continue
+            want = _anchor.get(s["w"], "")
+            names = s.get("names") or []
+            if s["hits"] == 0:
+                _seen_word.add(s["w"])
+                fails["N50"].append("「%s」で検索しても0件 (店名にその字が無いだけで、"
+                                    "その店はある: %s) [%s]" % (s["w"], want, dev))
+            elif want and not any(want in n for n in names):
+                _seen_word.add(s["w"])
+                fails["N50"].append("「%s」で%d件出るが「%s」が入っていない (出たのは %s) [%s]"
+                                    % (s["w"], s["hits"], want,
+                                       "、".join(names[:4]) or "なし", dev))
+            elif s["hits"] > SEARCH_HITS_MAX:
+                _seen_word.add(s["w"])
+                fails["N50"].append("「%s」で%d件も出る (%d件まで・絞れていない) [%s]"
+                                    % (s["w"], s["hits"], SEARCH_HITS_MAX, dev))
+
     def _where(w):
         # 全端末・全状態に出るなら「どこでも」。そうでなければ最初の1つを示す。
         u = sorted(set(w))
@@ -1682,11 +1940,18 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N41": "二列の並び順が通り沿いの真の順番と一致する",
        "N42": "向かい合う店が画面上でも同じ高さに来る",
        "N43": "押すものが親指の届く範囲にある",
-       "N44": "押せるもの同士が重なっていない"}
+       "N44": "押せるもの同士が重なっていない",
+       "N45": "地図を開いたら地図が覆われていない",
+       "N46": "地図の画面に見出しと戻る手段がある",
+       "N47": "地図の店名が画面の縁で切れていない",
+       "N48": "二列のカード同士に押し分けられる隙間がある",
+       "N49": "絞り込んだ結果が1画面で見渡せる",
+       "N50": "探しそうな言葉で店が引ける"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
-              "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43", "N44"):
+              "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43", "N44",
+              "N45", "N46", "N47", "N48", "N49", "N50"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
