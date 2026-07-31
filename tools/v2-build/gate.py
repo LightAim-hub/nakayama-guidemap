@@ -8,7 +8,7 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N43 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N44 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
@@ -740,7 +740,15 @@ if not A.no_browser:
                       const a=els[i].r, b=els[j].r;
                       const ox = Math.min(a.right,b.right)-Math.max(a.left,b.left);
                       const oy = Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
-                      if (ox>0 && oy>0) continue;
+                      if (ox>0 && oy>0) {
+                        // N44 重なり。N31 は「隙間」だけを見て重なりを除外していたが、
+                        // その別問題の検査を作っていなかった (2026-07-31: 二列表示で
+                        // 17組のカードが重なっているのを素通りさせた)。
+                        if (ox>1 && oy>1)
+                          gaps.push({state, a:els[i].nm, b:els[j].nm,
+                                     gap:-1, ox:+ox.toFixed(0), oy:+oy.toFixed(0)});
+                        continue;
+                      }
                       const dx = ox>0 ? 0 : Math.max(a.left-b.right, b.left-a.right, 0);
                       const dy = oy>0 ? 0 : Math.max(a.top-b.bottom, b.top-a.bottom, 0);
                       const g = Math.hypot(dx, dy);
@@ -1047,7 +1055,7 @@ fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "
                          "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
                          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27",
                          "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39",
-                         "N40", "N41", "N42", "N43")}
+                         "N40", "N41", "N42", "N43", "N44")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -1472,8 +1480,13 @@ if REND:
         fails["N30"].append("%s (%s) が %.2f:1 (必要%.1f / %.1fpx) [%s]"
                             % (k, e["txt"], e["ratio"], e["need"], e["px"], _w(e["where"])))
     for k, e in sorted(_g.items(), key=lambda kv: kv[1]["gap"]):
-        fails["N31"].append("「%s」と「%s」が %.1fpx しか離れていない (最小%.0f) [%s]"
-                            % (e["a"], e["b"], e["gap"], TAP_GAP_MIN_PX, _w(e["where"])))
+        if e["gap"] < 0:
+            fails["N44"].append("「%s」と「%s」が 横%dpx 縦%dpx 重なっている [%s]"
+                                % (e["a"], e["b"], e.get("ox", 0), e.get("oy", 0),
+                                   _w(e["where"])))
+        else:
+            fails["N31"].append("「%s」と「%s」が %.1fpx しか離れていない (最小%.0f) [%s]"
+                                % (e["a"], e["b"], e["gap"], TAP_GAP_MIN_PX, _w(e["where"])))
     for k, e in sorted(_e.items()):
         fails["N34"].append("%s (%s) がアイコンに絵文字 %s を使っている [%s]"
                             % (e["sel"], e["txt"], e["ch"], _w(e["where"])))
@@ -1668,11 +1681,12 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N40": "二列の東西が真座標と一致する",
        "N41": "二列の並び順が通り沿いの真の順番と一致する",
        "N42": "向かい合う店が画面上でも同じ高さに来る",
-       "N43": "押すものが親指の届く範囲にある"}
+       "N43": "押すものが親指の届く範囲にある",
+       "N44": "押せるもの同士が重なっていない"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
-              "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43"):
+              "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43", "N44"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -1729,7 +1743,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N43 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N44 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
