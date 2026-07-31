@@ -8,7 +8,7 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N50 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N51 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
@@ -187,6 +187,43 @@ FILTER_VIEW_JS = """async () => {
   return out;
 }"""
 
+# 通りの帯の中の飾り (道路名・信号) が、どの絞り込み状態でも重なっていないか。
+STRIP_DECOR_JS = """async () => {
+  const wait = ms => new Promise(r=>setTimeout(r,ms));
+  const scan = how => {
+    const els = [...document.querySelectorAll('#strip .strip-road-label, #strip .strip-signal')]
+      .filter(e => { const c=getComputedStyle(e);
+        if (c.display==='none'||c.visibility==='hidden') return false;
+        const r=e.getBoundingClientRect(); return r.width>1 && r.height>1; })
+      .map(e => { const r=e.getBoundingClientRect();
+        return {t:(e.textContent||'').trim().slice(0,12) || '信号',
+                kind:e.classList.contains('strip-signal') ? '信号' : '道路名',
+                x:r.x, y:r.y, w:r.width, h:r.height}; });
+    const bad = [];
+    for (let i=0;i<els.length;i++) for (let j=i+1;j<els.length;j++) {
+      const a=els[i], b=els[j];
+      const ox=Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x);
+      const oy=Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y);
+      if (ox>0.5 && oy>0.5)
+        bad.push({how, a:a.kind+'「'+a.t+'」', b:b.kind+'「'+b.t+'」',
+                  ox:+ox.toFixed(0), oy:+oy.toFixed(0)});
+    }
+    return {how, count:els.length, bad};
+  };
+  const out = [scan('絞り込みなし')];
+  const vf = document.querySelector('.chip.voice-filter');
+  if (vf) { vf.click(); await wait(700); out.push(scan('こどもの声で絞り込み'));
+            vf.click(); await wait(500); }
+  const q = document.getElementById('q');
+  if (q) { q.value='ケーキ'; q.dispatchEvent(new Event('input',{bubbles:true}));
+           await wait(700); out.push(scan('「ケーキ」で検索'));
+           q.value=''; q.dispatchEvent(new Event('input',{bubbles:true}));
+           await wait(500);
+           document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+           await wait(300); }
+  return out;
+}"""
+
 # 歩きながら探す人が打ちそうな言葉。店名にその字が無くても引っかかるべき。
 SEARCH_WORDS_JS = """async (words) => {
   const wait = ms => new Promise(r=>setTimeout(r,ms));
@@ -296,6 +333,13 @@ SEARCH_WORDS = [
     ("カフェ", "cake NAO"),
 ]
 SEARCH_HITS_MAX = 14       # 1語で14件超が返るなら絞れていない (全部に当てる実装よけ)
+
+# N51 (2026-08-01 追加)。gate が PASS になった状態の絵を見たら、絞り込み中の
+# 通りの帯の中で 道路名「中山バス通り」が何重にも重なって読めない字の塊になっていた。
+# 詰めモードで帯が縮んでも、道路名と信号は元の間隔のまま置かれていたため。
+# N29 は「入れ物からのはみ出し」、N44 は「押せるもの同士の重なり」しか見ておらず、
+# 押せない飾りどうしの重なりを見る項目が無かった。
+STRIP_DECOR_OVERLAP_MAX = 0    # 通りの中の道路名・信号どうしが重なってはいけない
 # 横向きの地図の床。実測 (2026-07-31) では 640x360 で地図が57px・844x390 で51px しかなく、
 # 上下のUIが画面の87%を占めていた。この状態では地図として使えない。
 # 横向きは横に余裕があるので、カテゴリと検索を横の列へ逃がせば縦は
@@ -1081,6 +1125,8 @@ if not A.no_browser:
                     u["filterView"] = up.evaluate(FILTER_VIEW_JS)
                     # N50 探しそうな言葉が引っかかるか
                     u["searchWords"] = up.evaluate(SEARCH_WORDS_JS, [w for w, _ in SEARCH_WORDS])
+                    # N51 通りの中の飾り (道路名・信号) が重なっていないか
+                    u["stripDecor"] = up.evaluate(STRIP_DECOR_JS)
                     if _open_map(up):
                         up.wait_for_timeout(900)
                         m2 = up.evaluate(UIJS)
@@ -1251,7 +1297,7 @@ fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "
                          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27",
                          "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39",
                          "N40", "N41", "N42", "N43", "N44",
-                         "N45", "N46", "N47", "N48", "N49", "N50")}
+                         "N45", "N46", "N47", "N48", "N49", "N50", "N51")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -1844,6 +1890,7 @@ if REND:
 
     # ---- N45-N50 (2026-07-31) 絵を見て分かることを数字にしたもの ----
     _seen_gap, _seen_filter, _seen_word = set(), set(), set()
+    _seen_decor = set()
     for u in (REND.get("ui") or []):
         dev = "%dx%d" % (u["vw"], u.get("vh", 0))
         port = u.get("portrait")
@@ -1893,6 +1940,20 @@ if REND:
                 fails["N49"].append("%s で%d件のはずが、画面には%d件しか見えない "
                                     "(最低%d件) [%s]"
                                     % (f["how"], f["total"], f["visible"], want, dev))
+
+        # N51 通りの帯の中で 道路名・信号 どうしが重なっていないか
+        for sc in (u.get("stripDecor") or []):
+            key51 = dev + sc["how"]
+            if key51 in _seen_decor:
+                continue
+            _seen_decor.add(key51)
+            for b in (sc.get("bad") or [])[:6]:
+                fails["N51"].append("%s で %s と %s が 横%dpx 縦%dpx 重なっている "
+                                    "(読めない字の塊になる) [%s]"
+                                    % (sc["how"], b["a"], b["b"], b["ox"], b["oy"], dev))
+            if len(sc.get("bad") or []) > 6:
+                fails["N51"].append("%s で ほか%d組も重なっている [%s]"
+                                    % (sc["how"], len(sc["bad"]) - 6, dev))
 
         # N50 探しそうな言葉が、当たるべき店に当たるか
         _anchor = dict(SEARCH_WORDS)
@@ -1990,12 +2051,13 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N47": "地図の店名が画面の縁で切れていない",
        "N48": "二列のカード同士に押し分けられる隙間がある",
        "N49": "絞り込んだ結果が1画面で見渡せる",
-       "N50": "探しそうな言葉で店が引ける"}
+       "N50": "探しそうな言葉で店が引ける",
+       "N51": "通りの中の道路名・信号が重なっていない"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
               "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43", "N44",
-              "N45", "N46", "N47", "N48", "N49", "N50"):
+              "N45", "N46", "N47", "N48", "N49", "N50", "N51"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:

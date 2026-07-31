@@ -330,7 +330,7 @@
   body{ --controls-h:164px; }
   #stripview{ flex:1 1 auto; min-height:0; margin-bottom:12px; overflow-y:auto; overflow-x:hidden;
     background:var(--paper); -webkit-overflow-scrolling:touch; overscroll-behavior-y:contain; }
-  .strip-guide{ position:sticky; top:0; z-index:8; display:grid;
+  .strip-guide{ position:relative; z-index:8; display:grid;
     grid-template-columns:minmax(0,1fr) 68px minmax(0,1fr); align-items:center;
     min-height:44px; padding:5px 8px; background:rgba(251,244,226,.97);
     border-bottom:2px dashed rgba(92,67,39,.3); color:var(--ink-soft);
@@ -347,7 +347,10 @@
     border-left:2px dashed rgba(122,92,59,.45); }
   .strip-road-label{ position:absolute; left:50%; transform:translate(-50%,-50%); z-index:1;
     padding:3px 1px; background:#f7e7bf; color:var(--ink-soft); writing-mode:vertical-rl;
-    font-family:'Yusei Magic',sans-serif; font-size:11px; line-height:1; letter-spacing:.08em; }
+    font-family:'Yusei Magic',sans-serif; font-size:11px; line-height:1; letter-spacing:.08em;
+    white-space:nowrap; }
+  #strip.compact .strip-road-label{ font-size:10px; letter-spacing:0; }
+  .strip-road-label[hidden], .strip-signal[hidden]{ display:none; }
   .strip-row{ --cat-color:var(--accent); position:absolute; z-index:3; width:calc(50% - 40px);
     min-height:44px; display:flex; align-items:center; gap:6px; padding:7px 9px;
     border:2px solid color-mix(in srgb, var(--cat-color) 58%, var(--ink-soft)); border-radius:20px;
@@ -366,10 +369,12 @@
   .strip-row:focus-visible{ outline:3px solid rgba(201,123,61,.45); outline-offset:2px; }
   .strip-shop-dot{ flex:0 0 auto; width:11px; height:11px; border-radius:50%;
     background:var(--cat-color); border:1.5px solid rgba(92,67,39,.42); }
-  .strip-shop-name{ min-width:0; overflow-wrap:anywhere; }
+  .strip-shop-name{ min-width:0; max-height:2.5em; overflow:hidden;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
+    word-break:normal; overflow-wrap:normal; }
+  .strip-name-token{ display:inline-block; max-width:100%; white-space:nowrap; }
   #strip > .strip-row{ min-height:45px; padding-block:3px; }
-  #strip > .strip-row .strip-shop-name{ flex:1 1 auto; overflow:visible; overflow-wrap:anywhere;
-    text-overflow:clip; white-space:normal; }
+  #strip > .strip-row .strip-shop-name{ flex:1 1 auto; text-overflow:clip; white-space:normal; }
   .strip-voice{ flex:0 0 auto; color:var(--voice); font-size:15px; line-height:1; }
   .strip-signal{ position:absolute; z-index:5; left:50%; width:24px; height:24px;
     transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center;
@@ -468,7 +473,8 @@
   }
   @media(max-width:480px){
     .strip-guide{ grid-template-columns:minmax(0,1fr) 60px minmax(0,1fr); padding-inline:5px; }
-    .strip-row{ width:calc(50% - 35px); padding:6px; font-size:14px; }
+    .strip-row{ width:calc(50% - 35px); gap:4px; padding:6px 4px; font-size:14px; }
+    .strip-shop-dot{ width:9px; height:9px; }
     .strip-row[data-side="west"]{ right:calc(50% + 30px); }
     .strip-row[data-side="east"]{ left:calc(50% + 30px); }
     .strip-road{ width:46px; }
@@ -487,6 +493,7 @@
     #controls .searchbar{ grid-column:1; grid-row:2; }
     #controls .control-actions{ grid-column:2; grid-row:2; }
     #controls .chip{ font-size:14px; }
+    body.strip-compact .strip-guide{ display:none; }
     body.map-open.edit #editbar{ bottom:calc(var(--map-controls-h) + 8px); }
     body.map-open.debug #srcinfo{ bottom:calc(var(--map-controls-h) + 58px); }
   }
@@ -614,7 +621,7 @@ function setMapOpen(open, restoreFocus){
   stripViewNode.setAttribute('aria-hidden', open ? 'true' : 'false');
   stripViewNode.inert = open;
   mapButton.setAttribute('aria-expanded', open ? 'true' : 'false');
-  mapButton.textContent = open ? '通り沿いへ' : '地図で見る';
+  mapButton.textContent = open ? '通りへ' : '地図で見る';
   if (open){
     requestAnimationFrame(() => {
       drawShops();
@@ -846,6 +853,140 @@ const PRIORITY_SEARCH_STEP_LIMIT = 20000;
 const LEADER_STAR_CLEARANCE_PX = 6.5;
 const LEADER_MAX_PX = 90, LEADER_MAX_PX_VOICE = 130;
 const labelLeaderPaths = new Map();
+const LABEL_GRID_PX = 100;
+const labelMetricCache = new Map();
+let labelMetricGeneration = 0, activeLabelLayoutStats = null, labelFontsRevalidated = false;
+let labelLayoutInitialized = false;
+let labelMeasureContext = null;
+let labelMeasureProbe = null;
+class LabelSpatialGrid {
+  constructor(cellSize=LABEL_GRID_PX){
+    this.cellSize=cellSize;
+    this.cells=new Map();
+    this.itemKeys=new Map();
+  }
+  keys(rect){
+    const x0=Math.floor(rect.left/this.cellSize), x1=Math.floor(rect.right/this.cellSize);
+    const y0=Math.floor(rect.top/this.cellSize), y1=Math.floor(rect.bottom/this.cellSize);
+    const keys=[];
+    for (let y=y0;y<=y1;y++) for (let x=x0;x<=x1;x++) keys.push(x+','+y);
+    return keys;
+  }
+  insert(item,rect){
+    const keys=this.keys(rect);
+    this.itemKeys.set(item,keys);
+    keys.forEach(key => {
+      let cell=this.cells.get(key);
+      if (!cell){ cell=new Set(); this.cells.set(key,cell); }
+      cell.add(item);
+    });
+  }
+  remove(item){
+    (this.itemKeys.get(item)||[]).forEach(key => {
+      const cell=this.cells.get(key);
+      if (!cell) return;
+      cell.delete(item);
+      if (!cell.size) this.cells.delete(key);
+    });
+    this.itemKeys.delete(item);
+  }
+  clear(){ this.cells.clear(); this.itemKeys.clear(); }
+  query(rect){
+    const found=new Set();
+    this.keys(rect).forEach(key => (this.cells.get(key)||[]).forEach(item => found.add(item)));
+    return [...found];
+  }
+}
+function expandedRect(rect,pad){
+  return {left:rect.left-pad,right:rect.right+pad,top:rect.top-pad,bottom:rect.bottom+pad};
+}
+function segmentBounds(segment){
+  return {left:Math.min(segment.x1,segment.x2),right:Math.max(segment.x1,segment.x2),
+    top:Math.min(segment.y1,segment.y2),bottom:Math.max(segment.y1,segment.y2)};
+}
+function placementBounds(rect,segment){
+  const base=expandedRect(rect,LABEL_COLLISION_PAD_PX);
+  if (!segment) return base;
+  const line=segmentBounds(segment);
+  return {left:Math.min(base.left,line.left),right:Math.max(base.right,line.right),
+    top:Math.min(base.top,line.top),bottom:Math.max(base.bottom,line.bottom)};
+}
+function countLayoutPairs(items){
+  if (activeLabelLayoutStats) activeLabelLayoutStats.pairChecks+=items.length;
+  return items;
+}
+function restoreSvgAttr(node,name,value){
+  if (value === null) node.removeAttribute(name);
+  else node.setAttribute(name,value);
+}
+function cachedCandidateRects(entry,candidate,scale,starCenters){
+  const own=starCenters.get(entry.idx), side=candidate.side;
+  const anchorX=own.x+side*candidate.gapPx, anchorY=own.y+candidate.dyPx;
+  const fontPx=labelTargetPx(entry.s);
+  const mainKey=labelMetricGeneration+':'+entry.idx+':main';
+  const distanceKey=labelMetricGeneration+':'+entry.idx+':distance';
+  let main=labelMetricCache.get(mainKey), distance=entry.distance&&labelMetricCache.get(distanceKey);
+  if (!labelMeasureContext) labelMeasureContext=document.createElement('canvas').getContext('2d');
+  const measure=(node,key,size) => {
+    const style=getComputedStyle(node);
+    if (!labelMeasureProbe){
+      labelMeasureProbe=el('text',{'aria-hidden':'true','text-anchor':'start',
+        'dominant-baseline':'middle',opacity:.001},svg);
+      labelMeasureProbe.style.pointerEvents='none';
+    }
+    const viewBox=svg.viewBox.baseVal, x=viewBox.x+viewBox.width/2, y=viewBox.y+viewBox.height/2;
+    labelMeasureProbe.textContent=node.textContent;
+    labelMeasureProbe.setAttribute('x',x); labelMeasureProbe.setAttribute('y',y);
+    labelMeasureProbe.setAttribute('font-size',size/scale);
+    labelMeasureProbe.style.fontFamily=style.fontFamily;
+    labelMeasureProbe.style.fontWeight=style.fontWeight;
+    labelMeasureProbe.style.fontStyle=style.fontStyle;
+    labelMeasureProbe.style.letterSpacing=style.letterSpacing;
+    const box=labelMeasureProbe.getBBox();
+    if (box.width > .1 && box.height > .1){
+      const metric={left:(box.x-x)*scale,right:(box.x+box.width-x)*scale,
+        top:(box.y-y)*scale,bottom:(box.y+box.height-y)*scale};
+      labelMetricCache.set(key,metric);
+      if (activeLabelLayoutStats) activeLabelLayoutStats.widthMeasurements++;
+      return metric;
+    }
+    labelMeasureContext.font=[style.fontStyle,style.fontWeight,size+'px',style.fontFamily]
+      .filter(value => value && value !== 'normal').join(' ');
+    const spacing=parseFloat(style.letterSpacing)||0;
+    const width=labelMeasureContext.measureText(node.textContent).width+
+      spacing*Math.max(0,[...node.textContent].length-1);
+    const metric={left:-2,right:width+2,top:-size*.65,bottom:size*.65};
+    if (activeLabelLayoutStats) activeLabelLayoutStats.provisionalMetrics=true;
+    return metric;
+  };
+  if (!main || (entry.distance && !distance)){
+    if (!main) main=measure(entry.main,mainKey,fontPx);
+    if (entry.distance && !distance) distance=measure(entry.distance,distanceKey,10);
+  } else if (activeLabelLayoutStats) {
+    activeLabelLayoutStats.metricCacheHits+=entry.distance ? 2 : 1;
+  }
+  const anchored=(metric,y) => ({
+    left:anchorX+(side>0 ? metric.left : -metric.right),
+    right:anchorX+(side>0 ? metric.right : -metric.left),
+    top:y+metric.top,bottom:y+metric.bottom,
+  });
+  const mainRect=anchored(main,anchorY);
+  if (!entry.distance) return {mainRect,rect:mainRect};
+  const distancePx=10, distanceY=anchorY+fontPx/2+distancePx/2+6;
+  const distanceRect=anchored(distance,distanceY);
+  return {mainRect,rect:{left:Math.min(mainRect.left,distanceRect.left),
+    right:Math.max(mainRect.right,distanceRect.right),top:Math.min(mainRect.top,distanceRect.top),
+    bottom:Math.max(mainRect.bottom,distanceRect.bottom)}};
+}
+if (document.fonts && document.fonts.ready){
+  document.fonts.ready.then(() => {
+    if (labelFontsRevalidated) return;
+    labelFontsRevalidated=true;
+    labelMetricGeneration++;
+    labelMetricCache.clear();
+    if (document.body.classList.contains('map-open')) scheduleMapScaleStyles();
+  });
+}
 function preferredLabelSide(s){
   const h = s.hint || {};
   if (h.anchor === 'start') return 1;
@@ -853,20 +994,56 @@ function preferredLabelSide(s){
   return s.x >= busXAtY(s.y) ? 1 : -1;
 }
 function labelPriority(s){
+  if (s.name === '商店街モニュメント') return 1;
   if ((s.voices||[]).length) return 3;
-  if (s.url && s.url !== '#') return 2;
-  return 1;
+  return 2;
 }
 function layoutLabels(scale, entries, starCenters, symbolKeepOut){
   if (entries && starCenters && scale > 0){
+    const stats={pairChecks:0,widthMeasurements:0,metricCacheHits:0,visibleEntries:0,totalEntries:entries.length};
+    activeLabelLayoutStats=stats;
     const mapKeepOut = symbolKeepOut || [];
     const viewport = document.querySelector('#viewport');
     const viewportRect = viewport && viewport.getBoundingClientRect();
+    const viewBox=svg.viewBox && svg.viewBox.baseVal;
+    const inViewEntries=entries.filter(entry => {
+      if (!viewBox || !(viewBox.width > 0) || !(viewBox.height > 0)) return true;
+      return entry.s.x >= viewBox.x && entry.s.x <= viewBox.x+viewBox.width &&
+        entry.s.y >= viewBox.y && entry.s.y <= viewBox.y+viewBox.height;
+    });
+    // s.lx/s.ly stores a screen-pixel label offset converted back into map units.
+    // Every zoom must therefore re-layout every label: retaining an off-view entry's
+    // previous map-unit offset scales that offset with the map and also omits it from
+    // the collision grid, producing overlong/crossing leaders at a different zoom.
+    const visibleEntries=entries;
+    visibleEntries.forEach(hideLabel);
+    stats.visibleEntries=visibleEntries.length;
+    document.body.dataset.labelLayoutVisible=String(visibleEntries.length);
     const keepOut = ['#listbtn', '.zoomctl', '#editbar', '#srcinfo']
       .map(q => document.querySelector(q))
       .filter(e => e && getComputedStyle(e).position === 'fixed'
         && getComputedStyle(e).display !== 'none')
       .map(e => e.getBoundingClientRect());
+    const mapSymbolGrid=new LabelSpatialGrid();
+    mapKeepOut.forEach(item => { if (item.rect) mapSymbolGrid.insert(item,item.rect); });
+    const starGrid=new LabelSpatialGrid();
+    visibleEntries.forEach(entry => {
+      const point=starCenters.get(entry.idx), item={idx:entry.idx,point};
+      starGrid.insert(item,{left:point.x,right:point.x,top:point.y,bottom:point.y});
+    });
+    // Labels are rendered from the shop's map coordinate, while starCenters comes from
+    // the painted star bbox. The bbox center can differ by a subpixel, so candidate
+    // geometry must use the rendered map-coordinate origin or its ownership margin can
+    // pass in the cache and fail after setLabelPosition paints the same candidate.
+    const screenMatrix=svg.getScreenCTM();
+    const alignOwnershipToRenderedOrigin=scale >= 1.5;
+    const screenOrigins=new Map(visibleEntries.map(entry => {
+      const s=entry.s, fallback=starCenters.get(entry.idx);
+      return [entry.idx, alignOwnershipToRenderedOrigin && screenMatrix ? {
+        x:screenMatrix.a*s.x+screenMatrix.c*s.y+screenMatrix.e,
+        y:screenMatrix.b*s.x+screenMatrix.d*s.y+screenMatrix.f,
+      } : fallback];
+    }));
     const overlapsKeepOut = rect => {
       if (!viewportRect) return false;
       const clipped = {
@@ -876,11 +1053,11 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
         bottom:Math.min(rect.bottom, viewportRect.bottom),
       };
       if (clipped.right <= clipped.left || clipped.bottom <= clipped.top) return false;
-      return keepOut.some(blocked =>
+      return countLayoutPairs(keepOut).some(blocked =>
         Math.min(clipped.right, blocked.right) - Math.max(clipped.left, blocked.left) >= 1 &&
         Math.min(clipped.bottom, blocked.bottom) - Math.max(clipped.top, blocked.top) >= 1);
     };
-    const overlapsMapSymbol = (entry, rect) => mapKeepOut.some(item => {
+    const overlapsMapSymbol = (entry, rect) => countLayoutPairs(mapSymbolGrid.query(rect)).some(item => {
       if (item.idx === entry.idx) return false;
       const blocked = item.rect;
       return Math.min(rect.right,blocked.right)-Math.max(rect.left,blocked.left) > .05 &&
@@ -894,46 +1071,110 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       return rect.left >= viewportRect.left+6 && rect.right <= viewportRect.right-6 &&
         rect.top >= viewportRect.top+6 && rect.bottom <= viewportRect.bottom-6;
     };
-    entries.forEach(hideLabel);
     const kept = [];
-    const leaderSegments = [];
     let placed = [];
-    const labelHitsLeader = rect => leaderSegments.some(segment => segmentIntersectsRect(segment,rect));
+    const placementGrid=new LabelSpatialGrid();
     const placementConflicts = (rect,segment,other) =>
       labelsCollide(rect,other.rect) ||
       (other.segment && segmentIntersectsRect(other.segment,rect)) ||
       (segment && segmentIntersectsRect(segment,other.rect));
     const addPlacement = (entry,rect,segment) => {
-      placed.push({entry,rect,segment});
+      const item={entry,rect,segment};
+      placed.push(item);
       kept.push(rect);
-      if (segment) leaderSegments.push(segment);
+      placementGrid.insert(item,placementBounds(rect,segment));
     };
     const rebuildPlacementIndexes = () => {
+      placementGrid.clear();
       kept.splice(0,kept.length,...placed.map(item => item.rect));
-      leaderSegments.splice(0,leaderSegments.length,...placed.filter(item => item.segment).map(item => item.segment));
+      placed.forEach(item => placementGrid.insert(item,placementBounds(item.rect,item.segment)));
+    };
+    const nearbyPlacementConflicts=(rect,segment) => countLayoutPairs(
+      placementGrid.query(placementBounds(rect,segment))).filter(other =>
+        placementConflicts(rect,segment,other));
+    const containsOtherStar=(entry,rect) => countLayoutPairs(starGrid.query(rect)).some(item =>
+      item.idx !== entry.idx && rect.left <= item.point.x && item.point.x <= rect.right &&
+        rect.top <= item.point.y && item.point.y <= rect.bottom);
+    const belongsToOwnStar=(entry,rect) => {
+      const own=starCenters.get(entry.idx);
+      if (!own) return false;
+      const ownDistance=rectDistance(rect,own.x,own.y);
+      const search=expandedRect(rect,ownDistance/LABEL_OWNER_RATIO);
+      return !countLayoutPairs(starGrid.query(search)).some(item => item.idx !== entry.idx &&
+        (rect.left <= item.point.x && item.point.x <= rect.right &&
+         rect.top <= item.point.y && item.point.y <= rect.bottom ||
+         rectDistance(rect,item.point.x,item.point.y) < ownDistance/LABEL_OWNER_RATIO));
+    };
+    const anchorBelongsToOwnStar=(entry,candidate) => {
+      const own=starCenters.get(entry.idx), origin=screenOrigins.get(entry.idx);
+      if (!own || !origin) return false;
+      const anchor={x:origin.x+candidate.side*candidate.gapPx,y:origin.y+candidate.dyPx};
+      const ownDistance=Math.hypot(anchor.x-own.x,anchor.y-own.y), limit=ownDistance+.01;
+      const search={left:anchor.x-limit,right:anchor.x+limit,top:anchor.y-limit,bottom:anchor.y+limit};
+      return !countLayoutPairs(starGrid.query(search)).some(item => item.idx !== entry.idx &&
+        Math.hypot(anchor.x-item.point.x,anchor.y-item.point.y) <= limit);
+    };
+    const renderedCandidateRect=(entry,rect) => {
+      const own=starCenters.get(entry.idx), origin=screenOrigins.get(entry.idx);
+      if (!own || !origin) return rect;
+      const dx=origin.x-own.x, dy=origin.y-own.y;
+      return {left:rect.left+dx,right:rect.right+dx,top:rect.top+dy,bottom:rect.bottom+dy};
+    };
+    const leaderIsClear=(entry,segment,grid) => {
+      const starSearch=expandedRect(segmentBounds(segment),LEADER_STAR_CLEARANCE_PX);
+      if (countLayoutPairs(starGrid.query(starSearch)).some(item => item.idx !== entry.idx &&
+          pointSegmentDistance(item.point,segment) < LEADER_STAR_CLEARANCE_PX)) return false;
+      if (!grid) return true;
+      return !countLayoutPairs(grid.query(segmentBounds(segment))).some(item =>
+        segmentIntersectsRect(segment,item.rect));
     };
     const placeCandidate = (entry,candidate,withLeader) => {
-      setLabelPosition(entry,candidate,scale);
-      const mainRect = entry.main.getBoundingClientRect();
+      const {mainRect,rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
+      const renderedMainRect=renderedCandidateRect(entry,mainRect);
       if (withLeader){
-        if (labelContainsOtherStar(entry,mainRect,starCenters)) return false;
-      } else if (!labelAnchorBelongsToOwnStar(entry,starCenters) ||
-                 !labelBelongsToOwnStar(entry,mainRect,starCenters)) return false;
-      const rect = labelRect(entry,mainRect);
-      if (!labelInsideViewport(rect) || overlapsKeepOut(rect) || overlapsMapSymbol(entry,rect) || labelHitsLeader(rect) ||
-          kept.some(other => labelsCollide(rect,other))) return false;
+        if (containsOtherStar(entry,renderedMainRect)) return false;
+      } else if (!anchorBelongsToOwnStar(entry,candidate) || !belongsToOwnStar(entry,renderedMainRect)) return false;
+      if (!labelInsideViewport(rect) || overlapsKeepOut(rect) || overlapsMapSymbol(entry,rect)) return false;
       let segment = null;
       if (withLeader){
-        if (!labelInsideViewport(rect)) return false;
-        segment = labelLeaderSegment(entry,mainRect,starCenters);
+        segment = labelLeaderSegment(entry,renderedMainRect,starCenters);
         const maxLength = (entry.s.voices||[]).length ? LEADER_MAX_PX_VOICE : LEADER_MAX_PX;
         if (!segment || Math.hypot(segment.x2-segment.x1,segment.y2-segment.y1) > maxLength ||
-            !leaderSegmentIsClear(entry,segment,starCenters,kept)) return false;
+            !leaderIsClear(entry,segment,placementGrid)) return false;
       }
+      if (nearbyPlacementConflicts(rect,segment).length) return false;
+      setLabelPosition(entry,candidate,scale);
       entry.s.labelVisible = true;
       entry.s.labelLeader = withLeader;
       addPlacement(entry,rect,segment);
       return true;
+    };
+    const placeCandidateShadow = (entry,candidate,withLeader) => {
+      const {mainRect,rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
+      const renderedMainRect=renderedCandidateRect(entry,mainRect);
+      if (withLeader){
+        if (containsOtherStar(entry,renderedMainRect)) return false;
+      } else if (!anchorBelongsToOwnStar(entry,candidate) || !belongsToOwnStar(entry,renderedMainRect)) return false;
+      if (!labelInsideViewport(rect) || overlapsKeepOut(rect) || overlapsMapSymbol(entry,rect)) return false;
+      let segment=null;
+      if (withLeader){
+        segment=labelLeaderSegment(entry,renderedMainRect,starCenters);
+        const maxLength=(entry.s.voices||[]).length ? LEADER_MAX_PX_VOICE : LEADER_MAX_PX;
+        if (!segment || Math.hypot(segment.x2-segment.x1,segment.y2-segment.y1) > maxLength ||
+            !leaderIsClear(entry,segment,placementGrid)) return false;
+      }
+      if (nearbyPlacementConflicts(rect,segment).length) return false;
+      addPlacement(entry,rect,segment);
+      return true;
+    };
+    const placeGreedyShadow = entry => {
+      for (const candidate of labelCandidates(entry.s)){
+        if (placeCandidateShadow(entry,candidate,false)) return true;
+      }
+      for (const candidate of leaderLabelCandidates(entry.s)){
+        if (placeCandidateShadow(entry,candidate,true)) return true;
+      }
+      return false;
     };
     const placeGreedy = (entry,allowNearLeader=false) => {
       for (const candidate of labelCandidates(entry.s)){
@@ -950,48 +1191,44 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       hideLabel(entry);
       return false;
     };
-    const lowerPriorityEntries = entries.filter(entry => labelPriority(entry.s) < 3)
+    const lowerPriorityEntries = visibleEntries.filter(entry => labelPriority(entry.s) < 3)
       .sort((a,b) => labelPriority(b.s)-labelPriority(a.s) ||
         Number(isPrimaryLabel(b.s))-Number(isPrimaryLabel(a.s)) || a.s.y-b.s.y || a.idx-b.idx);
     const priorityTwoEntries=lowerPriorityEntries.filter(entry => labelPriority(entry.s) === 2);
     const priorityOneEntries=lowerPriorityEntries.filter(entry => labelPriority(entry.s) === 1);
-    priorityOneEntries.forEach(placeGreedy);
+    priorityOneEntries.forEach(placeGreedyShadow);
     const initiallyPlacedPriorityOne = new Set(placed.filter(item => labelPriority(item.entry.s) === 1)
       .map(item => item.entry));
-    const priorityEntries = entries.filter(entry => labelPriority(entry.s) === 3);
+    const priorityEntries = visibleEntries.filter(entry => labelPriority(entry.s) === 3);
     const priorityOptions = new Map(priorityEntries.map(entry => {
       const options = [];
       const normal = labelCandidates(entry.s);
       const collectOption = (candidate,withLeader,mainRect,rect) => {
+        const renderedMainRect=renderedCandidateRect(entry,mainRect);
         if (withLeader){
-          if (labelContainsOtherStar(entry,mainRect,starCenters)) return;
-        } else if (!labelAnchorBelongsToOwnStar(entry, starCenters) ||
-                   !labelBelongsToOwnStar(entry, mainRect, starCenters)) return;
+          if (containsOtherStar(entry,renderedMainRect)) return;
+        } else if (!anchorBelongsToOwnStar(entry,candidate) || !belongsToOwnStar(entry,renderedMainRect)) return;
         if (!labelInsideViewport(rect) || overlapsKeepOut(rect) || overlapsMapSymbol(entry,rect)) return;
         let segment=null;
         if (withLeader){
-          segment=labelLeaderSegment(entry,mainRect,starCenters);
+          segment=labelLeaderSegment(entry,renderedMainRect,starCenters);
           const maxLength=(entry.s.voices||[]).length ? LEADER_MAX_PX_VOICE : LEADER_MAX_PX;
           if (!segment || Math.hypot(segment.x2-segment.x1,segment.y2-segment.y1) > maxLength ||
-              !leaderSegmentIsClear(entry,segment,starCenters,[])) return;
+              !leaderIsClear(entry,segment,null)) return;
         }
-        const blockers=placed.filter(other => placementConflicts(rect,segment,other));
+        const blockers=nearbyPlacementConflicts(rect,segment);
         if (blockers.some(other => labelPriority(other.entry.s) !== 1)) return;
         options.push({candidate,rect,segment,blockers:blockers.map(other => other.entry)});
       };
       for (const candidate of normal){
-        setLabelPosition(entry,candidate,scale);
-        const mainRect=entry.main.getBoundingClientRect();
-        const rect=labelRect(entry,mainRect);
+        const {mainRect,rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
         collectOption(candidate,false,mainRect,rect);
         collectOption({...candidate,leader:true},true,mainRect,rect);
       }
       for (const candidate of leaderLabelCandidates(entry.s)){
-        setLabelPosition(entry,candidate,scale);
-        const mainRect=entry.main.getBoundingClientRect();
-        collectOption(candidate,true,mainRect,labelRect(entry,mainRect));
+        const {mainRect,rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
+        collectOption(candidate,true,mainRect,rect);
       }
-      hideLabel(entry);
       options.sort((a,b) => a.blockers.length-b.blockers.length ||
         Number(!!a.segment)-Number(!!b.segment) ||
         (a.segment ? Math.hypot(a.segment.x2-a.segment.x1,a.segment.y2-a.segment.y1) : 0) -
@@ -1003,6 +1240,7 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       a.idx-b.idx);
     const priorityChoice = new Map();
     const prioritySelected = [];
+    const prioritySelectedGrid = new LabelSpatialGrid();
     let priorityEvicted = new Set();
     let prioritySteps = 0, priorityAborted = false;
     const placePriority = (pos,evicted) => {
@@ -1014,26 +1252,30 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       if (pos === priorityEntries.length) return true;
       const entry = priorityEntries[pos];
       for (const option of priorityOptions.get(entry)){
-        if (prioritySelected.some(other =>
-            placementConflicts(option.rect,option.segment,{rect:other.rect,segment:other.segment}))) continue;
+        const conflicts=countLayoutPairs(prioritySelectedGrid.query(
+          placementBounds(option.rect,option.segment))).some(other =>
+            placementConflicts(option.rect,option.segment,other));
+        if (conflicts) continue;
         const nextEvicted=new Set(evicted);
         option.blockers.forEach(blocker => nextEvicted.add(blocker));
-        prioritySelected.push(option);
+        const selected={rect:option.rect,segment:option.segment};
+        prioritySelected.push(selected);
+        prioritySelectedGrid.insert(selected,placementBounds(selected.rect,selected.segment));
         priorityChoice.set(entry, option);
         if (placePriority(pos+1,nextEvicted)){
           priorityEvicted=nextEvicted;
           return true;
         }
         priorityChoice.delete(entry);
-        prioritySelected.pop();
+        prioritySelectedGrid.remove(prioritySelected.pop());
         if (priorityAborted) return false;
       }
       return false;
     };
     let evictedEntries=[];
     if (placePriority(0,new Set())){
-      priorityOneEntries.forEach(hideLabel);
-      placed=[];
+      priorityEvicted.forEach(hideLabel);
+      placed=placed.filter(item => !priorityEvicted.has(item.entry));
       rebuildPlacementIndexes();
       document.body.dataset.labelLayout = 'priority-evict';
       priorityEntries.forEach(entry => {
@@ -1043,14 +1285,27 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
         entry.s.labelLeader = !!option.segment;
         addPlacement(entry,option.rect,option.segment);
       });
+      placed=placed.filter(item => labelPriority(item.entry.s) > 1);
+      rebuildPlacementIndexes();
       priorityTwoEntries.forEach(placeGreedy);
       priorityOneEntries.filter(entry => !priorityEvicted.has(entry)).forEach(placeGreedy);
+      const actualHigherRects=placed.filter(item => labelPriority(item.entry.s) > 1)
+        .map(item => labelRect(item.entry,item.entry.main.getBoundingClientRect()));
+      const actualPriorityOne=placed.filter(item => labelPriority(item.entry.s) === 1)
+        .map(item => ({entry:item.entry,rect:labelRect(item.entry,item.entry.main.getBoundingClientRect())}));
+      const actualEvicted=new Set(actualPriorityOne.filter(low =>
+        actualHigherRects.some(high => labelsCollide(low.rect,high))).map(low => low.entry));
+      if (actualEvicted.size){
+        actualEvicted.forEach(hideLabel);
+        placed=placed.filter(item => !actualEvicted.has(item.entry));
+        rebuildPlacementIndexes();
+      }
       evictedEntries=[...initiallyPlacedPriorityOne].filter(entry => !entry.s.labelVisible);
     } else {
       document.body.dataset.labelLayout = priorityAborted ? 'greedy-step-limit' : 'greedy-no-solution';
-      entries.forEach(hideLabel);
+      visibleEntries.forEach(hideLabel);
       kept.length = 0;
-      leaderSegments.length = 0;
+      placementGrid.clear();
       placed = [];
       priorityEntries.forEach(entry => placeGreedy(entry,true));
       lowerPriorityEntries.forEach(placeGreedy);
@@ -1063,6 +1318,11 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     window.__labelEvictions = evictedNames.slice();
     entries.forEach(entry => updateLabelLeader(entry,scale));
     document.body.dataset.labelLeaders = String(entries.filter(entry => entry.s.labelLeader).length);
+    window.__labelLayoutStats={...stats};
+    window.__labelLayoutHistory=(window.__labelLayoutHistory||[]).concat({...stats}).slice(-24);
+    labelLayoutInitialized=true;
+    activeLabelLayoutStats=null;
+    if (stats.provisionalMetrics) requestAnimationFrame(scheduleMapScaleStyles);
     return kept;
   }
   GEO.shops.forEach(s => {
@@ -1073,6 +1333,7 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     s.lx = s.x;
     s.ly = s.y;
   });
+  labelLayoutInitialized=false;
 }
 
 let selectedIndex = -1;
@@ -1507,6 +1768,8 @@ Object.keys(CATS).forEach(k => {
 const STRIP_PX_PER_M = 1.3;
 const STRIP_TOP_PAD = 26;
 const STRIP_GAP_FLOOR = 8;
+const STRIP_SIGNAL_SIZE = 24;
+const STRIP_SIGNAL_GAP = 4;
 const mainBusway = (GEO.busway || []).slice().sort((a,b) => b.length-a.length)[0] || [];
 function trueShopPoint(s){
   return {
@@ -1538,6 +1801,7 @@ const stripYMax = Math.max(...stripShops.map(p => p.y));
 const stripRowNodes = new Map();
 const stripRowHeights = new Map();
 const stripSignalNodes = [];
+const stripRoadLabelNodes = [];
 let stripLayoutFrame = 0;
 function stripIdealCenter(entry){
   return STRIP_TOP_PAD+(entry.y-stripYMin)*STRIP_PX_PER_M;
@@ -1597,9 +1861,33 @@ function stripCenterForY(y, placed){
   const a=anchors[upper-1], b=anchors[upper], t=(y-a.y)/Math.max(.001,b.y-a.y);
   return a.center+t*(b.center-a.center);
 }
+function layoutStripSignals(compact,placed){
+  stripSignalNodes.forEach(item => { item.node.hidden=true; });
+  if (compact) return [];
+  const positioned=stripSignalNodes.map(item => ({...item,center:stripCenterForY(item.y,placed)}))
+    .sort((a,b) => a.center-b.center || a.y-b.y);
+  const groups=[];
+  positioned.forEach(item => {
+    const group=groups[groups.length-1];
+    const previous=group && group[group.length-1];
+    if (previous && item.center-previous.center < STRIP_SIGNAL_SIZE+STRIP_SIGNAL_GAP) group.push(item);
+    else groups.push([item]);
+  });
+  return groups.map(group => {
+    const representative=group[0];
+    const center=(group[0].center+group[group.length-1].center)/2;
+    const label=group.length > 1 ? '信号'+group.length+'基をまとめた印' : '信号';
+    representative.node.hidden=false;
+    representative.node.style.top=center+'px';
+    representative.node.setAttribute('aria-label',label);
+    representative.node.title=label;
+    return center;
+  });
+}
 function layoutStripRows(){
   stripLayoutFrame=0;
   const compact=query.length > 0 || voiceOnly || activeCats.size > 0;
+  document.body.classList.toggle('strip-compact',compact);
   const measured=stripMeasuredRows();
   const eastItems=measured.filter(p => p.entry.side === 'east');
   const westItems=measured.filter(p => p.entry.side === 'west');
@@ -1633,22 +1921,57 @@ function layoutStripRows(){
     item.row.classList.toggle('displaced',!compact && Math.abs(displacement) > 12);
     item.row.style.setProperty('--leader-offset',displacement+'px');
   });
-  stripSignalNodes.forEach(item => {
-    item.node.hidden=compact;
-    item.node.style.top=stripCenterForY(item.y,placed)+'px';
-  });
+  const signalCenters=layoutStripSignals(compact,placed);
   const rowBottom=Math.max(0,...placed.map(item => item.center+item.h/2));
-  const signalBottom=compact ? 0 : Math.max(0,...stripSignalNodes.map(item =>
-    stripCenterForY(item.y,placed)+12));
+  const signalBottom=Math.max(0,...signalCenters.map(center => center+STRIP_SIGNAL_SIZE/2));
   const geoBottom=compact ? 0 : stripCenterForY(stripYMax,placed);
   const strip=document.getElementById('strip');
   strip.classList.toggle('compact',compact);
-  strip.style.height=Math.ceil(Math.max(rowBottom,signalBottom,geoBottom,compact ? 26 : 0)+STRIP_TOP_PAD)+'px';
+  const stripHeight=Math.ceil(Math.max(rowBottom,signalBottom,geoBottom,compact ? 26 : 0)+STRIP_TOP_PAD);
+  strip.style.height=stripHeight+'px';
+  layoutStripRoadLabels(compact,stripHeight,signalCenters);
   const visibleFar=stripFar.some(entry => {
     const row=document.querySelector('#stripfar .strip-row[data-i="'+entry.i+'"]');
     return row && !row.hidden;
   });
   document.querySelector('.far-section').hidden=compact && !visibleFar;
+}
+function layoutStripRoadLabels(compact,stripHeight,signalCenters){
+  stripRoadLabelNodes.forEach(node => { node.hidden=false; });
+  if (!compact){
+    const roadTop=16, roadHeight=Math.max(1,stripHeight-roadTop*2);
+    const labelHeight=Math.max(1,...stripRoadLabelNodes.map(node => node.getBoundingClientRect().height));
+    const minCenter=roadTop+labelHeight/2, maxCenter=stripHeight-roadTop-labelHeight/2;
+    const signalClearance=(labelHeight+STRIP_SIGNAL_SIZE)/2+STRIP_SIGNAL_GAP;
+    const labelClearance=labelHeight+STRIP_SIGNAL_GAP;
+    const placed=[];
+    stripRoadLabelNodes.forEach((node,i) => {
+      const target=roadTop+roadHeight*[12,32,52,72,92][i]/100;
+      let center=Math.max(minCenter,Math.min(maxCenter,target));
+      for (let delta=0; delta<=roadHeight; delta++){
+        const candidates=delta ? [target+delta,target-delta] : [target];
+        const available=candidates.find(candidate => candidate >= minCenter && candidate <= maxCenter &&
+          signalCenters.every(signal => Math.abs(candidate-signal) >= signalClearance) &&
+          placed.every(label => Math.abs(candidate-label) >= labelClearance));
+        if (available != null){ center=available; break; }
+      }
+      placed.push(center);
+      node.style.top=((center-roadTop)*100/roadHeight)+'%';
+    });
+    return;
+  }
+  const roadHeight=Math.max(1,stripHeight-32);
+  const labelHeight=Math.max(1,...stripRoadLabelNodes.map(node => node.getBoundingClientRect().height));
+  const count=Math.max(1,Math.min(stripRoadLabelNodes.length,
+    Math.floor(roadHeight/(labelHeight+24))));
+  stripRoadLabelNodes.forEach((node,i) => {
+    node.hidden=i >= count;
+    if (i < count){
+      const center=count === 1 ? roadHeight/2
+        : labelHeight/2+i*(roadHeight-labelHeight)/(count-1);
+      node.style.top=(center*100/roadHeight)+'%';
+    }
+  });
 }
 function scheduleStripLayout(){
   if (stripLayoutFrame) return;
@@ -1659,6 +1982,41 @@ function stripChild(tag,className,text){
   if (className) node.className=className;
   if (text != null) node.textContent=text;
   return node;
+}
+const stripNameSegmenter=typeof Intl.Segmenter === 'function'
+  ? new Intl.Segmenter('ja',{granularity:'word'}) : null;
+const stripNameSuffix=/^(?:丁目|支店|薬局|センター|クリニック)$/;
+function appendStripShopName(parent,name){
+  const node=stripChild('span','strip-shop-name');
+  setStripShopName(node,name);
+  parent.appendChild(node);
+}
+function setStripShopName(node,name){
+  node.replaceChildren();
+  const raw=stripNameSegmenter
+    ? [...stripNameSegmenter.segment(name)].map(part => part.segment)
+    : name.split(/(\s+)/);
+  const tokens=[];
+  raw.forEach(part => {
+    if (!part) return;
+    if (/^\s+$/.test(part)){
+      tokens.push({text:' ',space:true});
+      return;
+    }
+    if (stripNameSuffix.test(part)){
+      let previous=tokens.length-1;
+      while (previous >= 0 && tokens[previous].space) previous--;
+      if (previous >= 0){
+        tokens[previous].text+=part;
+        return;
+      }
+    }
+    tokens.push({text:part,space:false});
+  });
+  tokens.forEach(token => {
+    if (token.space) node.appendChild(document.createTextNode(' '));
+    else node.appendChild(stripChild('span','strip-name-token',token.text));
+  });
 }
 function openStripShop(row, s, keyboard){
   lastFocusHit=row;
@@ -1679,7 +2037,7 @@ function makeStripRow(entry, far){
     row.style.gridColumn=entry.side === 'west' ? '1' : '2';
     const main=stripChild('span','strip-far-main');
     main.appendChild(stripChild('span','strip-shop-dot'));
-    main.appendChild(stripChild('span','strip-shop-name',entry.s.name));
+    appendStripShopName(main,entry.s.name);
     if ((entry.s.voices||[]).length){
       const voice=stripChild('span','strip-voice','声');
       voice.setAttribute('aria-hidden','true');
@@ -1691,7 +2049,7 @@ function makeStripRow(entry, far){
     row.style.top=stripIdealCenter(entry)+'px';
     stripRowNodes.set(entry.i,row);
     row.appendChild(stripChild('span','strip-shop-dot'));
-    row.appendChild(stripChild('span','strip-shop-name',entry.s.name));
+    appendStripShopName(row,entry.s.name);
     if ((entry.s.voices||[]).length){
       const voice=stripChild('span','strip-voice','声');
       voice.setAttribute('aria-hidden','true');
@@ -1713,6 +2071,7 @@ function buildStrip(){
     const label=stripChild('span','strip-road-label','中山バス通り');
     label.style.top=percent+'%';
     road.appendChild(label);
+    stripRoadLabelNodes.push(label);
   });
   strip.appendChild(road);
   stripAlong.forEach(entry => strip.appendChild(makeStripRow(entry,false)));
@@ -1802,7 +2161,7 @@ function applyFilter({fromSearch=false} = {}){
     const ok=matchesFilter(s);
     const name=row.querySelector('.strip-shop-name');
     const cafeFallback=['かふぇ','喫茶','きっさ'].includes(norm(query)) && s.cat === 'food' && ok;
-    if (name) name.textContent=(cafeFallback ? 'cafe候補：' : '')+s.name;
+    if (name) setStripShopName(name,(cafeFallback ? 'cafe候補：' : '')+s.name);
     row.hidden=!ok;
     row.classList.toggle('glowing',filtering && matched.length === 1 && ok);
     row.tabIndex=ok ? 0 : -1;
