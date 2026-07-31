@@ -659,6 +659,7 @@ const LABEL_OWNER_RATIO = .79;
 const VOICE_BADGE_WIDTH_PX = 13, VOICE_BADGE_HEIGHT_PX = 11, VOICE_BADGE_GAP_PX = 3;
 const PRIORITY_SEARCH_STEP_LIMIT = 20000;
 const LEADER_STAR_CLEARANCE_PX = 6.5;
+const LEADER_MAX_PX = 90, LEADER_MAX_PX_VOICE = 130;
 const labelLeaderPaths = new Map();
 function preferredLabelSide(s){
   const h = s.hint || {};
@@ -700,6 +701,9 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       return Math.min(rect.right,blocked.right)-Math.max(rect.left,blocked.left) > .05 &&
         Math.min(rect.bottom,blocked.bottom)-Math.max(rect.top,blocked.top) > .05;
     });
+    const labelInsideViewport = rect => !viewportRect ||
+      rect.left >= viewportRect.left && rect.right <= viewportRect.right &&
+      rect.top >= viewportRect.top && rect.bottom <= viewportRect.bottom;
     entries.forEach(hideLabel);
     const kept = [];
     const leaderSegments = [];
@@ -716,8 +720,11 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
           kept.some(other => labelsCollide(rect,other))) return false;
       let segment = null;
       if (withLeader){
+        if (!labelInsideViewport(rect)) return false;
         segment = labelLeaderSegment(entry,mainRect,starCenters);
-        if (!segment || !leaderSegmentIsClear(entry,segment,starCenters,kept)) return false;
+        const maxLength = (entry.s.voices||[]).length ? LEADER_MAX_PX_VOICE : LEADER_MAX_PX;
+        if (!segment || Math.hypot(segment.x2-segment.x1,segment.y2-segment.y1) > maxLength ||
+            !leaderSegmentIsClear(entry,segment,starCenters,kept)) return false;
       }
       entry.s.labelVisible = true;
       entry.s.labelLeader = withLeader;
@@ -901,12 +908,14 @@ function labelCandidates(s){
 function leaderLabelCandidates(s){
   const preferred = preferredLabelSide(s);
   const baseGap = starTargetPx(s) / 2 + LABEL_GAP_PX;
+  const maxLength = (s.voices||[]).length ? LEADER_MAX_PX_VOICE : LEADER_MAX_PX;
   const gaps = [64,80,96,120,148].map(v => baseGap + v);
   const dySteps = [0,-12,12,-24,24,-36,36,-52,52,-72,72,-96,96];
   const candidates = [];
   [preferred,-preferred].forEach(side => gaps.forEach(gapPx =>
     dySteps.forEach(dyPx => candidates.push({side,gapPx,dyPx,leader:true}))));
-  return candidates.sort((a,b) =>
+  return candidates.filter(candidate => Math.hypot(candidate.gapPx,candidate.dyPx) <= maxLength)
+    .sort((a,b) =>
     Math.hypot(a.gapPx,a.dyPx)-Math.hypot(b.gapPx,b.dyPx) ||
     Number(a.side!==preferred)-Number(b.side!==preferred) || Math.abs(a.dyPx)-Math.abs(b.dyPx));
 }
