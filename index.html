@@ -20,6 +20,11 @@
     background:var(--paper); color:var(--ink);
     display:flex; flex-direction:column; overflow:hidden;
   }
+  .skip-map{ position:fixed; left:8px; top:8px; z-index:100; min-height:44px; padding:9px 14px;
+    display:inline-flex; align-items:center; color:var(--ink); background:#fffaf0; border:2px solid var(--ink-soft);
+    border-radius:50% 45% 52% 48% / 48% 52% 45% 50%; box-shadow:2px 3px 0 rgba(92,67,39,.25);
+    font-size:14px; font-weight:700; text-decoration:none; transform:translateY(calc(-100% - 18px)); }
+  .skip-map:focus-visible{ transform:translateY(0); outline:3px solid rgba(201,123,61,.45); outline-offset:2px; }
   header{ padding:10px 14px 6px; border-bottom:2px dashed rgba(92,67,39,.35); z-index:20; background:var(--paper); }
   header h1{
     font-family:'Yusei Magic',sans-serif; font-size:1.2rem; letter-spacing:0;
@@ -68,13 +73,13 @@
   @media(max-width:759px){
     header{ padding:5px 12px 3px; }
     header p{ display:none; }
-    .filters{ flex-wrap:wrap; overflow-x:visible; gap:4px; padding:4px 8px 5px; }
-    .chip{ flex:1 1 calc((100% - 8px)/3); width:calc((100% - 8px)/3);
-      min-width:0; max-width:calc((100% - 8px)/3); height:44px; min-height:44px;
+    .filters{ flex-wrap:wrap; overflow-x:visible; gap:8px; padding:1px 8px 8px; }
+    .chip{ flex:1 1 calc((100% - 16px)/3); width:calc((100% - 16px)/3);
+      min-width:0; max-width:calc((100% - 16px)/3); height:44px; min-height:44px;
       padding:2px 6px; gap:4px; justify-content:center; line-height:1.05; }
     .chip .lbl{ min-width:0; text-align:center; white-space:normal; }
     .chip .dot{ width:10px; height:10px; }
-    .chip.voice-filter{ order:-1; }
+    .searchbar{ padding-bottom:2px; }
   }
   @media(max-width:480px){
     header h1 small{ display:none; }
@@ -124,7 +129,7 @@
     paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
   .parkname{ font-family:'Yusei Magic',sans-serif; fill:#6d8a3c;
     paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
-  .rivername{ font-family:'Yusei Magic',sans-serif; fill:#5787a0;
+  .rivername{ font-family:'Yusei Magic',sans-serif; fill:#3d6579;
     paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
   .deco{ font-family:'Yusei Magic',sans-serif; fill:var(--ink-soft); }
   .direction-sign rect{ fill:#fffaf0; stroke:var(--ink-soft); stroke-width:2; }
@@ -156,6 +161,7 @@
   .detail-cat{ display:inline-flex; align-items:center; gap:7px; padding:5px 10px; border:1.5px solid currentColor;
     border-radius:999px; font-size:.72rem; font-weight:700; }
   .detail-cat-dot{ width:10px; height:10px; border-radius:50%; background:currentColor; border:1px solid rgba(92,67,39,.35); }
+  .detail-cat-label{ color:var(--detail-cat-ink); }
   .detail-card h2{ margin-top:13px; padding-right:6px; font-family:'Yusei Magic',sans-serif; font-size:1.42rem;
     line-height:1.35; letter-spacing:.01em; }
   .detail-address{ display:flex; gap:8px; align-items:flex-start; margin-top:10px; color:var(--ink-soft);
@@ -185,7 +191,7 @@
     border-left:4px solid var(--voice); background:#edf6f3; font-size:.82rem; line-height:1.65; }
   .detail-voice::before{ content:"“"; position:absolute; left:10px; top:5px; color:var(--voice); font-size:1.2rem; font-weight:700; }
   .detail-link{ display:flex; align-items:center; justify-content:center; min-height:46px; margin-top:22px; padding:10px 16px;
-    border:2px solid var(--accent); border-radius:999px; color:var(--accent); font-size:.82rem; font-weight:700; text-decoration:none; }
+    border:2px solid #a45e2b; border-radius:999px; color:#a45e2b; font-size:.82rem; font-weight:700; text-decoration:none; }
   .detail-nav{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px; padding:10px 16px 16px;
     border-top:1.5px dashed rgba(122,92,59,.28); background:#fffaf0; }
   .detail-nav button{ min-height:44px; border:1.5px solid rgba(122,92,59,.36); border-radius:999px; background:var(--paper);
@@ -198,10 +204,11 @@
     opacity:0; pointer-events:none; transition:opacity .13s; transform:translate(-50%,calc(-100% - 15px)); }
   .chooser.below{ transform:translate(-50%,15px); }
   .chooser.show{ opacity:1; pointer-events:auto; }
-  .chooser .ctitle{ font-size:.66rem; color:#9a8763; font-weight:700; text-align:center; margin:1px 0 6px; }
+  .chooser .ctitle{ font-size:.66rem; color:#776546; font-weight:700; text-align:center; margin:1px 0 6px; }
   .chooser .copt{ display:flex; align-items:center; gap:8px; width:100%; min-height:44px; border:0;
-    background:#fff; border-radius:9px; margin-bottom:5px; padding:5px 9px; font:inherit; font-size:.78rem;
+    background:#fff; border-radius:9px; margin-bottom:8px; padding:5px 9px; font:inherit; font-size:.78rem;
     color:var(--ink); cursor:pointer; text-align:left; }
+  .chooser .copt:last-child{ margin-bottom:0; }
   .chooser .copt:active{ background:#f3e7cc; }
   .chooser .cdot{ width:12px; height:12px; border-radius:50%; flex:0 0 auto; border:1.5px solid rgba(92,67,39,.4); }
 
@@ -211,6 +218,7 @@
     border-radius:50% 45% 52% 48% / 48% 52% 45% 50%;
     box-shadow:2px 3px 0 rgba(92,67,39,.25); cursor:pointer; }
   .zoomctl button:active{ transform:translateY(2px); box-shadow:none; }
+  body.list-open .zoomctl{ display:none; }
 
   #editbar{ display:none; position:fixed; left:10px; bottom:62px; z-index:40; gap:8px; }
   body.edit #editbar{ display:flex; }
@@ -236,10 +244,11 @@
   }
 
   /* お店一覧パネル */
-  #listbtn{ min-height:44px;
+  #listbtn{ min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:6px;
     font:inherit; font-size:14px; font-weight:700; color:var(--ink);
     background:var(--paper); border:2px solid var(--ink-soft); border-radius:999px; padding:9px 18px;
     box-shadow:2px 3px 0 rgba(92,67,39,.25); cursor:pointer; }
+  #listbtn .list-icon{ display:block; width:18px; height:18px; flex:0 0 auto; }
   #listbtn:active{ transform:translateY(2px); box-shadow:none; }
   @media(max-width:600px){
     footer.credit{
@@ -328,16 +337,16 @@
     header p{ display:none; }
     .filters{
       grid-column:1; grid-row:2; flex-wrap:wrap; overflow-x:visible;
-      gap:4px; padding:4px 8px 5px;
+      gap:8px; padding:1px 8px 8px;
     }
     .chip{
-      flex:1 1 calc((100% - 4px)/2); width:calc((100% - 4px)/2);
-      min-width:0; max-width:calc((100% - 4px)/2); height:44px; min-height:44px;
+      flex:1 1 calc((100% - 8px)/2); width:calc((100% - 8px)/2);
+      min-width:0; max-width:calc((100% - 8px)/2); height:44px; min-height:44px;
       padding:2px 6px; gap:4px; justify-content:center; line-height:1.05;
     }
     .chip .lbl{ min-width:0; text-align:center; white-space:normal; }
     .chip .dot{ width:10px; height:10px; }
-    .chip.voice-filter{ order:-1; }
+
     .searchbar{ grid-column:1; grid-row:4; padding:0 8px 6px; position:relative; }
     .searchbar input{ max-width:none; padding-inline:5px; }
     #searchstatus{ min-width:0; position:absolute; right:8px; bottom:100%; }
@@ -362,12 +371,13 @@
     #srcinfo{ bottom:158px; }
   }
   @media(prefers-reduced-motion:reduce){
-    .detail-panel{ transition:none; }
+    .chip, #chooser, .detail-panel{ transition:none; }
     .detail-rail{ scroll-behavior:auto; }
   }
 </style>
 </head>
 <body>
+<a class="skip-map" href="#listbtn">地図をとばす</a>
 
 <header>
   <h1>なかやま商店街マップ <small>実測デジタル版</small></h1>
@@ -413,7 +423,7 @@
 <div id="srcinfo">debug: 緑=OSM実測 / 黄=OSM近似 / 青=住所ジオコーディング / 赤=概算</div>
 
 <footer class="credit">
-  <button id="listbtn" aria-haspopup="dialog">📋 お店一覧</button>
+  <button id="listbtn" aria-haspopup="dialog">お店一覧</button>
   <span class="asof" id="infoAsOf"></span>
   <span class="sources"><span class="source-line">地図データ © OpenStreetMap contributors（ODbL）／</span><span class="source-line">位置参照: 国土地理院 地名検索API／</span><span class="source-line">店舗情報: なかやま商店街振興組合・nakayaman.com</span></span>
   <span class="partner" id="partnerLogo" hidden><span>協力：</span><img id="partnerLogoImage" alt=""><span>宮城大学 事業構想学群 宮﨑ゼミ</span></span>
@@ -432,13 +442,19 @@ if (partner) {
   partnerImage.src = partner.src;
 }
 const CATS = {
-  medical:{ label:'健康・美容・医療', color:'var(--c-medical)', cc:'#a8875f' },
-  life:   { label:'生活・日用・企業', color:'var(--c-life)',    cc:'#4a9d3f' },
-  food:   { label:'食べる・飲む・食料', color:'var(--c-food)',  cc:'#e8902f' },
-  edu:    { label:'保育・教育',        color:'var(--c-edu)',    cc:'#3f7ec7' },
-  place:  { label:'公園・名所',        color:'var(--c-place)',  cc:'#2fa3a0' },
+  medical:{ label:'健康・美容・医療', color:'var(--c-medical)', cc:'#a8875f', detailInk:'#765e42' },
+  life:   { label:'生活・日用・企業', color:'var(--c-life)',    cc:'#4a9d3f', detailInk:'#34772c' },
+  food:   { label:'食べる・飲む・食料', color:'var(--c-food)',  cc:'#e8902f', detailInk:'#9f5d20' },
+  edu:    { label:'保育・教育',        color:'var(--c-edu)',    cc:'#3f7ec7', detailInk:'#2c5c94' },
+  place:  { label:'公園・名所',        color:'var(--c-place)',  cc:'#2fa3a0', detailInk:'#21736f' },
 };
 const NS = 'http://www.w3.org/2000/svg';
+const listButton = document.getElementById('listbtn');
+const listIcon = el('svg', {class:'list-icon', viewBox:'0 0 20 20', 'aria-hidden':'true', focusable:'false'});
+el('rect', {x:4, y:3.5, width:12, height:14, rx:2.2, fill:'none', stroke:'currentColor', 'stroke-width':1.7}, listIcon);
+el('path', {d:'M7 3.5V2.5h6v1 M7 8h6 M7 11.5h6 M7 15h4', fill:'none', stroke:'currentColor', 'stroke-width':1.7, 'stroke-linecap':'round', 'stroke-linejoin':'round'}, listIcon);
+listButton.prepend(listIcon);
+document.querySelector('.skip-map').addEventListener('click', () => requestAnimationFrame(() => listButton.focus()));
 const W = GEO.meta.W, H = GEO.meta.H, PAD = 115;
 const svg = document.getElementById('map');
 const FULL_VIEWBOX = {x:0, y:0, width:W, height:H};
@@ -1054,6 +1070,23 @@ function drawShops(){
 const activeCats = new Set();
 let query = '', voiceOnly = false, searchOpenedList = false;
 const filtersDiv = document.getElementById('filters');
+const voiceFilter = document.createElement('button');
+voiceFilter.className = 'chip voice-filter'; voiceFilter.setAttribute('aria-pressed','false');
+voiceFilter.type = 'button';
+const voiceIcon = document.createElement('span'); voiceIcon.className = 'voice-chip-icon'; voiceIcon.setAttribute('aria-hidden','true');
+const voiceCount = GEO.shops.filter(s => (s.voices||[]).length > 0).length;
+const voiceLabel = document.createElement('span'); voiceLabel.className = 'lbl';
+voiceLabel.appendChild(document.createTextNode('こどもの声'));
+voiceLabel.appendChild(document.createElement('wbr'));
+voiceLabel.appendChild(document.createTextNode('（'+voiceCount+'店）'));
+voiceFilter.appendChild(voiceIcon); voiceFilter.appendChild(voiceLabel);
+voiceFilter.addEventListener('click', () => {
+  voiceOnly = !voiceOnly;
+  voiceFilter.setAttribute('aria-pressed', voiceOnly ? 'true' : 'false');
+  hideDetail();
+  applyFilter();
+});
+filtersDiv.appendChild(voiceFilter);
 Object.keys(CATS).forEach(k => {
   const b = document.createElement('button');
   b.className = 'chip c-'+k; b.setAttribute('aria-pressed','false');
@@ -1069,20 +1102,6 @@ Object.keys(CATS).forEach(k => {
   });
   filtersDiv.appendChild(b);
 });
-const voiceFilter = document.createElement('button');
-voiceFilter.className = 'chip voice-filter'; voiceFilter.setAttribute('aria-pressed','false');
-voiceFilter.type = 'button';
-const voiceIcon = document.createElement('span'); voiceIcon.className = 'voice-chip-icon'; voiceIcon.setAttribute('aria-hidden','true');
-const voiceCount = GEO.shops.filter(s => (s.voices||[]).length > 0).length;
-const voiceLabel = document.createElement('span'); voiceLabel.className = 'lbl'; voiceLabel.textContent = 'こどもの声（'+voiceCount+'店）';
-voiceFilter.appendChild(voiceIcon); voiceFilter.appendChild(voiceLabel);
-voiceFilter.addEventListener('click', () => {
-  voiceOnly = !voiceOnly;
-  voiceFilter.setAttribute('aria-pressed', voiceOnly ? 'true' : 'false');
-  hideDetail();
-  applyFilter();
-});
-filtersDiv.appendChild(voiceFilter);
 document.getElementById('q').addEventListener('input', e => {
   query = e.target.value.trim().toLowerCase();
   hideDetail();
@@ -1119,20 +1138,20 @@ function applyFilter({fromSearch=false} = {}){
   if (fromSearch){
     const enough = Array.from(query).length >= 2;
     if (enough && matched.length === 1){
-      listpanel.classList.remove('show');
+      setListOpen(false);
       searchOpenedList = false;
       focusShopOnMap(matched[0], true);
     } else if (enough && matched.length > 1){
       setSelectedShop(null);
       renderList(null, '検索結果');
-      listpanel.classList.add('show');
+      setListOpen(true);
       searchOpenedList = true;
     } else if (enough && matched.length === 0){
-      listpanel.classList.remove('show');
+      setListOpen(false);
       searchOpenedList = false;
       setSelectedShop(null);
     } else if (searchOpenedList){
-      listpanel.classList.remove('show');
+      setListOpen(false);
       searchOpenedList = false;
     }
   }
@@ -1187,8 +1206,9 @@ function buildDetailCard(s){
   const card = detailText('article', 'detail-card');
   const cat = detailText('div', 'detail-cat');
   cat.style.color = CATS[s.cat].cc;
+  cat.style.setProperty('--detail-cat-ink', CATS[s.cat].detailInk);
   cat.appendChild(detailText('span', 'detail-cat-dot'));
-  cat.appendChild(detailText('span', '', CATS[s.cat].label));
+  cat.appendChild(detailText('span', 'detail-cat-label', CATS[s.cat].label));
   card.appendChild(cat);
   card.appendChild(detailText('h2', '', s.name));
 
@@ -1269,7 +1289,7 @@ function showDetail(s, focusClose){
   detailShops = filtered.includes(s) ? filtered : [s].concat(filtered);
   detailRail.replaceChildren(...detailShops.map(buildDetailCard));
   detailIndex = Math.max(0, detailShops.indexOf(s));
-  document.getElementById('listpanel').classList.remove('show');
+  setListOpen(false);
   searchOpenedList = false;
   hideChooser();
   document.body.classList.add('detail-open');
@@ -1392,6 +1412,10 @@ window.addEventListener('resize', () => {
 /* ---------- お店一覧パネル ---------- */
 const listpanel = document.getElementById('listpanel');
 const listrows = document.getElementById('listrows');
+function setListOpen(open){
+  listpanel.classList.toggle('show', open);
+  document.body.classList.toggle('list-open', open);
+}
 let listCtx = {members: null, title: null};  // 一覧の現在文脈 (区画絞り込み中にフィルタ再描画されても維持)
 function renderList(memberIdx, title){
   if (!listrows) return;
@@ -1415,7 +1439,7 @@ function renderList(memberIdx, title){
     }
     b.appendChild(ad);
     b.addEventListener('click', () => {
-      listpanel.classList.remove('show');
+      setListOpen(false);
       searchOpenedList = false;
       focusShopOnMap(s, false);
       showDetail(s, true);
@@ -1424,11 +1448,11 @@ function renderList(memberIdx, title){
   });
 }
 document.getElementById('listbtn').addEventListener('click', e => {
-  e.stopPropagation(); renderList(null, query ? '検索結果' : null); listpanel.classList.add('show');
+  e.stopPropagation(); renderList(null, query ? '検索結果' : null); setListOpen(true);
 });
-document.getElementById('listclose').addEventListener('click', () => { listpanel.classList.remove('show'); searchOpenedList = false; });
+document.getElementById('listclose').addEventListener('click', () => { setListOpen(false); searchOpenedList = false; });
 listpanel.addEventListener('click', e => e.stopPropagation());
-document.addEventListener('keydown', e => { if (e.key === 'Escape'){ listpanel.classList.remove('show'); searchOpenedList = false; } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape'){ setListOpen(false); searchOpenedList = false; } });
 
 /* ---------- 編集モード (?edit=1) ---------- */
 if (IS_EDIT){
