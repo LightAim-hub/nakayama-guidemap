@@ -292,7 +292,7 @@
   .lrow .lvoice::before{ content:"···"; position:relative; top:-2px; font-size:8px; font-weight:700; }
   .lrow .laddr{ grid-column:2 / 4; font-size:.7rem; line-height:1.4; color:var(--ink-soft); text-align:left; }
   @media(max-width:759px){
-    .detail-panel{ inset:auto 0 0; width:100%; height:min(52dvh,520px); min-height:min(330px,calc(100dvh - 120px));
+    .detail-panel{ inset:auto 0 0; width:100%; height:min(calc(52dvh - 4px),516px); min-height:min(330px,calc(100dvh - 120px));
       border:3px solid #d8c4a0; border-bottom:0;
       border-radius:22px 22px 0 0; box-shadow:0 -18px 42px rgba(80,60,30,.28); transform:translateY(104%); }
     body.detail-open .detail-panel{ transform:translateY(0); }
@@ -389,7 +389,7 @@
   #stripfar .strip-row[data-side="west"]{ border-left-width:5px; }
   #stripfar .strip-row[data-side="east"]{ border-right-width:5px; }
   .strip-far-main{ display:flex; align-items:center; gap:6px; min-width:0; }
-  .strip-distance{ color:var(--ink-soft); font-size:13px; font-weight:500; }
+  .strip-distance{ color:var(--ink-soft); font-size:14px; font-weight:500; }
   .map-filter-badge, #mapback{ display:none; }
 
   #controls{ flex:0 0 var(--controls-h); height:var(--controls-h); z-index:30; display:grid;
@@ -457,7 +457,8 @@
     background:#fffaf0; box-shadow:0 -8px 24px rgba(80,60,30,.24); font-size:12px; line-height:1.55; }
   body.map-open footer.credit.expanded .credit-details{ display:flex; align-items:flex-start; flex-wrap:wrap; gap:5px 9px; }
   body.map-open footer.credit.expanded .credit-summary{ background:var(--paper-deep); }
-  body.detail-open #controls{ pointer-events:none; }
+  body.detail-open #controls, body.detail-open #stripview,
+  body.chooser-open #controls, body.chooser-open #stripview{ pointer-events:none; }
 
   @media(max-width:759px) and (orientation:portrait){
     body{ --controls-h:216px; }
@@ -934,15 +935,24 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     const priorityEntries = entries.filter(entry => labelPriority(entry.s) === 3);
     const priorityOptions = new Map(priorityEntries.map(entry => {
       const options = [];
-      for (const candidate of labelCandidates(entry.s)){
+      for (const candidate of labelCandidates(entry.s).concat(leaderLabelCandidates(entry.s))){
         setLabelPosition(entry, candidate, scale);
         const mainRect = entry.main.getBoundingClientRect();
-        if (!labelAnchorBelongsToOwnStar(entry, starCenters) ||
-            !labelBelongsToOwnStar(entry, mainRect, starCenters)) continue;
+        const withLeader=!!candidate.leader;
+        if (withLeader){
+          if (labelContainsOtherStar(entry,mainRect,starCenters)) continue;
+        } else if (!labelAnchorBelongsToOwnStar(entry, starCenters) ||
+                   !labelBelongsToOwnStar(entry, mainRect, starCenters)) continue;
         const rect = labelRect(entry);
-        if (labelInsideViewport(rect) && !overlapsKeepOut(rect) && !overlapsMapSymbol(entry, rect)){
-          options.push({candidate, rect});
+        if (!labelInsideViewport(rect) || overlapsKeepOut(rect) || overlapsMapSymbol(entry,rect)) continue;
+        let segment=null;
+        if (withLeader){
+          segment=labelLeaderSegment(entry,mainRect,starCenters);
+          const maxLength=(entry.s.voices||[]).length ? LEADER_MAX_PX_VOICE : LEADER_MAX_PX;
+          if (!segment || Math.hypot(segment.x2-segment.x1,segment.y2-segment.y1) > maxLength ||
+              !leaderSegmentIsClear(entry,segment,starCenters,[])) continue;
         }
+        options.push({candidate,rect,segment});
       }
       hideLabel(entry);
       return [entry, options];
@@ -960,11 +970,14 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       if (pos === priorityEntries.length) return true;
       const entry = priorityEntries[pos];
       for (const option of priorityOptions.get(entry)){
-        if (kept.some(other => labelsCollide(option.rect, other))) continue;
+        if (kept.some(other => labelsCollide(option.rect,other)) || labelHitsLeader(option.rect) ||
+            (option.segment && !leaderSegmentIsClear(entry,option.segment,starCenters,kept))) continue;
         kept.push(option.rect);
+        if (option.segment) leaderSegments.push(option.segment);
         priorityChoice.set(entry, option.candidate);
         if (placePriority(pos+1)) return true;
         priorityChoice.delete(entry);
+        if (option.segment) leaderSegments.pop();
         kept.pop();
         if (priorityAborted) return false;
       }
@@ -1292,6 +1305,20 @@ function updateMapScaleStyles(){
   const badgeRects=layoutVoiceBadges(scale,entries,starCenters);
   const labelRects=layoutLabels(scale,entries,starCenters,badgeRects.concat(signalRects));
   layoutVoiceBadges(scale,entries,starCenters,labelRects);
+  const viewport=document.querySelector('#viewport');
+  const roadLabels=[...document.querySelectorAll('#map text.roadname')];
+  roadLabels.forEach(label => { label.style.display=''; });
+  if (viewport && getComputedStyle(viewport).display !== 'none'){
+    const visible=viewport.getBoundingClientRect();
+    roadLabels.forEach(label => {
+      const rect=label.getBoundingClientRect();
+      const intersects=rect.right > visible.left && rect.left < visible.right &&
+        rect.bottom > visible.top && rect.top < visible.bottom;
+      const inside=rect.left >= visible.left+6 && rect.right <= visible.right-6 &&
+        rect.top >= visible.top+6 && rect.bottom <= visible.bottom-6;
+      if (intersects && !inside) label.style.display='none';
+    });
+  }
 }
 function scheduleMapScaleStyles(){
   if (mapStyleFrame) cancelAnimationFrame(mapStyleFrame);
@@ -1469,7 +1496,7 @@ function stripPackColumn(items, compact){
   }
   const blocks=[];
   placed.forEach((item,i) => {
-    const ideal=stripIdealCenter(item.entry)-cumulative[i];
+    const ideal=item.center-cumulative[i];
     blocks.push({start:i,end:i,total:ideal,count:1,value:ideal});
     while (blocks.length > 1 && blocks[blocks.length-2].value > blocks[blocks.length-1].value){
       const b=blocks.pop(), a=blocks.pop();
@@ -1504,17 +1531,30 @@ function layoutStripRows(){
   stripLayoutFrame=0;
   const compact=query.length > 0 || voiceOnly || activeCats.size > 0;
   const measured=stripMeasuredRows();
-  const east=stripPackColumn(measured.filter(p => p.entry.side === 'east'),compact);
-  const west=stripPackColumn(measured.filter(p => p.entry.side === 'west'),compact);
-  const facingBounds=[];
-  if (!compact) west.forEach(item => east.filter(other => Math.abs(other.entry.y-item.entry.y) <= 20)
-    .forEach(other => facingBounds.push({low:other.center-item.center-STRIP_FACING_MAX,
-      high:other.center-item.center+STRIP_FACING_MAX})));
-  if (facingBounds.length){
-    const low=Math.max(...facingBounds.map(b => b.low));
-    const high=Math.min(...facingBounds.map(b => b.high));
-    const shift=low <= high ? Math.max(low,Math.min(high,0)) : (low+high)/2;
-    west.forEach(item => { item.center+=shift; });
+  const eastItems=measured.filter(p => p.entry.side === 'east');
+  const westItems=measured.filter(p => p.entry.side === 'west');
+  let east, west;
+  if (compact){
+    east=stripPackColumn(eastItems,true);
+    west=stripPackColumn(westItems,true);
+  } else {
+    for (let pass=0; pass<20; pass++){
+      east=stripPackColumn(eastItems,false);
+      west=stripPackColumn(westItems,false);
+      const corrections=new Map();
+      west.forEach(item => east.filter(other => Math.abs(other.entry.y-item.entry.y) <= 20)
+        .forEach(other => {
+          const delta=other.center-item.center;
+          if (Math.abs(delta) <= STRIP_FACING_MAX) return;
+          const correction=(Math.abs(delta)-STRIP_FACING_MAX)/2;
+          const eastCorrection=delta > 0 ? -correction : correction;
+          corrections.set(other,(corrections.get(other)||0)+eastCorrection);
+          corrections.set(item,(corrections.get(item)||0)-eastCorrection);
+        }));
+      corrections.forEach((correction,item) => { item.center+=correction; });
+    }
+    east=stripPackColumn(eastItems,false);
+    west=stripPackColumn(westItems,false);
   }
   const placed=east.concat(west);
   const topShift=placed.length ? Math.max(0,STRIP_TOP_PAD-Math.min(...placed.map(item => item.center-item.h/2))) : 0;
@@ -1888,7 +1928,10 @@ function hideDetail(restoreFocus){
   detailIndex = -1;
   setSelectedShop(null);
 }
-function hideChooser(){ chooser.classList.remove('show'); }
+function hideChooser(){
+  chooser.classList.remove('show');
+  document.body.classList.remove('chooser-open');
+}
 function nearby(s){
   const matrix = svg.getScreenCTM();
   const pxPerMeter = matrix ? Math.hypot(matrix.a, matrix.b) : currentMapScale;
@@ -1910,6 +1953,7 @@ function showChooser(list, s){
   const [px, py] = svgToWrap(s.x, s.y);
   placeBubble(chooser, px, py);
   chooser.classList.add('show');
+  document.body.classList.add('chooser-open');
   const first = chooser.querySelector('.copt'); if (first) first.focus();
 }
 let suppressMapClickUntil = 0;

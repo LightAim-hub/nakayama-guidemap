@@ -1037,7 +1037,9 @@ if not A.no_browser:
                         const r = e.getBoundingClientRect();
                         return {i:+e.dataset.i, side:e.dataset.side, y:+e.dataset.y,
                                 top:+r.top.toFixed(1), h:+r.height.toFixed(1),
-                                far: !!e.closest('#stripfar')};
+                                far: !!e.closest('#stripfar'),
+                                // ずらして置いたことを引き出し線で見せているか (N42)
+                                disp: e.classList.contains('displaced')};
                       });
                       // 押すもののうち「操作」だけ (一覧の行は中身なので対象外)
                       const ctl = ['#q', '.chip', '#mapbtn', '#listbtn', '.zoomctl button']
@@ -1053,7 +1055,9 @@ if not A.no_browser:
                           return {nm:(e.getAttribute('aria-label')||e.textContent||'')
                                     .trim().slice(0,16),
                                   cy:+(r.top + r.height/2).toFixed(0)}; });
-                      return {rows, ctl, h:innerHeight};
+                      return {rows, ctl, h:innerHeight,
+                              pxPerM:(typeof STRIP_PX_PER_M !== 'undefined'
+                                      ? STRIP_PX_PER_M : null)};
                     }""")
                     # 2026-07-31: 主役が二列表示になったので、既定の画面で測るのは
                     # 「主の内容 (二列) の大きさ」。地図の大きさと こどもの声のラベルは
@@ -1736,7 +1740,24 @@ if REND:
     # ---- N40-N43 通り沿いの二列表示 ----
     # 位置の正しさ (西/東・順番・向かい合わせ) は地図で検証済みの資産。
     # 見せ方が変わってもそれが保たれているかを、画面の実測で確かめる。
-    FACING_MAX_PX = 48.0        # 向かい合う店の画面上の高さの差 (実測の最大は37.1px)
+    # 2026-07-31 改訂。48px は「実測の最大が37.1pxだったから」で置いた数字だったが、
+    # カードの高さが45pxなので 48px ずれると上下の重なりがゼロになり、
+    # 人の目には「向かい合っている」と読めない。しかも最適化がこの上限まで
+    # 押し込むので、閾値がそのまま設計になってしまった (柏屋と河村内科外科クリニックは
+    # 実際1m差なのに47.0pxで通った)。
+    #
+    # 正しい問いは「画面のズレが小さいか」ではなく「画面のズレが実際のズレを表しているか」。
+    # 実際の南北差 Δy を画面に写すと Δy × 縦縮尺 px になる。そこからの誤差で見る。
+    # 誤差24px = カード45pxの約半分。ここまでなら2枚は上下に重なって残るので
+    # 「向かい合っている」と読める。
+    FACING_ERR_MAX_PX = 24.0
+    # ただし片側に3枚が密集している所などは、カード45px+隙間8pxの積み上げが
+    # 実際の間隔より広くなり、どう並べても誤差を消せない (花祭壇の向かいは3枚で
+    # 最低106px要るが、全部を近くに置ける幅は足りない)。
+    # そういう組は「隠す」のでなく「ずらしてあることを見せる」= 引き出し線を出す。
+    # 線が出ていれば実際の位置が読めるので合格とするが、線があっても離れすぎては
+    # 読めないので、幾何が強いる最大 (花祭壇の3枚で53px) までに限る。
+    FACING_ERR_LEADER_MAX = 56.0
     _true_side, _true_y = {}, {}
     for _s in shops:
         _true_side[_s["name"]] = 1 if TX(_s) >= spine_x(TY(_s)) else -1
@@ -1792,12 +1813,28 @@ if REND:
                 ra, rb = pos.get(ia), pos.get(ib)
                 if not ra or not rb:
                     continue
-                d = abs((ra["top"] + ra["h"]/2) - (rb["top"] + rb["h"]/2))
-                if d > FACING_MAX_PX:
-                    fails["N42"].append("%s と %s は南北差%.0fm の向かい合わせなのに "
-                                        "画面では%.0fpx ずれている (上限%.0f) [%s]"
-                                        % (a["name"], b["name"], abs(TY(a)-TY(b)),
-                                           d, FACING_MAX_PX, dev))
+                # 画面のズレが、実際の南北差を写したものになっているか
+                k = st.get("pxPerM")
+                if not k:
+                    fails["N42"].append("二列の縦縮尺が読めない (STRIP_PX_PER_M) [%s]" % dev)
+                    break
+                ca = ra["top"] + ra["h"]/2
+                cb = rb["top"] + rb["h"]/2
+                # 北 (yが小さい) が上に来るので、真のズレは符号つきで比べる
+                want = (TY(b) - TY(a)) * k
+                err = abs((cb - ca) - want)
+                if err > FACING_ERR_MAX_PX:
+                    # ずらしてあることを引き出し線で見せているなら実位置は読めるが、
+                    # 線があっても離れすぎては読めない。上限は幾何が強いる分まで:
+                    # 花祭壇の向かいの3枚は 2×(45+8)=106px 必要で、中央に置いても
+                    # 端は53pxずれる。これが「どうやっても消えないズレ」の最大値。
+                    if (ra.get("disp") or rb.get("disp")) and err <= FACING_ERR_LEADER_MAX:
+                        continue
+                    fails["N42"].append("%s と %s は南北差%.0fm (画面なら%.0fpx) の向かい合わせ"
+                                        "なのに 画面では%.0fpx ずれていて 誤差%.0fpx "
+                                        "(上限%.0f・引き出し線も出ていない) [%s]"
+                                        % (a["name"], b["name"], abs(TY(a)-TY(b)), abs(want),
+                                           abs(cb - ca), err, FACING_ERR_MAX_PX, dev))
         # N43 押すものが親指の届く範囲 (画面の下半分)
         for c in (st.get("ctl") or []):
             if c["cy"] < st["h"] * 0.5:
