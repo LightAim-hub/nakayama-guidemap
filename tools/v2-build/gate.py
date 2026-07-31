@@ -300,7 +300,35 @@ if not A.no_browser:
                                       +tr.right.toFixed(1), +tr.bottom.toFixed(1)] : null,
                         labelMapW: tb ? +tb.width.toFixed(1) : 0,
                         // 引き出し線で結ばれているラベルか (N14 の除外 / N37 の対象)
-                        leader: !!(GEO.shops[i] && GEO.shops[i].labelLeader)};
+                        leader: !!(GEO.shops[i] && GEO.shops[i].labelLeader),
+                        // 印が付いているだけで線が描かれていないと、
+                        // 「どの★がどの店名か分からない」状態のまま N14/N4 を素通りする。
+                        // 自分の★の近くから始まって自分のラベルで終わる線が
+                        // 実際に見えているかを、ここで確かめる。
+                        leaderDrawn: (() => {
+                          if (!(GEO.shops[i] && GEO.shops[i].labelLeader)) return null;
+                          if (!sr || !tr || tr.width <= 1) return false;
+                          const scx = sr.left + sr.width/2, scy = sr.top + sr.height/2;
+                          const paths = document.querySelectorAll(
+                            '#map path.label-leader, #map .label-leader, #map path.faraway');
+                          for (const q of paths) {
+                            const cs = getComputedStyle(q);
+                            if (cs.display === 'none' || cs.visibility === 'hidden'
+                                || parseFloat(cs.opacity) <= .05) continue;
+                            const b = q.getBoundingClientRect();
+                            if (b.width < .5 && b.height < .5) continue;
+                            // 線の外接矩形が ★ と ラベル の両方に触れていること
+                            const near = (r2, x, y, pad) =>
+                              x >= r2.left-pad && x <= r2.right+pad
+                              && y >= r2.top-pad && y <= r2.bottom+pad;
+                            const touchesStar = near(b, scx, scy, 6);
+                            const touchesLabel =
+                              Math.min(b.right, tr.right) - Math.max(b.left, tr.left) > -6 &&
+                              Math.min(b.bottom, tr.bottom) - Math.max(b.top, tr.top) > -6;
+                            if (touchesStar && touchesLabel) return true;
+                          }
+                          return false;
+                        })()};
               });
               // ラベルbbox交差
               const vis = [...document.querySelectorAll('text.shoplabel')].filter(t =>
@@ -725,7 +753,7 @@ if not A.no_browser:
                        try{return nearby(GEO.shops[+x.dataset.i]).length<=1;}catch(e){return false;}})
                        || document.querySelector('g.hit');
                      h.dispatchEvent(new MouseEvent('click',{bubbles:true}));
-                     await new Promise(r=>setTimeout(r,450)); return true; }"""),
+                     await new Promise(r=>setTimeout(r,700)); return true; }"""),
                   ("チューザー", r"""async () => {
                      document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
                      await new Promise(r=>setTimeout(r,300));
@@ -990,7 +1018,9 @@ for s in shops:
 
     # N4 ラベルが自分の★に一意に結びつく
     b = byname.get(nm)
-    if b and b.get("labelShown") and b.get("lx") is not None:
+    # 引き出し線で結ばれたラベルは、近さでなく線で対応が分かる (N37 が線を見る)。
+    # N14 にだけ除外を入れて N4 に入れ忘れ、8件の誤検出を出した (2026-07-31)。
+    if b and b.get("labelShown") and b.get("lx") is not None and not b.get("leader"):
         dself = math.hypot(b["lx"] - x, b["ly"] - y)
         dother = min((math.hypot(b["lx"] - o["x"], b["ly"] - o["y"]) for o in shops if o is not s), default=1e9)
         if dother <= dself:
@@ -1187,7 +1217,13 @@ def _zoom_checks(D, zname, is_default):
     # 引き出し線は「近さ」の代わりに対応を示すので、線そのものが紛れてはいけない。
     #   ・他店の★のそば (6px以内) を通らない  ・他店のラベルを横切らない
     for r in rows:
-        if not r.get("leader") or not r.get("labelRect") or r.get("starCx") is None:
+        if not r.get("leader"):
+            continue
+        if r.get("leaderDrawn") is False:
+            fails["N37"].append("%s は引き出し線あつかいなのに線が描かれていない "
+                                "(ラベルが★から離れたまま、どの★のものか分からない) (%s)"
+                                % (r["name"], zname))
+        if not r.get("labelRect") or r.get("starCx") is None:
             continue
         rc = r["labelRect"]
         ex, ey = (rc[0] + rc[2]) / 2.0, (rc[1] + rc[3]) / 2.0

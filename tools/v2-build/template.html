@@ -135,6 +135,9 @@
   .direction-sign rect{ fill:#fffaf0; stroke:var(--ink-soft); stroke-width:2; }
   .direction-sign text{ font-family:'Yusei Magic',sans-serif; fill:var(--ink); font-size:15px; font-weight:700; }
   .faraway{ stroke:rgba(122,92,59,.7); stroke-dasharray:4 4; fill:none; }
+  .label-leader{ stroke:rgba(122,92,59,.62); stroke-width:1.35; stroke-dasharray:3.2 4.6;
+    stroke-linecap:round; vector-effect:non-scaling-stroke; pointer-events:none; }
+  .label-leader.dim{ opacity:.25; }
 
   .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
     clip:rect(0,0,0,0); white-space:nowrap; border:0; }
@@ -655,6 +658,8 @@ const MIN_STAR_PX = 6, MAX_STAR_PX = 11, STAR_ROAD_RATIO = .60;
 const LABEL_OWNER_RATIO = .79;
 const VOICE_BADGE_WIDTH_PX = 13, VOICE_BADGE_HEIGHT_PX = 11, VOICE_BADGE_GAP_PX = 3;
 const PRIORITY_SEARCH_STEP_LIMIT = 20000;
+const LEADER_STAR_CLEARANCE_PX = 6.5;
+const labelLeaderPaths = new Map();
 function preferredLabelSide(s){
   const h = s.hint || {};
   if (h.anchor === 'start') return 1;
@@ -697,19 +702,35 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     });
     entries.forEach(hideLabel);
     const kept = [];
+    const leaderSegments = [];
+    const labelHitsLeader = rect => leaderSegments.some(segment => segmentIntersectsRect(segment,rect));
+    const placeCandidate = (entry,candidate,withLeader) => {
+      setLabelPosition(entry,candidate,scale);
+      const mainRect = entry.main.getBoundingClientRect();
+      if (withLeader){
+        if (labelContainsOtherStar(entry,mainRect,starCenters)) return false;
+      } else if (!labelAnchorBelongsToOwnStar(entry,starCenters) ||
+                 !labelBelongsToOwnStar(entry,mainRect,starCenters)) return false;
+      const rect = labelRect(entry);
+      if (overlapsKeepOut(rect) || overlapsMapSymbol(entry,rect) || labelHitsLeader(rect) ||
+          kept.some(other => labelsCollide(rect,other))) return false;
+      let segment = null;
+      if (withLeader){
+        segment = labelLeaderSegment(entry,mainRect,starCenters);
+        if (!segment || !leaderSegmentIsClear(entry,segment,starCenters,kept)) return false;
+      }
+      entry.s.labelVisible = true;
+      entry.s.labelLeader = withLeader;
+      kept.push(rect);
+      if (segment) leaderSegments.push(segment);
+      return true;
+    };
     const placeGreedy = entry => {
       for (const candidate of labelCandidates(entry.s)){
-        setLabelPosition(entry, candidate, scale);
-        const mainRect = entry.main.getBoundingClientRect();
-        if (!labelAnchorBelongsToOwnStar(entry, starCenters) ||
-            !labelBelongsToOwnStar(entry, mainRect, starCenters)) continue;
-        const rect = labelRect(entry);
-        if (overlapsKeepOut(rect) || overlapsMapSymbol(entry, rect)) continue;
-        if (!kept.some(other => labelsCollide(rect, other))){
-          entry.s.labelVisible = true;
-          kept.push(rect);
-          return true;
-        }
+        if (placeCandidate(entry,candidate,false)) return true;
+      }
+      for (const candidate of leaderLabelCandidates(entry.s)){
+        if (placeCandidate(entry,candidate,true)) return true;
       }
       hideLabel(entry);
       return false;
@@ -769,6 +790,8 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       .sort((a,b) => labelPriority(b.s)-labelPriority(a.s) ||
         Number(isPrimaryLabel(b.s))-Number(isPrimaryLabel(a.s)) || a.s.y-b.s.y || a.idx-b.idx)
       .forEach(placeGreedy);
+    entries.forEach(entry => updateLabelLeader(entry,scale));
+    document.body.dataset.labelLeaders = String(entries.filter(entry => entry.s.labelLeader).length);
     return kept;
   }
   GEO.shops.forEach(s => {
@@ -819,6 +842,7 @@ function setLabelPosition(entry, candidate, scale){
   s.anchor = side > 0 ? 'start' : 'end';
   s.lx = s.x + side * offsetMap;
   s.ly = s.y + dyPx / scale;
+  s.labelLeader = !!candidate.leader;
   main.setAttribute('x', s.lx);
   main.setAttribute('y', s.ly);
   main.setAttribute('font-size', fontMap);
@@ -843,6 +867,11 @@ function hideLabel(entry){
   entry.main.style.display = 'none';
   if (entry.distance) entry.distance.style.display = 'none';
   entry.s.labelVisible = false;
+  entry.s.labelLeader = false;
+  if (entry.leader){
+    entry.leader.style.display = 'none';
+    entry.leader.removeAttribute('data-length-px');
+  }
 }
 function labelRect(entry){
   const rects = [entry.main, entry.distance].filter(Boolean).map(t => t.getBoundingClientRect());
@@ -868,6 +897,18 @@ function labelCandidates(s){
   return candidates.sort((a,b) =>
     Math.hypot(a.gapPx,a.dyPx)-Math.hypot(b.gapPx,b.dyPx) ||
     Number(a.side!==preferred)-Number(b.side!==preferred) || a.dyPx-b.dyPx);
+}
+function leaderLabelCandidates(s){
+  const preferred = preferredLabelSide(s);
+  const baseGap = starTargetPx(s) / 2 + LABEL_GAP_PX;
+  const gaps = [64,80,96,120,148].map(v => baseGap + v);
+  const dySteps = [0,-12,12,-24,24,-36,36,-52,52,-72,72,-96,96];
+  const candidates = [];
+  [preferred,-preferred].forEach(side => gaps.forEach(gapPx =>
+    dySteps.forEach(dyPx => candidates.push({side,gapPx,dyPx,leader:true}))));
+  return candidates.sort((a,b) =>
+    Math.hypot(a.gapPx,a.dyPx)-Math.hypot(b.gapPx,b.dyPx) ||
+    Number(a.side!==preferred)-Number(b.side!==preferred) || Math.abs(a.dyPx)-Math.abs(b.dyPx));
 }
 function rectDistance(rect, x, y){
   return Math.hypot(Math.max(rect.left-x, 0, x-rect.right),
@@ -897,6 +938,70 @@ function labelAnchorBelongsToOwnStar(entry, starCenters){
     if (idx !== entry.idx) nearestOther = Math.min(nearestOther, Math.hypot(anchor.x-other.x, anchor.y-other.y));
   }
   return !Number.isFinite(nearestOther) || ownDistance + .01 < nearestOther;
+}
+function labelContainsOtherStar(entry,rect,starCenters){
+  for (const [idx,point] of starCenters){
+    if (idx !== entry.idx && rect.left <= point.x && point.x <= rect.right &&
+        rect.top <= point.y && point.y <= rect.bottom) return true;
+  }
+  return false;
+}
+function pointSegmentDistance(point,segment){
+  const dx=segment.x2-segment.x1, dy=segment.y2-segment.y1, den=dx*dx+dy*dy;
+  const t=den ? Math.max(0,Math.min(1,((point.x-segment.x1)*dx+(point.y-segment.y1)*dy)/den)) : 0;
+  return Math.hypot(point.x-(segment.x1+t*dx),point.y-(segment.y1+t*dy));
+}
+function segmentIntersectsRect(segment,rect){
+  const {x1,y1,x2,y2}=segment;
+  if (Math.max(x1,x2) < rect.left || Math.min(x1,x2) > rect.right ||
+      Math.max(y1,y2) < rect.top || Math.min(y1,y2) > rect.bottom) return false;
+  if ((rect.left <= x1 && x1 <= rect.right && rect.top <= y1 && y1 <= rect.bottom) ||
+      (rect.left <= x2 && x2 <= rect.right && rect.top <= y2 && y2 <= rect.bottom)) return true;
+  const edges=[[rect.left,rect.top,rect.right,rect.top],[rect.right,rect.top,rect.right,rect.bottom],
+    [rect.right,rect.bottom,rect.left,rect.bottom],[rect.left,rect.bottom,rect.left,rect.top]];
+  return edges.some(([ax,ay,bx,by]) => {
+    const d1=(x2-x1)*(ay-y1)-(y2-y1)*(ax-x1), d2=(x2-x1)*(by-y1)-(y2-y1)*(bx-x1);
+    const d3=(bx-ax)*(y1-ay)-(by-ay)*(x1-ax), d4=(bx-ax)*(y2-ay)-(by-ay)*(x2-ax);
+    return (d1>0)!==(d2>0) && (d3>0)!==(d4>0);
+  });
+}
+function labelLeaderSegment(entry,rect,starCenters){
+  const own=starCenters.get(entry.idx);
+  return own ? {x1:own.x,y1:own.y,x2:(rect.left+rect.right)/2,y2:(rect.top+rect.bottom)/2} : null;
+}
+function leaderSegmentIsClear(entry,segment,starCenters,labelRects){
+  for (const [idx,point] of starCenters){
+    if (idx !== entry.idx && pointSegmentDistance(point,segment) < LEADER_STAR_CLEARANCE_PX) return false;
+  }
+  return !labelRects.some(rect => segmentIntersectsRect(segment,rect));
+}
+function updateLabelLeader(entry,scale){
+  const path=entry.leader, s=entry.s;
+  if (!path || !s.labelVisible || !s.labelLeader){
+    if (path) path.style.display='none';
+    return;
+  }
+  const matrix=svg.getScreenCTM(), starRect=entry.star&&entry.star.getBoundingClientRect();
+  const mainRect=entry.main&&entry.main.getBoundingClientRect();
+  if (!matrix || !starRect || !mainRect){
+    path.style.display='none';
+    return;
+  }
+  const ox=starRect.left+starRect.width/2, oy=starRect.top+starRect.height/2;
+  const tx=mainRect.left+mainRect.width/2, ty=mainRect.top+mainRect.height/2;
+  const dx=tx-ox, dy=ty-oy, dist=Math.hypot(dx,dy);
+  if (!(dist > 0)){
+    path.style.display='none';
+    return;
+  }
+  const startPx=Math.min(currentStarTargetPx/2+1.5,dist*.4);
+  const a=svg.createSVGPoint(), b=svg.createSVGPoint(), inverse=matrix.inverse();
+  a.x=ox+dx*startPx/dist; a.y=oy+dy*startPx/dist;
+  b.x=tx; b.y=ty;
+  const start=a.matrixTransform(inverse), end=b.matrixTransform(inverse);
+  path.setAttribute('d','M'+start.x+','+start.y+' L'+end.x+','+end.y);
+  path.dataset.lengthPx=(dist-startPx).toFixed(1);
+  path.style.display='';
 }
 function rectsOverlap(a,b){
   return Math.min(a.right,b.right)-Math.max(a.left,b.left) > .05 &&
@@ -976,7 +1081,8 @@ function updateMapScaleStyles(){
     const idx = +h.dataset.i, s = GEO.shops[idx], star = h.querySelector('.star');
     if (star) star.setAttribute('transform', 'scale('+(starSize(s) * (idx===selectedIndex?1.18:1))+')');
     return {idx, s, star, badge:h.querySelector('g.voice-badge'),
-      main:h.querySelector('text[data-main-label="1"]'), distance:h.querySelector('text.distance-label')};
+      main:h.querySelector('text[data-main-label="1"]'), distance:h.querySelector('text.distance-label'),
+      leader:labelLeaderPaths.get(idx)};
   }).filter(entry => entry.main);
   const starCenters = new Map(entries.map(entry => {
     const rect = entry.star && entry.star.getBoundingClientRect();
@@ -1009,6 +1115,7 @@ function setSelectedShop(s){
 }
 function drawShops(){
   gShops.innerHTML = ''; gLead.innerHTML = '';
+  labelLeaderPaths.clear();
   layoutLabels();
   GEO.shops.forEach((s, idx) => {
     const primary = isPrimaryLabel(s);
@@ -1018,12 +1125,8 @@ function drawShops(){
       el('path', {d:'M'+s.x+','+s.y+' L'+ex+','+ey, class:'faraway '+(primary?'primary':'detail'), 'marker-end':''}, gLead);
       el('path', {d:'M'+ex+','+ey+' l'+(-7*Math.cos(rad-0.5))+','+(7*Math.sin(rad-0.5))+' M'+ex+','+ey+' l'+(-7*Math.cos(rad+0.5))+','+(7*Math.sin(rad+0.5)), class:'faraway '+(primary?'primary':'detail')}, gLead);
     }
-    if (s.labelVisible && s.labelLeader){
-      const dx = s.lx-s.x, dy = s.ly-s.y, dist = Math.hypot(dx,dy) || 1;
-      const sx = s.x + dx*Math.min(10/dist,.4), sy = s.y + dy*Math.min(10/dist,.4);
-      const ex = s.lx - dx*Math.min(5/dist,.25), ey = s.ly - dy*Math.min(5/dist,.25);
-      el('path', {d:'M'+sx+','+sy+' L'+ex+','+ey, class:'faraway label-leader'}, gLead);
-    }
+    const leaderPath=el('path',{class:'faraway label-leader','data-i':idx,display:'none'},gLead);
+    labelLeaderPaths.set(idx,leaderPath);
     const hasVoices = (s.voices||[]).length > 0;
     const g = el('g', {class:'hit'+(idx===selectedIndex?' selected':''), tabindex:0, role:'button',
       'aria-pressed':idx===selectedIndex?'true':'false', 'data-i':idx,
@@ -1126,6 +1229,8 @@ function applyFilter({fromSearch=false} = {}){
     if (ok) matched.push(s);
     h.classList.toggle('dim', !ok);
     h.classList.toggle('glowing', !!glow);
+    const leader=labelLeaderPaths.get(+h.dataset.i);
+    if (leader) leader.classList.toggle('dim',!ok);
     h.setAttribute('tabindex', ok ? 0 : -1);
   });
   const status = document.getElementById('searchstatus');
