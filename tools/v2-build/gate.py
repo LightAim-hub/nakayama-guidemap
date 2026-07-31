@@ -8,7 +8,7 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N34 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N36 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
@@ -109,6 +109,14 @@ MAX_LAYOUT_MS = 400.0
 CONTRAST_MIN = 4.5         # WCAG 1.4.3。大きい文字 (24px以上 or 18.66px以上の太字) は3.0
 CONTRAST_MIN_LARGE = 3.0
 TAP_GAP_MIN_PX = 8.0       # 隣り合う操作要素の最小の間隔。近すぎると押し間違える
+# ---- 2026-07-31 追加 (N35-N36): ボス指摘「見にくい・操作しにくい」の実測 ----
+# 採点表は規約適合を測っていたが、体感の見やすさ・操作性は測れていなかった。
+# 実測 (390x844): 画面に見える店名59件のうち40件が12px。UIの床は14pxなので
+# 地図の文字だけが小さい。文字を14/17pxにしても失うラベルは2件だけ (59→57)。
+MAP_LABEL_MIN_PX = 14.0
+# 地図なのにピンチで拡大できず、ページ全体が5倍になる (実測)。
+# 歩きながら片手で使うので、指で拡大できないのは致命的。
+ZOOM_GESTURES = ("ピンチ", "ダブルタップ", "ホイール")
 
 # ---------------- GEO ----------------
 src = io.open(A.target, encoding="utf-8").read()
@@ -810,6 +818,63 @@ if not A.no_browser:
                 REND["keyboardParity"] = {"liveOutside": live_outside,
                                           "reachedByTab": sorted(reached)}
                 kp.close()
+                # ---- N35 地図の店名の大きさ / N36 指で拡大できるか ----
+                # 指のある端末として開き直す。ここだけ別の文脈が要る。
+                mctx = br.new_context(viewport={"width": 390, "height": 844},
+                                      has_touch=True, is_mobile=True,
+                                      device_scale_factor=3)
+                mp = mctx.new_page()
+                mp.goto(url, wait_until="load")
+                mp.wait_for_timeout(1500)
+                MAPTXT = """() => {
+                  const m = document.getElementById('map').getScreenCTM();
+                  const sc = Math.hypot(m.a, m.b);
+                  const small = {};
+                  for (const h of document.querySelectorAll('g.hit')) {
+                    const t = h.querySelector('text[data-main-label="1"]');
+                    if (!t) continue;
+                    const cs = getComputedStyle(t);
+                    if (cs.display === 'none' || t.getBoundingClientRect().width < 1) continue;
+                    const px = +(parseFloat(cs.fontSize) * sc).toFixed(1);
+                    if (px < 14) small[px] = (small[px] || 0) + 1;
+                  }
+                  return {scale:+sc.toFixed(4), small};
+                }"""
+                REND["mapText"] = mp.evaluate(MAPTXT)
+                vpc = mp.evaluate("""()=>{const r=document.getElementById('viewport')
+                  .getBoundingClientRect();
+                  return {cx:Math.round(r.left+r.width/2), cy:Math.round(r.top+r.height/2)};}""")
+                SC = "()=>{const m=document.getElementById('map').getScreenCTM();" \
+                     "return +Math.hypot(m.a,m.b).toFixed(4);}"
+                base_sc = mp.evaluate(SC)
+                zoom_ok = {}
+                # ピンチ (指2本を広げる)
+                cdp = mctx.new_cdp_session(mp)
+                for i, frac in enumerate((0.0, .25, .5, .75, 1.0)):
+                    d = 40 + 160 * frac
+                    cdp.send("Input.dispatchTouchEvent",
+                             {"type": "touchStart" if i == 0 else "touchMove",
+                              "touchPoints": [{"x": vpc["cx"]-d, "y": vpc["cy"], "id": 1},
+                                              {"x": vpc["cx"]+d, "y": vpc["cy"], "id": 2}]})
+                    mp.wait_for_timeout(60)
+                cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+                mp.wait_for_timeout(500)
+                zoom_ok["ピンチ"] = abs(mp.evaluate(SC) - base_sc) > 0.01
+                # ダブルタップ
+                mp.reload(wait_until="load"); mp.wait_for_timeout(1400)
+                b2 = mp.evaluate(SC)
+                mp.touchscreen.tap(vpc["cx"], vpc["cy"]); mp.wait_for_timeout(80)
+                mp.touchscreen.tap(vpc["cx"], vpc["cy"]); mp.wait_for_timeout(600)
+                zoom_ok["ダブルタップ"] = abs(mp.evaluate(SC) - b2) > 0.01
+                # ホイール (PC・トラックパッド)
+                mp.reload(wait_until="load"); mp.wait_for_timeout(1400)
+                b3 = mp.evaluate(SC)
+                mp.mouse.move(vpc["cx"], vpc["cy"])
+                mp.mouse.wheel(0, -400)
+                mp.wait_for_timeout(500)
+                zoom_ok["ホイール"] = abs(mp.evaluate(SC) - b3) > 0.01
+                REND["zoomGestures"] = zoom_ok
+                mp.close(); mctx.close()
                 # N32 動きを減らす設定を尊重しているか。0.08秒でも「尊重していない」
                 # には違いないが、影響の大小は別に見えるよう秒数も残す。
                 rp = br.new_page(viewport={"width": 390, "height": 844})
@@ -857,7 +922,7 @@ P("")
 fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
                          "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
                          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27",
-                         "N28", "N29", "N30", "N31", "N32", "N33", "N34")}
+                         "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -1203,6 +1268,17 @@ if REND:
     for k, e in sorted(_e.items()):
         fails["N34"].append("%s (%s) がアイコンに絵文字 %s を使っている [%s]"
                             % (e["sel"], e["txt"], e["ch"], _w(e["where"])))
+    # ---- N35 地図の店名の大きさ ----
+    _mt = REND.get("mapText") or {}
+    for px, n in sorted((_mt.get("small") or {}).items(), key=lambda kv: float(kv[0])):
+        fails["N35"].append("地図の店名 %d件が %spx (床%.0fpx)。UIの文字は14px以上なのに "
+                            "地図だけ小さい" % (n, px, MAP_LABEL_MIN_PX))
+    # ---- N36 指で地図を拡大できるか ----
+    _zg = REND.get("zoomGestures")
+    if _zg is not None:
+        for g in ZOOM_GESTURES:
+            if not _zg.get(g):
+                fails["N36"].append("%s で地図が拡大しない (地図なのに指で寄せられない)" % g)
     # ---- N32 動きを減らす設定 ----
     for m in (REND.get("motion") or []):
         fails["N32"].append("動きを減らす設定でも %s が %.2f秒 動く" % (m["sel"], m["sec"]))
@@ -1302,11 +1378,13 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N31": "押せるもの同士が近すぎない",
        "N32": "動きを減らす設定を尊重している",
        "N33": "キーボードで地図を飛ばせる・タブ順が見た目と合う",
-       "N34": "絵文字をアイコン代わりに使っていない"}
+       "N34": "絵文字をアイコン代わりに使っていない",
+       "N35": "地図の店名が読める大きさ",
+       "N36": "指で地図を拡大できる"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
-              "N30", "N31", "N32", "N33", "N34"):
+              "N30", "N31", "N32", "N33", "N34", "N35", "N36"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -1356,7 +1434,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N34 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N36 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
