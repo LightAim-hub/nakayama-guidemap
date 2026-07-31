@@ -8,7 +8,7 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N29 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N34 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
@@ -104,6 +104,11 @@ LAND_MAP_MIN_RATIO = 0.45
 # 制約が厳しくなると組み合わせ爆発する。地図が固まるのは最悪の壊れ方 (店名が消えるより悪い)
 # なので、賢さでなく時間で歯止めをかける。ズーム操作1回あたりの最悪値で測る。
 MAX_LAYOUT_MS = 400.0
+# ---- 2026-07-31 追加 (N30-N34): UI/UX 規約 (skill ui-ux-pro-max) の実測 ----
+# 規約を読むだけでは何も変わらないので、当てて測る。当てた結果は採点表に残す。
+CONTRAST_MIN = 4.5         # WCAG 1.4.3。大きい文字 (24px以上 or 18.66px以上の太字) は3.0
+CONTRAST_MIN_LARGE = 3.0
+TAP_GAP_MIN_PX = 8.0       # 隣り合う操作要素の最小の間隔。近すぎると押し間違える
 
 # ---------------- GEO ----------------
 src = io.open(A.target, encoding="utf-8").read()
@@ -593,7 +598,108 @@ if not A.no_browser:
                     if (need - has > 0)
                       clip.push({state, sel:sel(e), txt:e.placeholder, need, has});
                   }
-                  return {texts, taps, wrap, clip};
+                  // ---- N30 文字と背景の明暗差 (WCAG 1.4.3) ----
+                  const pc = s => { const m=(s||'').match(/rgba?\(([^)]+)\)/); if(!m) return null;
+                    const p=m[1].split(',').map(parseFloat);
+                    return {r:p[0],g:p[1],b:p[2],a:p.length>3?p[3]:1}; };
+                  const lum = c => { const f=v=>{v/=255;
+                      return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);};
+                    return .2126*f(c.r)+.7152*f(c.g)+.0722*f(c.b); };
+                  const cr = (a,b) => { const l1=lum(a), l2=lum(b);
+                    return (Math.max(l1,l2)+.05)/(Math.min(l1,l2)+.05); };
+                  let paperC = null;
+                  {
+                    const d = document.createElement('div');
+                    d.style.color = getComputedStyle(document.documentElement)
+                      .getPropertyValue('--paper').trim();
+                    document.body.appendChild(d);
+                    paperC = pc(getComputedStyle(d).color); d.remove();
+                  }
+                  const bgOf = e => {
+                    for (let n=e; n; n=n.parentElement) {
+                      const c = pc(getComputedStyle(n).backgroundColor);
+                      if (c && c.a > .5) return c;
+                      if (n === document.body) break;
+                    }
+                    if (e.closest('svg') && paperC) return paperC;
+                    return {r:255,g:255,b:255,a:1};
+                  };
+                  const contrast = [];
+                  for (const e of document.querySelectorAll('body *')) {
+                    // 地図の文字は表示域の外でも動かせば見えるので画面内判定を課さない
+                    const inMap = !!e.closest('svg');
+                    if (!inMap && !vis(e)) continue;
+                    if (inMap && (getComputedStyle(e).display === 'none'
+                                  || e.getBoundingClientRect().width < 1)) continue;
+                    if (![...e.childNodes].some(n=>n.nodeType===3 && n.textContent.trim())) continue;
+                    const cs = getComputedStyle(e);
+                    const fg = pc(inMap ? cs.fill : cs.color);
+                    if (!fg || fg.a < .5) continue;
+                    const px = parseFloat(cs.fontSize);
+                    const bold = (parseInt(cs.fontWeight)||400) >= 700;
+                    const need = (px >= 24 || (px >= 18.66 && bold)) ? 3.0 : 4.5;
+                    const r = cr(fg, bgOf(e));
+                    if (r < need)
+                      contrast.push({state, sel:sel(e), txt:(e.textContent||'').trim().slice(0,16),
+                                     ratio:+r.toFixed(2), need, px:+px.toFixed(1)});
+                  }
+                  // ---- N31 押せるもの同士の間隔 ----
+                  const gaps = [];
+                  {
+                    const els = [...document.querySelectorAll(
+                        'button,a[href],input,[role="button"]')]
+                      .filter(e => vis(e) && !e.closest('svg'))
+                      .map(e => ({nm:(e.getAttribute('aria-label')||e.textContent||'')
+                                     .trim().slice(0,14), r:e.getBoundingClientRect()}));
+                    for (let i=0;i<els.length;i++) for (let j=i+1;j<els.length;j++) {
+                      const a=els[i].r, b=els[j].r;
+                      const ox = Math.min(a.right,b.right)-Math.max(a.left,b.left);
+                      const oy = Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
+                      if (ox>0 && oy>0) continue;
+                      const dx = ox>0 ? 0 : Math.max(a.left-b.right, b.left-a.right, 0);
+                      const dy = oy>0 ? 0 : Math.max(a.top-b.bottom, b.top-a.bottom, 0);
+                      const g = Math.hypot(dx, dy);
+                      // 隙間0 = 一覧の行が接している普通の設計。行そのものが的なので
+                      // 押し間違いにならない。危ないのは「少しだけ空いている」場合。
+                      if (g >= .5 && g < 8)
+                        gaps.push({state, a:els[i].nm, b:els[j].nm, gap:+g.toFixed(1)});
+                    }
+                  }
+                  // ---- N34 絵文字をアイコン代わりに使っていないか ----
+                  const emoji = [];
+                  {
+                    // 色付きで描かれる絵文字だけを見る。✕ (U+2715) や → は
+                    // 昔からの約物で、端末ごとに絵が変わることもないので対象外。
+                    const EMO = /[\u{1F000}-\u{1FAFF}]|[\u{2190}-\u{2BFF}]\u{FE0F}/u;
+                    for (const e of document.querySelectorAll(
+                        'button, a[href], [role="button"], .chip')) {
+                      if (!vis(e) || e.closest('svg')) continue;
+                      const t = e.textContent || '';
+                      const m = t.match(EMO);
+                      if (m) emoji.push({state, sel:sel(e), txt:t.trim().slice(0,16), ch:m[0]});
+                    }
+                  }
+                  // ---- N33 キーボードで地図を飛ばせるか / タブ順が見た目と合うか ----
+                  const tabbable = [...document.querySelectorAll(
+                    'button,a[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')]
+                    .filter(vis);
+                  const bypass = {
+                    total: tabbable.length,
+                    inMap: tabbable.filter(e => e.closest('svg')).length,
+                    skip: [...document.querySelectorAll('a[href^="#"]')]
+                      .filter(a => /とば|スキップ|skip|飛ば/i
+                        .test(a.textContent || a.getAttribute('aria-label') || '')).length,
+                    // CSS の order で見た目の順を入れ替えている操作要素は、
+                    // Tab の順が見た目と食い違う (2026-07-31: こどもの声チップが該当)
+                    reordered: tabbable
+                      .filter(e => { const o = getComputedStyle(e).order;
+                                     return o && o !== '0' && o !== 'normal'; })
+                      .map(e => ({sel:sel(e),
+                                  nm:(e.getAttribute('aria-label')||e.textContent||'')
+                                       .trim().slice(0,16),
+                                  order:getComputedStyle(e).order})),
+                  };
+                  return {texts, taps, wrap, clip, contrast, gaps, emoji, bypass};
                 }"""
                 # 画面の状態を作る手順。詳細シートは単一ボタンで開ける店、
                 # チューザーは複数候補が出る店を選ぶ。
@@ -629,15 +735,17 @@ if not A.no_browser:
                     up = br.new_page(viewport={"width": uw, "height": uh})
                     up.goto(url, wait_until="load")
                     up.wait_for_timeout(1200)
-                    sweep = {"texts": [], "taps": [], "wrap": [], "clip": []}
+                    sweep = {"texts": [], "taps": [], "wrap": [], "clip": [],
+                             "contrast": [], "gaps": [], "emoji": []}
                     base = up.evaluate(SWEEPJS, "開いた直後")
-                    for _k in ("texts", "taps", "wrap", "clip"):
+                    for _k in ("texts", "taps", "wrap", "clip", "contrast", "gaps", "emoji"):
                         sweep[_k] += base[_k]
+                    sweep["bypass"] = base["bypass"]
                     for st, act in STATES:
                         if up.evaluate(act) is False:
                             continue
                         r = up.evaluate(SWEEPJS, st)
-                        for _k in ("texts", "taps", "wrap", "clip"):
+                        for _k in ("texts", "taps", "wrap", "clip", "contrast", "gaps", "emoji"):
                             sweep[_k] += r[_k]
                     up.evaluate("""async () => {
                         document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
@@ -655,6 +763,28 @@ if not A.no_browser:
                     UI.append(u)
                     up.close()
                 REND["ui"] = UI
+                # N32 動きを減らす設定を尊重しているか。0.08秒でも「尊重していない」
+                # には違いないが、影響の大小は別に見えるよう秒数も残す。
+                rp = br.new_page(viewport={"width": 390, "height": 844})
+                rp.emulate_media(reduced_motion="reduce")
+                rp.goto(url, wait_until="load")
+                rp.wait_for_timeout(1200)
+                REND["motion"] = rp.evaluate("""() => {
+                  const out = [], seen = new Set();
+                  for (const e of document.querySelectorAll('body *')) {
+                    const cs = getComputedStyle(e);
+                    const td = parseFloat(cs.transitionDuration) || 0;
+                    const ad = parseFloat(cs.animationDuration) || 0;
+                    if (td <= 0.01 && ad <= 0.01) continue;
+                    const cn = e.id ? '#'+e.id
+                      : (typeof e.className === 'string' && e.className.trim()
+                         ? '.'+e.className.trim().split(/\s+/)[0] : e.tagName.toLowerCase());
+                    if (seen.has(cn)) continue; seen.add(cn);
+                    out.push({sel:cn, sec:+Math.max(td, ad).toFixed(3)});
+                  }
+                  return out;
+                }""")
+                rp.close()
                 br.close()
         except Exception as e:
             P("!! ブラウザ実測に失敗: %s: %s" % (type(e).__name__, e))
@@ -680,7 +810,7 @@ P("")
 fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
                          "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
                          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27",
-                         "N28", "N29")}
+                         "N28", "N29", "N30", "N31", "N32", "N33", "N34")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -995,6 +1125,55 @@ if REND:
         elif lay.get("worst", 0) > MAX_LAYOUT_MS:
             fails["N27"].append("ズーム1回のラベル配置に%.0fms かかる (上限%.0fms) [%dx%d]"
                                 % (lay["worst"], MAX_LAYOUT_MS, vw, u.get("vh", 0)))
+    # ---- N30 / N31 / N34 セレクタ単位でまとめる ----
+    _c, _g, _e = {}, {}, {}
+    for u in (REND.get("ui") or []):
+        _dev = "%dx%d" % (u["vw"], u.get("vh", 0))
+        sw = u.get("sweep") or {}
+        for it in sw.get("contrast", []):
+            k = it["sel"]
+            e = _c.setdefault(k, {**it, "where": []})
+            e["ratio"] = min(e["ratio"], it["ratio"])
+            e["where"].append("%s %s" % (_dev, it["state"]))
+        for it in sw.get("gaps", []):
+            k = (it["a"], it["b"])
+            e = _g.setdefault(k, {**it, "where": []})
+            e["gap"] = min(e["gap"], it["gap"])
+            e["where"].append("%s %s" % (_dev, it["state"]))
+        for it in sw.get("emoji", []):
+            k = (it["sel"], it["ch"])
+            e = _e.setdefault(k, {**it, "where": []})
+            e["where"].append("%s %s" % (_dev, it["state"]))
+    def _w(rows):
+        u = sorted(set(rows))
+        return "どの端末でも" if len(u) >= 12 else u[0] + ("" if len(u) == 1 else " ほか%d" % (len(u)-1))
+    for k, e in sorted(_c.items(), key=lambda kv: kv[1]["ratio"]):
+        fails["N30"].append("%s (%s) が %.2f:1 (必要%.1f / %.1fpx) [%s]"
+                            % (k, e["txt"], e["ratio"], e["need"], e["px"], _w(e["where"])))
+    for k, e in sorted(_g.items(), key=lambda kv: kv[1]["gap"]):
+        fails["N31"].append("「%s」と「%s」が %.1fpx しか離れていない (最小%.0f) [%s]"
+                            % (e["a"], e["b"], e["gap"], TAP_GAP_MIN_PX, _w(e["where"])))
+    for k, e in sorted(_e.items()):
+        fails["N34"].append("%s (%s) がアイコンに絵文字 %s を使っている [%s]"
+                            % (e["sel"], e["txt"], e["ch"], _w(e["where"])))
+    # ---- N32 動きを減らす設定 ----
+    for m in (REND.get("motion") or []):
+        fails["N32"].append("動きを減らす設定でも %s が %.2f秒 動く" % (m["sel"], m["sec"]))
+    # ---- N33 地図を飛ばす手段 / タブ順 ----
+    for u in (REND.get("ui") or []):
+        bp = (u.get("sweep") or {}).get("bypass")
+        if not bp:
+            continue
+        _dev = "%dx%d" % (u["vw"], u.get("vh", 0))
+        if bp["inMap"] > 10 and not bp["skip"]:
+            fails["N33"].append("地図の★が%d件Tabの通り道にあり、飛ばすリンクが無い "
+                                "(操作要素%d件) [%s]" % (bp["inMap"], bp["total"], _dev))
+        for r in bp["reordered"]:
+            fails["N33"].append("%s (%s) は CSS order:%s で見た目の順を変えているため "
+                                "Tab の順と食い違う [%s]"
+                                % (r["sel"], r["nm"], r["order"], _dev))
+        break                      # 端末ごとに同じ話なので1台分だけ出す
+
     for _k, _n, _fmt in (("wrap", "N28", "%s (%s) が「%s」で改行される [%s]"),
                          ("clip", "N29", "%s (%s) が入れ物に収まらない 必要%dpx / 幅%dpx [%s]")):
         _seen = {}
@@ -1064,10 +1243,16 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N26": "こどもの声の店のラベルが端末を問わず出ている",
        "N27": "ズームしても地図の再描画が止まらない",
        "N28": "ボタンの文字が語の途中で改行されない",
-       "N29": "文字が入れ物からはみ出していない"}
+       "N29": "文字が入れ物からはみ出していない",
+       "N30": "文字と背景の明暗差が足りている",
+       "N31": "押せるもの同士が近すぎない",
+       "N32": "動きを減らす設定を尊重している",
+       "N33": "キーボードで地図を飛ばせる・タブ順が見た目と合う",
+       "N34": "絵文字をアイコン代わりに使っていない"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
-          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29"):
+          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
+              "N30", "N31", "N32", "N33", "N34"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -1117,7 +1302,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N29 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N34 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
