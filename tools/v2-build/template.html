@@ -897,7 +897,21 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     entries.forEach(hideLabel);
     const kept = [];
     const leaderSegments = [];
+    let placed = [];
     const labelHitsLeader = rect => leaderSegments.some(segment => segmentIntersectsRect(segment,rect));
+    const placementConflicts = (rect,segment,other) =>
+      labelsCollide(rect,other.rect) ||
+      (other.segment && segmentIntersectsRect(other.segment,rect)) ||
+      (segment && segmentIntersectsRect(segment,other.rect));
+    const addPlacement = (entry,rect,segment) => {
+      placed.push({entry,rect,segment});
+      kept.push(rect);
+      if (segment) leaderSegments.push(segment);
+    };
+    const rebuildPlacementIndexes = () => {
+      kept.splice(0,kept.length,...placed.map(item => item.rect));
+      leaderSegments.splice(0,leaderSegments.length,...placed.filter(item => item.segment).map(item => item.segment));
+    };
     const placeCandidate = (entry,candidate,withLeader) => {
       setLabelPosition(entry,candidate,scale);
       const mainRect = entry.main.getBoundingClientRect();
@@ -905,7 +919,7 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
         if (labelContainsOtherStar(entry,mainRect,starCenters)) return false;
       } else if (!labelAnchorBelongsToOwnStar(entry,starCenters) ||
                  !labelBelongsToOwnStar(entry,mainRect,starCenters)) return false;
-      const rect = labelRect(entry);
+      const rect = labelRect(entry,mainRect);
       if (!labelInsideViewport(rect) || overlapsKeepOut(rect) || overlapsMapSymbol(entry,rect) || labelHitsLeader(rect) ||
           kept.some(other => labelsCollide(rect,other))) return false;
       let segment = null;
@@ -918,13 +932,17 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       }
       entry.s.labelVisible = true;
       entry.s.labelLeader = withLeader;
-      kept.push(rect);
-      if (segment) leaderSegments.push(segment);
+      addPlacement(entry,rect,segment);
       return true;
     };
-    const placeGreedy = entry => {
+    const placeGreedy = (entry,allowNearLeader=false) => {
       for (const candidate of labelCandidates(entry.s)){
         if (placeCandidate(entry,candidate,false)) return true;
+      }
+      if (allowNearLeader){
+        for (const candidate of labelCandidates(entry.s)){
+          if (placeCandidate(entry,{...candidate,leader:true},true)) return true;
+        }
       }
       for (const candidate of leaderLabelCandidates(entry.s)){
         if (placeCandidate(entry,candidate,true)) return true;
@@ -932,36 +950,62 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       hideLabel(entry);
       return false;
     };
+    const lowerPriorityEntries = entries.filter(entry => labelPriority(entry.s) < 3)
+      .sort((a,b) => labelPriority(b.s)-labelPriority(a.s) ||
+        Number(isPrimaryLabel(b.s))-Number(isPrimaryLabel(a.s)) || a.s.y-b.s.y || a.idx-b.idx);
+    const priorityTwoEntries=lowerPriorityEntries.filter(entry => labelPriority(entry.s) === 2);
+    const priorityOneEntries=lowerPriorityEntries.filter(entry => labelPriority(entry.s) === 1);
+    priorityOneEntries.forEach(placeGreedy);
+    const initiallyPlacedPriorityOne = new Set(placed.filter(item => labelPriority(item.entry.s) === 1)
+      .map(item => item.entry));
     const priorityEntries = entries.filter(entry => labelPriority(entry.s) === 3);
     const priorityOptions = new Map(priorityEntries.map(entry => {
       const options = [];
-      for (const candidate of labelCandidates(entry.s).concat(leaderLabelCandidates(entry.s))){
-        setLabelPosition(entry, candidate, scale);
-        const mainRect = entry.main.getBoundingClientRect();
-        const withLeader=!!candidate.leader;
+      const normal = labelCandidates(entry.s);
+      const collectOption = (candidate,withLeader,mainRect,rect) => {
         if (withLeader){
-          if (labelContainsOtherStar(entry,mainRect,starCenters)) continue;
+          if (labelContainsOtherStar(entry,mainRect,starCenters)) return;
         } else if (!labelAnchorBelongsToOwnStar(entry, starCenters) ||
-                   !labelBelongsToOwnStar(entry, mainRect, starCenters)) continue;
-        const rect = labelRect(entry);
-        if (!labelInsideViewport(rect) || overlapsKeepOut(rect) || overlapsMapSymbol(entry,rect)) continue;
+                   !labelBelongsToOwnStar(entry, mainRect, starCenters)) return;
+        if (!labelInsideViewport(rect) || overlapsKeepOut(rect) || overlapsMapSymbol(entry,rect)) return;
         let segment=null;
         if (withLeader){
           segment=labelLeaderSegment(entry,mainRect,starCenters);
           const maxLength=(entry.s.voices||[]).length ? LEADER_MAX_PX_VOICE : LEADER_MAX_PX;
           if (!segment || Math.hypot(segment.x2-segment.x1,segment.y2-segment.y1) > maxLength ||
-              !leaderSegmentIsClear(entry,segment,starCenters,[])) continue;
+              !leaderSegmentIsClear(entry,segment,starCenters,[])) return;
         }
-        options.push({candidate,rect,segment});
+        const blockers=placed.filter(other => placementConflicts(rect,segment,other));
+        if (blockers.some(other => labelPriority(other.entry.s) !== 1)) return;
+        options.push({candidate,rect,segment,blockers:blockers.map(other => other.entry)});
+      };
+      for (const candidate of normal){
+        setLabelPosition(entry,candidate,scale);
+        const mainRect=entry.main.getBoundingClientRect();
+        const rect=labelRect(entry,mainRect);
+        collectOption(candidate,false,mainRect,rect);
+        collectOption({...candidate,leader:true},true,mainRect,rect);
+      }
+      for (const candidate of leaderLabelCandidates(entry.s)){
+        setLabelPosition(entry,candidate,scale);
+        const mainRect=entry.main.getBoundingClientRect();
+        collectOption(candidate,true,mainRect,labelRect(entry,mainRect));
       }
       hideLabel(entry);
+      options.sort((a,b) => a.blockers.length-b.blockers.length ||
+        Number(!!a.segment)-Number(!!b.segment) ||
+        (a.segment ? Math.hypot(a.segment.x2-a.segment.x1,a.segment.y2-a.segment.y1) : 0) -
+          (b.segment ? Math.hypot(b.segment.x2-b.segment.x1,b.segment.y2-b.segment.y1) : 0) ||
+        Math.hypot(a.candidate.gapPx,a.candidate.dyPx)-Math.hypot(b.candidate.gapPx,b.candidate.dyPx));
       return [entry, options];
     }));
     priorityEntries.sort((a,b) => priorityOptions.get(a).length-priorityOptions.get(b).length ||
       a.idx-b.idx);
     const priorityChoice = new Map();
+    const prioritySelected = [];
+    let priorityEvicted = new Set();
     let prioritySteps = 0, priorityAborted = false;
-    const placePriority = pos => {
+    const placePriority = (pos,evicted) => {
       if (prioritySteps >= PRIORITY_SEARCH_STEP_LIMIT){
         priorityAborted = true;
         return false;
@@ -970,35 +1014,53 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       if (pos === priorityEntries.length) return true;
       const entry = priorityEntries[pos];
       for (const option of priorityOptions.get(entry)){
-        if (kept.some(other => labelsCollide(option.rect,other)) || labelHitsLeader(option.rect) ||
-            (option.segment && !leaderSegmentIsClear(entry,option.segment,starCenters,kept))) continue;
-        kept.push(option.rect);
-        if (option.segment) leaderSegments.push(option.segment);
-        priorityChoice.set(entry, option.candidate);
-        if (placePriority(pos+1)) return true;
+        if (prioritySelected.some(other =>
+            placementConflicts(option.rect,option.segment,{rect:other.rect,segment:other.segment}))) continue;
+        const nextEvicted=new Set(evicted);
+        option.blockers.forEach(blocker => nextEvicted.add(blocker));
+        prioritySelected.push(option);
+        priorityChoice.set(entry, option);
+        if (placePriority(pos+1,nextEvicted)){
+          priorityEvicted=nextEvicted;
+          return true;
+        }
         priorityChoice.delete(entry);
-        if (option.segment) leaderSegments.pop();
-        kept.pop();
+        prioritySelected.pop();
         if (priorityAborted) return false;
       }
       return false;
     };
-    if (placePriority(0)){
-      document.body.dataset.labelLayout = 'priority';
+    let evictedEntries=[];
+    if (placePriority(0,new Set())){
+      priorityOneEntries.forEach(hideLabel);
+      placed=[];
+      rebuildPlacementIndexes();
+      document.body.dataset.labelLayout = 'priority-evict';
       priorityEntries.forEach(entry => {
-        setLabelPosition(entry, priorityChoice.get(entry), scale);
+        const option=priorityChoice.get(entry);
+        setLabelPosition(entry, option.candidate, scale);
         entry.s.labelVisible = true;
+        entry.s.labelLeader = !!option.segment;
+        addPlacement(entry,option.rect,option.segment);
       });
+      priorityTwoEntries.forEach(placeGreedy);
+      priorityOneEntries.filter(entry => !priorityEvicted.has(entry)).forEach(placeGreedy);
+      evictedEntries=[...initiallyPlacedPriorityOne].filter(entry => !entry.s.labelVisible);
     } else {
       document.body.dataset.labelLayout = priorityAborted ? 'greedy-step-limit' : 'greedy-no-solution';
+      entries.forEach(hideLabel);
       kept.length = 0;
-      priorityEntries.forEach(placeGreedy);
+      leaderSegments.length = 0;
+      placed = [];
+      priorityEntries.forEach(entry => placeGreedy(entry,true));
+      lowerPriorityEntries.forEach(placeGreedy);
+      evictedEntries=[...initiallyPlacedPriorityOne].filter(entry => !entry.s.labelVisible);
     }
     document.body.dataset.labelLayoutSteps = String(prioritySteps);
-    entries.filter(entry => labelPriority(entry.s) < 3)
-      .sort((a,b) => labelPriority(b.s)-labelPriority(a.s) ||
-        Number(isPrimaryLabel(b.s))-Number(isPrimaryLabel(a.s)) || a.s.y-b.s.y || a.idx-b.idx)
-      .forEach(placeGreedy);
+    const evictedNames=evictedEntries.map(entry => entry.s.name).sort((a,b) => a.localeCompare(b,'ja'));
+    document.body.dataset.evictedLabelCount = String(evictedNames.length);
+    document.body.dataset.evictedLabels = JSON.stringify(evictedNames);
+    window.__labelEvictions = evictedNames.slice();
     entries.forEach(entry => updateLabelLeader(entry,scale));
     document.body.dataset.labelLeaders = String(entries.filter(entry => entry.s.labelLeader).length);
     return kept;
@@ -1054,23 +1116,28 @@ function setLabelPosition(entry, candidate, scale){
   s.labelLeader = !!candidate.leader;
   main.setAttribute('x', s.lx);
   main.setAttribute('y', s.ly);
-  main.setAttribute('font-size', fontMap);
-  main.setAttribute('text-anchor', s.anchor);
-  main.setAttribute('dominant-baseline', 'middle');
-  main.style.strokeWidth = ((isPrimaryLabel(s) ? 3.5 : 3) / scale)+'px';
-  main.removeAttribute('display');
-  main.style.display = '';
+  if (main.getAttribute('text-anchor') !== s.anchor) main.setAttribute('text-anchor', s.anchor);
+  if (entry.labelScale !== scale){
+    main.setAttribute('font-size', fontMap);
+    main.setAttribute('dominant-baseline', 'middle');
+    main.style.strokeWidth = ((isPrimaryLabel(s) ? 3.5 : 3) / scale)+'px';
+  }
+  if (main.getAttribute('display') !== null) main.removeAttribute('display');
+  if (main.style.display) main.style.display = '';
   if (distance){
     const distancePx = 10, distanceMap = distancePx / scale;
     distance.setAttribute('x', s.lx);
     distance.setAttribute('y', s.ly + (fontPx/2 + distancePx/2 + 6) / scale);
-    distance.setAttribute('font-size', distanceMap);
-    distance.setAttribute('text-anchor', s.anchor);
-    distance.setAttribute('dominant-baseline', 'middle');
-    distance.style.strokeWidth = (2.5 / scale)+'px';
-    distance.removeAttribute('display');
-    distance.style.display = '';
+    if (distance.getAttribute('text-anchor') !== s.anchor) distance.setAttribute('text-anchor', s.anchor);
+    if (entry.labelScale !== scale){
+      distance.setAttribute('font-size', distanceMap);
+      distance.setAttribute('dominant-baseline', 'middle');
+      distance.style.strokeWidth = (2.5 / scale)+'px';
+    }
+    if (distance.getAttribute('display') !== null) distance.removeAttribute('display');
+    if (distance.style.display) distance.style.display = '';
   }
+  entry.labelScale = scale;
 }
 function hideLabel(entry){
   entry.main.style.display = 'none';
@@ -1082,8 +1149,9 @@ function hideLabel(entry){
     entry.leader.removeAttribute('data-length-px');
   }
 }
-function labelRect(entry){
-  const rects = [entry.main, entry.distance].filter(Boolean).map(t => t.getBoundingClientRect());
+function labelRect(entry, mainRect){
+  const rects = [mainRect || entry.main.getBoundingClientRect()];
+  if (entry.distance) rects.push(entry.distance.getBoundingClientRect());
   return {
     left:Math.min(...rects.map(r=>r.left)), right:Math.max(...rects.map(r=>r.right)),
     top:Math.min(...rects.map(r=>r.top)), bottom:Math.max(...rects.map(r=>r.bottom)),
@@ -1179,8 +1247,8 @@ function segmentIntersectsRect(segment,rect){
 function labelLeaderSegment(entry,rect,starCenters){
   const own=starCenters.get(entry.idx);
   return own ? {x1:own.x,y1:own.y,
-    x2:Math.max(rect.left,Math.min(own.x,rect.right)),
-    y2:Math.max(rect.top,Math.min(own.y,rect.bottom))} : null;
+    x2:(rect.left+rect.right)/2,
+    y2:(rect.top+rect.bottom)/2} : null;
 }
 function leaderSegmentIsClear(entry,segment,starCenters,labelRects){
   for (const [idx,point] of starCenters){
