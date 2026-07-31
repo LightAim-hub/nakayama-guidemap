@@ -2,3 +2,6 @@
 .handoff-receipts/
 .task-*-handoff-manifest.json
 tools/v2-build/_trace_gmap.png
+
+tools/v2-build/_eyes/
+tools/v2-build/_shots/
