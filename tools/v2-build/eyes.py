@@ -100,6 +100,17 @@ def shots(pg, tag):
     pg.evaluate("""() => { const h=document.querySelector('#map .hit:not(.dim)'); if(h) h.dispatchEvent(
         new MouseEvent('click', {bubbles:true})); }""")
     pg.wait_for_timeout(900); snap("12-地図から詳細")
+
+    # 2026-08-01 追加。採点表の総なめに「地図で絞り込み中」を足した時、
+    # 絵の側に足し忘れると同じ穴が空く。状態は採点表と揃える。
+    pg.evaluate("""() => { const b=document.getElementById('detailClose'); if(b) b.click(); }""")
+    pg.wait_for_timeout(500)
+    pg.evaluate("""() => { const c=document.querySelector('.chip.voice-filter');
+        if(c && c.getAttribute('aria-pressed')!=='true') c.click(); }""")
+    pg.wait_for_timeout(800); snap("13-地図で絞り込み中")
+    pg.evaluate("""() => { const c=document.querySelector('.chip.voice-filter');
+        if(c && c.getAttribute('aria-pressed')==='true') c.click(); }""")
+    pg.wait_for_timeout(500)
     pg.evaluate("""() => { const b=document.getElementById('detailClose'); if(b) b.click(); }""")
     pg.wait_for_timeout(500)
     close_map(pg)
