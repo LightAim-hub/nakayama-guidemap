@@ -646,9 +646,16 @@ if not A.no_browser:
                   // ---- N31 押せるもの同士の間隔 ----
                   const gaps = [];
                   {
+                    // 上に何か乗っていて実際には押せないものは対象外。
+                    // 横向きで一覧を開くと、検索欄とお店一覧ボタンはパネルの裏に隠れる。
+                    // 隠れているものとの隙間を測ると幽霊の隣接を数えることになる
+                    // (2026-07-31: これで3回、同じ場所を追いかけ回した)。
                     const els = [...document.querySelectorAll(
                         'button,a[href],input,[role="button"]')]
                       .filter(e => vis(e) && !e.closest('svg'))
+                      .filter(e => { const r = e.getBoundingClientRect();
+                        const hit = document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);
+                        return !!(hit && (hit === e || e.contains(hit))); })
                       .map(e => ({nm:(e.getAttribute('aria-label')||e.textContent||'')
                                      .trim().slice(0,14), r:e.getBoundingClientRect()}));
                     for (let i=0;i<els.length;i++) for (let j=i+1;j<els.length;j++) {

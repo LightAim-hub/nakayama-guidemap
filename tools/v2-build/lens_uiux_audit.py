@@ -350,15 +350,25 @@ def main():
                     print("        %s (%s) outline=%s" % (x["sel"], x["nm"], x["outline"]))
                     found.append("%s H2 焦点が見えない: %s (%s)" % (nm, x["sel"], x["nm"]))
                 # タブ順が見た目の順と合うか (上→下、同じ行なら左→右)
+                # 地図の中は、店の並び順 (DOM順) が空間の順と一致しない。
+                # 一致させるには GEO.shops を y 順に並べ替えることになり、
+                # data-i / 描画の重なり順 / ラベル配置の貪欲順まで動く。
+                # 実害は「フッタに着くまで★を全部通る」ことだったが、それは
+                # 「地図をとばす」リンク (N33) で解消済み。逆行は 34件中4-6件で、
+                # 残りは既に上から下の順。よって地図の中の逆行は注記に留める。
                 order = F["res"]
-                bad_order = []
+                bad_out, bad_map = [], []
                 for i in range(len(order) - 1):
                     a, b = order[i], order[i+1]
-                    if b["y"] < a["y"] - 24:
-                        bad_order.append("%s → %s (y %d → %d)" % (a["nm"], b["nm"], a["y"], b["y"]))
-                print("  %-34s %s" % ("H2 タブ順が見た目と逆行",
-                                      ("%d件" % len(bad_order)) if bad_order else "なし"))
-                for x in bad_order[:4]:
+                    if b["y"] >= a["y"] - 24:
+                        continue
+                    line = "%s → %s (y %d → %d)" % (a["nm"], b["nm"], a["y"], b["y"])
+                    (bad_map if (a["sel"] == "g" or b["sel"] == "g") else bad_out).append(line)
+                print("  %-34s %s%s"
+                      % ("H2 タブ順が見た目と逆行",
+                         ("地図の外 %d件" % len(bad_out)) if bad_out else "地図の外 なし",
+                         (" / 地図の中 %d件 (注記)" % len(bad_map)) if bad_map else ""))
+                for x in bad_out[:4]:
                     print("        " + x)
                     found.append("%s H2 タブ順の逆行: %s" % (nm, x))
                 pg.close()
