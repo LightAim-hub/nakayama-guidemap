@@ -8,7 +8,7 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N39 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N43 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
@@ -33,6 +33,28 @@ ap.add_argument("--json", default=None)
 ap.add_argument("--target", default=os.path.join(ROOT, "index.html"))
 ap.add_argument("--no-browser", action="store_true")
 A = ap.parse_args()
+
+
+# 2026-07-31: 主役が「通り沿いの二列表示」になり、地図は「地図で見る」の奥へ移った。
+# 地図の検査 (N1-N19 / N26 / N35-N39) は地図を開いた状態で測る。開かずに測ると
+# 閉じた地図を見て158件出す (実際に起きた)。UI の検査は既定の二列表示で測る。
+OPEN_MAP = """async () => {
+  const b = document.getElementById('mapbtn');
+  if (b && b.getAttribute('aria-expanded') !== 'true') {
+    b.click();
+    await new Promise(r => setTimeout(r, 700));
+  }
+  return !!document.getElementById('viewport');
+}"""
+
+
+def _open_map(page):
+    """地図表示に切り替える。切り替えられなければ False。"""
+    try:
+        return bool(page.evaluate(OPEN_MAP))
+    except Exception:
+        return False
+
 
 OUT = []
 def P(*a):
@@ -433,6 +455,8 @@ if not A.no_browser:
                 errs = []
                 pg.on("pageerror", lambda e: errs.append(str(e)))
                 pg.goto(url, wait_until="load")
+                pg.wait_for_timeout(400)
+                _open_map(pg)
                 pg.wait_for_timeout(1500)
                 REND = pg.evaluate(JS, WALK_PX_PER_M)
                 REND["jsErrors"] = len(errs)
@@ -817,6 +841,51 @@ if not A.no_browser:
                     up.evaluate("()=>document.getElementById('listbtn').click()")
                     up.wait_for_timeout(350)
                     u = up.evaluate(UIJS)
+                    u["strip"] = up.evaluate("""() => {
+                      const rows = [...document.querySelectorAll('.strip-row')].map(e => {
+                        const r = e.getBoundingClientRect();
+                        return {i:+e.dataset.i, side:e.dataset.side, y:+e.dataset.y,
+                                top:+r.top.toFixed(1), h:+r.height.toFixed(1),
+                                far: !!e.closest('#stripfar')};
+                      });
+                      // 押すもののうち「操作」だけ (一覧の行は中身なので対象外)
+                      const ctl = ['#q', '.chip', '#mapbtn', '#listbtn', '.zoomctl button']
+                        .flatMap(q => [...document.querySelectorAll(q)])
+                        .filter(e => { const c = getComputedStyle(e);
+                          if (c.display === 'none' || c.visibility === 'hidden') return false;
+                          // 閉じた地図の中のボタンは矩形が (0,0) になる。
+                          // 見えていないものを「上にある」と数えない (2026-07-31)。
+                          const r = e.getBoundingClientRect();
+                          return r.width > 0 && r.height > 0
+                                 && r.bottom > 0 && r.top < innerHeight; })
+                        .map(e => { const r = e.getBoundingClientRect();
+                          return {nm:(e.getAttribute('aria-label')||e.textContent||'')
+                                    .trim().slice(0,16),
+                                  cy:+(r.top + r.height/2).toFixed(0)}; });
+                      return {rows, ctl, h:innerHeight};
+                    }""")
+                    # 2026-07-31: 主役が二列表示になったので、既定の画面で測るのは
+                    # 「主の内容 (二列) の大きさ」。地図の大きさと こどもの声のラベルは
+                    # 地図を開いた状態でないと測れない (閉じた地図を測って158件出した)。
+                    u["mainRatio"] = up.evaluate("""() => {
+                      const e = document.getElementById('stripview')
+                            || document.getElementById('strip')
+                            || document.getElementById('viewport');
+                      if (!e) return 0;
+                      return +(e.getBoundingClientRect().height / innerHeight).toFixed(3);
+                    }""")
+                    u["mainPx"] = up.evaluate("""() => {
+                      const e = document.getElementById('stripview')
+                            || document.getElementById('strip')
+                            || document.getElementById('viewport');
+                      return e ? Math.round(e.getBoundingClientRect().height) : 0;
+                    }""")
+                    if _open_map(up):
+                        up.wait_for_timeout(900)
+                        m2 = up.evaluate(UIJS)
+                        u["mapRatio"] = m2["mapRatio"]
+                        u["mapH"] = m2["mapH"]
+                        u["voiceHidden"] = m2["voiceHidden"]
                     u["vh"] = uh
                     u["portrait"] = uh > uw
                     u["sweep"] = sweep
@@ -871,6 +940,8 @@ if not A.no_browser:
                                       device_scale_factor=3)
                 mp = mctx.new_page()
                 mp.goto(url, wait_until="load")
+                mp.wait_for_timeout(400)
+                _open_map(mp)
                 mp.wait_for_timeout(1500)
                 MAPTXT = """() => {
                   const m = document.getElementById('map').getScreenCTM();
@@ -907,13 +978,15 @@ if not A.no_browser:
                 mp.wait_for_timeout(500)
                 zoom_ok["ピンチ"] = abs(mp.evaluate(SC) - base_sc) > 0.01
                 # ダブルタップ
-                mp.reload(wait_until="load"); mp.wait_for_timeout(1400)
+                mp.reload(wait_until="load"); mp.wait_for_timeout(400)
+                _open_map(mp); mp.wait_for_timeout(1400)
                 b2 = mp.evaluate(SC)
                 mp.touchscreen.tap(vpc["cx"], vpc["cy"]); mp.wait_for_timeout(80)
                 mp.touchscreen.tap(vpc["cx"], vpc["cy"]); mp.wait_for_timeout(600)
                 zoom_ok["ダブルタップ"] = abs(mp.evaluate(SC) - b2) > 0.01
                 # ホイール (PC・トラックパッド)
-                mp.reload(wait_until="load"); mp.wait_for_timeout(1400)
+                mp.reload(wait_until="load"); mp.wait_for_timeout(400)
+                _open_map(mp); mp.wait_for_timeout(1400)
                 b3 = mp.evaluate(SC)
                 mp.mouse.move(vpc["cx"], vpc["cy"])
                 mp.mouse.wheel(0, -400)
@@ -946,6 +1019,9 @@ if not A.no_browser:
                 br.close()
         except Exception as e:
             P("!! ブラウザ実測に失敗: %s: %s" % (type(e).__name__, e))
+            # 測れなかったものを「違反0件」と読むのが一番危ない。
+            # 2026-07-31: UI検査が NameError で丸ごと落ちたのに PASS と出した。
+            REND["measureError"] = "%s: %s" % (type(e).__name__, e)
         if srv:
             srv.terminate()
 
@@ -959,6 +1035,8 @@ P("=" * 78)
 P("道路の塗り幅:", json.dumps({**FILLW, "spine": SPINE_W}, ensure_ascii=False))
 P("建物ポリゴン(canvas内): %d / 交差点: %d / 信号: %d (うち交差点上 %d)"
   % (len(BLD), len(XN), len(signals), sum(SIG_OK)))
+if REND and REND.get("measureError"):
+    P("!! 実測が途中で落ちた: %s" % REND["measureError"])
 if REND:
     P("実測倍率: %.4f px/m (デフォルト) / 歩きズーム %.1f px/m を別測" % (REND["pxPerMeter"], WALK_PX_PER_M))
 else:
@@ -968,7 +1046,8 @@ P("")
 fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
                          "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
                          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27",
-                         "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39")}
+                         "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39",
+                         "N40", "N41", "N42", "N43")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -1335,11 +1414,20 @@ if REND:
         # N23 / N26 は縦向きだけ。横向きは「地図が主」でなく「一覧が主」の使い方になり、
         # 同じ床を当てると達成不能な要求になる (縦向きの床は実測で導出したもの)。
         if u.get("portrait", True):
+            # 既定の画面 = 二列表示。主の内容がこれだけの高さを持つこと
+            if u.get("mainRatio", 0) < MAP_MIN_RATIO:
+                fails["N23"].append("主の内容 (通り沿いの二列) が画面の%.0f%%しかない (床%.0f%%) [%dx%d]"
+                                    % (u.get("mainRatio", 0) * 100, MAP_MIN_RATIO * 100,
+                                       vw, u.get("vh", 0)))
+            if u.get("mainPx", 0) < MAP_MIN_PX:
+                fails["N23"].append("主の内容の高さが%dpxしかない (床%.0fpx) [%dx%d]"
+                                    % (u.get("mainPx", 0), MAP_MIN_PX, vw, u.get("vh", 0)))
+            # 地図を開いた時は地図がこれだけの高さを持つこと
             if u["mapRatio"] < MAP_MIN_RATIO:
-                fails["N23"].append("地図が画面の%.0f%%しかない (床%.0f%%) [%dx%d]"
+                fails["N23"].append("地図を開いた時に地図が画面の%.0f%%しかない (床%.0f%%) [%dx%d]"
                                     % (u["mapRatio"] * 100, MAP_MIN_RATIO * 100, vw, u.get("vh", 0)))
             if u.get("mapH", 0) < MAP_MIN_PX:
-                fails["N23"].append("地図の高さが%dpxしかない (床%.0fpx) [%dx%d]"
+                fails["N23"].append("地図を開いた時の高さが%dpxしかない (床%.0fpx) [%dx%d]"
                                     % (u["mapH"], MAP_MIN_PX, vw, u.get("vh", 0)))
             for n in (u.get("voiceHidden") or []):
                 fails["N26"].append("%s のこどもの声ラベルが出ていない [%dx%d]"
@@ -1440,6 +1528,78 @@ if REND:
             else:
                 fails[_n].append(_fmt % (sel_, it["txt"], it["need"], it["has"], wtxt))
 
+    # ---- N40-N43 通り沿いの二列表示 ----
+    # 位置の正しさ (西/東・順番・向かい合わせ) は地図で検証済みの資産。
+    # 見せ方が変わってもそれが保たれているかを、画面の実測で確かめる。
+    FACING_MAX_PX = 48.0        # 向かい合う店の画面上の高さの差 (実測の最大は37.1px)
+    _true_side, _true_y = {}, {}
+    for _s in shops:
+        _true_side[_s["name"]] = 1 if TX(_s) >= spine_x(TY(_s)) else -1
+        _true_y[_s["name"]] = TY(_s)
+    _byidx = {i: sh for i, sh in enumerate(shops)}
+    _strip_done = False
+    for u in (REND.get("ui") or []):
+        st = u.get("strip")
+        if not st or _strip_done:
+            continue
+        _strip_done = True
+        dev = "%dx%d" % (u["vw"], u.get("vh", 0))
+        rows = st.get("rows") or []
+        if not rows:
+            fails["N40"].append("二列表示の行が1つも見つからない (.strip-row) [%s]" % dev)
+            continue
+        # N40 東西
+        for r in rows:
+            sh = _byidx.get(r["i"])
+            if not sh:
+                fails["N40"].append("行の data-i=%s が店に対応しない [%s]" % (r["i"], dev))
+                continue
+            want = "east" if _true_side[sh["name"]] > 0 else "west"
+            if r["side"] != want:
+                fails["N40"].append("%s が %s 側に出ている (真は %s 側) [%s]"
+                                    % (sh["name"], "東" if r["side"] == "east" else "西",
+                                       "東" if want == "east" else "西", dev))
+        if len(rows) != len(shops):
+            fails["N40"].append("二列表示の行が%d件 (店は%d件) [%s]"
+                                % (len(rows), len(shops), dev))
+        # N41 並び順 (通り沿いの節だけ。離れた節は別の並びでよい)
+        near = [r for r in rows if not r.get("far") and _byidx.get(r["i"])]
+        for side in ("west", "east"):
+            col = [r for r in near if r["side"] == side]
+            by_screen = sorted(col, key=lambda r: r["top"])
+            by_true = sorted(col, key=lambda r: _true_y[_byidx[r["i"]]["name"]])
+            for a, b in zip(by_screen, by_true):
+                if a["i"] != b["i"]:
+                    fails["N41"].append("%s 側の並び順が真の順番と違う (%s の位置に %s) [%s]"
+                                        % ("東" if side == "east" else "西",
+                                           _byidx[b["i"]]["name"], _byidx[a["i"]]["name"], dev))
+                    break
+        # N42 向かい合わせ
+        pos = {r["i"]: r for r in near}
+        for i, a in enumerate(shops):
+            for b in shops[i+1:]:
+                if abs(TY(a) - TY(b)) > 20:
+                    continue
+                if _true_side[a["name"]] == _true_side[b["name"]]:
+                    continue
+                ia = next((k for k, v in _byidx.items() if v is a), None)
+                ib = next((k for k, v in _byidx.items() if v is b), None)
+                ra, rb = pos.get(ia), pos.get(ib)
+                if not ra or not rb:
+                    continue
+                d = abs((ra["top"] + ra["h"]/2) - (rb["top"] + rb["h"]/2))
+                if d > FACING_MAX_PX:
+                    fails["N42"].append("%s と %s は南北差%.0fm の向かい合わせなのに "
+                                        "画面では%.0fpx ずれている (上限%.0f) [%s]"
+                                        % (a["name"], b["name"], abs(TY(a)-TY(b)),
+                                           d, FACING_MAX_PX, dev))
+        # N43 押すものが親指の届く範囲 (画面の下半分)
+        for c in (st.get("ctl") or []):
+            if c["cy"] < st["h"] * 0.5:
+                fails["N43"].append("「%s」が画面の上から%d/%dpx の位置にある "
+                                    "(片手だと親指が届かない) [%s]"
+                                    % (c["nm"], c["cy"], st["h"], dev))
+
     def _where(w):
         # 全端末・全状態に出るなら「どこでも」。そうでなければ最初の1つを示す。
         u = sorted(set(w))
@@ -1504,11 +1664,15 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N36": "指で地図を拡大できる",
        "N37": "引き出し線がどの★のものか紛れない",
        "N38": "引き出し線が長すぎない",
-       "N39": "引き出し線で運んだ名前が画面の外に出ていない"}
+       "N39": "引き出し線で運んだ名前が画面の外に出ていない",
+       "N40": "二列の東西が真座標と一致する",
+       "N41": "二列の並び順が通り沿いの真の順番と一致する",
+       "N42": "向かい合う店が画面上でも同じ高さに来る",
+       "N43": "押すものが親指の届く範囲にある"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
-              "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39"):
+              "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -1548,6 +1712,13 @@ if REND:
         gfail.append("歩きズームで★が%.1fm (実店舗の間口10m超・縮尺の外)" % wmap[-1])
 else:
     gfail.append("ブラウザ実測なし")
+# 測定が途中で落ちたら、その先の項目は「違反0件」でなく「測れていない」。
+# 空回りの合格を出さないため、必ず不合格にする。
+if REND and REND.get("measureError"):
+    gfail.append("実測が途中で落ちた (%s) — この先の項目は測れていない"
+                 % REND["measureError"])
+if REND and not (REND.get("ui") or []):
+    gfail.append("UI検査が1件も実施されていない (N20-N34 / N40-N43 は未測定)")
 P("  信号が交差点に立っている: %d / %d" % (sum(SIG_OK), len(signals)))
 if sum(SIG_OK) != len(signals):
     gfail.append("交差点にない信号 %d基" % (len(signals) - sum(SIG_OK)))
@@ -1558,7 +1729,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N39 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N43 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))

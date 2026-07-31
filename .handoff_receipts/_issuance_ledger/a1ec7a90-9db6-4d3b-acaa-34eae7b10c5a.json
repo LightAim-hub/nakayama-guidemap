@@ -1,0 +1,14 @@
+{
+  "issuance_ledger_schema_version": 1,
+  "receipt_id": "a1ec7a90-9db6-4d3b-acaa-34eae7b10c5a",
+  "receipt_path": "C:\\Users\\paipa\\nakayama-guidemap\\.handoff_receipts\\019fb750-02bb-7220-85c0-889db44459e4\\LightAim-hub_nakayama-guidemap_23\\intake-20260731T084033.934858Z-24568-5aa7af42c2dd.json",
+  "receipt_sha256": "5be4884fd3d452a6fcadf57ae0b4f3b864e76b11c5b05a8a2205f93e1c63eb70",
+  "receipt_payload_sha256": "182e24fd3362b53ddb2c3f319545614ddc27e1980b59bcf6db18f023618ecec1",
+  "stage": "intake",
+  "session_id": "019fb750-02bb-7220-85c0-889db44459e4",
+  "issue": "LightAim-hub/nakayama-guidemap#23",
+  "issued_at": "2026-07-31T08:40:33.934858+00:00",
+  "writer_key_id": "105fe445cd2385e5",
+  "payload_sha256": "23170343c0d582b4b1f1ae4356d4216e15bb33540ab8f252f92b295ae2341a23",
+  "writer_attestation": "579aa8d65cacc9e23ae2b2d3b70c969d04725ad41e3a86eebf859b6b4fc5feb1"
+}
