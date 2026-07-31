@@ -430,7 +430,7 @@
   body.map-open header h1 small, body.map-open header p{ display:none; }
   body.map-open .map-filter-badge{ display:none; min-width:0; max-width:112px; padding:3px 7px;
     border:1.5px solid var(--voice); border-radius:999px; color:var(--voice); background:#edf6f3;
-    font-size:12px; font-weight:700; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    font-size:14px; font-weight:700; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   body.map-open .map-filter-badge:not(:empty){ display:block; }
   body.map-open #mapback{ display:inline-flex; min-width:44px; height:44px; padding:0 8px; align-items:center;
     justify-content:center; border:0; background:transparent; color:var(--ink); font:inherit; font-size:14px;
@@ -444,8 +444,8 @@
   body.map-open #controls{ position:fixed; inset:auto 0 0; z-index:31; height:var(--map-controls-h); min-height:var(--map-controls-h);
     padding:6px 112px 6px 82px; display:block; border-top:2px dashed rgba(92,67,39,.35); }
   body.map-open #controls .filters, body.map-open #controls .searchbar{ display:none; }
-  body.map-open #controls .control-actions{ height:44px; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:8px; }
-  body.map-open #mapbtn, body.map-open #listbtn{ padding-inline:4px; font-size:14px; }
+  body.map-open #controls .control-actions{ height:44px; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:8px; }
+  body.map-open #mapbtn, body.map-open #listbtn{ padding-inline:4px; font-size:14px; white-space:nowrap; }
   body.map-open .zoomctl{ display:flex; z-index:32; right:8px; bottom:6px; flex-direction:row; gap:8px; }
   body.map-open.edit #editbar{ display:flex; bottom:calc(var(--map-controls-h) + 8px); }
   body.map-open.debug #srcinfo{ display:block; bottom:calc(var(--map-controls-h) + 58px); }
@@ -2176,8 +2176,11 @@ function applyFilter({fromSearch=false} = {}){
   if (query) filterParts.push('「'+query+'」');
   if (voiceOnly) filterParts.push('こどもの声');
   if (activeCats.size) filterParts.push([...activeCats].map(k => CATS[k].label).join('・'));
-  mapFilterBadge.textContent = filtering ? filterParts.join('・')+' '+matched.length+'件' : '';
-  mapFilterBadge.title = mapFilterBadge.textContent;
+  const fullMapFilterText = filtering ? filterParts.join('・')+' '+matched.length+'件' : '';
+  mapFilterBadge.textContent = filtering && voiceOnly && !query && !activeCats.size
+    ? '声 '+matched.length+'件' : fullMapFilterText;
+  mapFilterBadge.title = fullMapFilterText;
+  mapFilterBadge.setAttribute('aria-label',fullMapFilterText);
 
   if (query) renderList(null, '検索結果'); else renderList();
 

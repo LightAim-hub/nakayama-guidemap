@@ -1049,6 +1049,30 @@ if not A.no_browser:
                      const q=document.getElementById('q'); q.value='なか';
                      q.dispatchEvent(new Event('input',{bubbles:true}));
                      await new Promise(r=>setTimeout(r,450)); return true; }"""),
+                  # 2026-08-01 追加。ここまで総なめの対象は「詳細シート・チューザー・
+                  # お店一覧・検索中」の4つだけで、地図を開いた状態が入っていなかった。
+                  # そのため地図モードの上帯 (見出し・戻る・絞り込みバッジ) と
+                  # 下帯 (帰属・一覧・戻る・ズーム) は一度も N20/N21/N28-N31/N34 に
+                  # かかっておらず、360x640 で「お店一覧」が「お店一/覧」と
+                  # 語の途中で折れているのを素通りさせた。最後に置く (地図は最後に閉じる)。
+                  ("地図", r"""async () => {
+                     document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+                     await new Promise(r=>setTimeout(r,300));
+                     const q=document.getElementById('q');
+                     if(q){ q.value=''; q.dispatchEvent(new Event('input',{bubbles:true})); }
+                     const b=document.getElementById('mapbtn');
+                     if(!b) return false;
+                     if(b.getAttribute('aria-expanded')!=='true') b.click();
+                     await new Promise(r=>setTimeout(r,800)); return true; }"""),
+                  ("地図で絞り込み中", r"""async () => {
+                     const b=document.getElementById('mapbtn');
+                     if(!b) return false;
+                     if(b.getAttribute('aria-expanded')!=='true'){ b.click();
+                       await new Promise(r=>setTimeout(r,700)); }
+                     const c=document.querySelector('.chip.voice-filter');
+                     if(!c) return false;
+                     if(c.getAttribute('aria-pressed')!=='true') c.click();
+                     await new Promise(r=>setTimeout(r,700)); return true; }"""),
                 ]
                 UI = []
                 for uw, uh in UI_DEVICES + UI_LANDSCAPE:
@@ -1071,7 +1095,13 @@ if not A.no_browser:
                         document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
                         const q=document.getElementById('q');
                         if(q){ q.value=''; q.dispatchEvent(new Event('input',{bubbles:true})); }
-                        await new Promise(r=>setTimeout(r,350)); }""")
+                        // 総なめの最後が地図モード + 絞り込みなので、必ず元へ戻す。
+                        // 戻さないと この後の N22/N23/N25/N26 を地図が開いたまま測ってしまう。
+                        const c=document.querySelector('.chip.voice-filter');
+                        if(c && c.getAttribute('aria-pressed')==='true') c.click();
+                        const b=document.getElementById('mapbtn');
+                        if(b && b.getAttribute('aria-expanded')==='true') b.click();
+                        await new Promise(r=>setTimeout(r,700)); }""")
                     # 既存の測定 (N22/N23/N25/N26) は「開いた直後 + お店一覧」で行う
                     up.evaluate("()=>document.getElementById('listbtn').click()")
                     up.wait_for_timeout(350)
