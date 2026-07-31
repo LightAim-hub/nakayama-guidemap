@@ -19,6 +19,15 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8",
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 
+
+OPEN_MAP = """async () => {
+  const b = document.getElementById('mapbtn');
+  if (b && b.getAttribute('aria-expanded') !== 'true') {
+    b.click(); await new Promise(r => setTimeout(r, 700));
+  }
+  return !!document.getElementById('viewport');
+}"""
+
 MEASURE = r"""() => {
   const shown = e => { const cs = getComputedStyle(e);
     return cs.display !== 'none' && cs.visibility !== 'hidden' && parseFloat(cs.opacity) > .05; };
@@ -188,14 +197,20 @@ def main():
                             route.abort()
                         pg.route("**/fonts.googleapis.com/**", _abort)
                         pg.route("**/fonts.gstatic.com/**", _abort)
-                    pg.goto(base, wait_until="load"); pg.wait_for_timeout(2000)
+                    pg.goto(base, wait_until="load"); pg.wait_for_timeout(600)
+                    try: pg.evaluate(OPEN_MAP)
+                    except Exception: pass
+                    pg.wait_for_timeout(1800)
                     m = pg.evaluate(MEASURE)
                     # 同じ条件でもう一度開いて、配置が毎回同じかを見る
                     pg2 = br.new_page(viewport={"width": w, "height": h})
                     if block:
                         pg2.route("**/fonts.googleapis.com/**", lambda r: r.abort())
                         pg2.route("**/fonts.gstatic.com/**", lambda r: r.abort())
-                    pg2.goto(base, wait_until="load"); pg2.wait_for_timeout(2000)
+                    pg2.goto(base, wait_until="load"); pg2.wait_for_timeout(600)
+                    try: pg2.evaluate(OPEN_MAP)
+                    except Exception: pass
+                    pg2.wait_for_timeout(1800)
                     m2 = pg2.evaluate(MEASURE)
                     pg2.close()
                     tag = "%dx%d%s" % (w, h, "(遮断)" if block else "")
@@ -254,7 +269,10 @@ def main():
             for w, h in [(360, 640), (390, 844)]:
                 for pct in (100, 125, 150):
                     pg = br.new_page(viewport={"width": w, "height": h})
-                    pg.goto(base, wait_until="load"); pg.wait_for_timeout(1500)
+                    pg.goto(base, wait_until="load"); pg.wait_for_timeout(400)
+                    try: pg.evaluate(OPEN_MAP)
+                    except Exception: pass
+                    pg.wait_for_timeout(1100)
                     if pct != 100:
                         pg.evaluate("p=>{document.documentElement.style.fontSize=(16*p/100)+'px';}", pct)
                         pg.wait_for_timeout(900)

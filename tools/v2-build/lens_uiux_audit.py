@@ -120,7 +120,10 @@ for (const e of document.querySelectorAll('button,a[href],[role="button"],input,
   // SVG の地図の中は <button> を置けない。role=button + tabindex + 読み上げ名 +
   // キーボードで開けること、が揃っていれば正しい書き方なので不合格にしない
   // (2026-07-31: これを 29件の誤検出として出した)。
-  const svgOk = e.closest('svg') && e.getAttribute('role') === 'button'
+  // role=button + tabindex + 読み上げ名 が揃っていれば、キーボードでも押せる。
+  // <button> のほうが望ましいが欠陥ではない。SVG だけ除外していたため
+  // 二列表示の行 (div role=button tabindex=0) を60件の誤検出として出した。
+  const svgOk = e.getAttribute('role') === 'button'
              && e.getAttribute('tabindex') !== null && nm;
   if (e.tagName !== 'BUTTON' && e.tagName !== 'A'
       && e.getAttribute('role') === 'button' && !svgOk)
@@ -243,7 +246,16 @@ for (const e of items) {
   const r = e.getBoundingClientRect();
   res.push({sel:sel(e), nm:nameOf(e).slice(0,16), changed: b0 !== b1,
             outline: after.outlineStyle + ' ' + after.outlineWidth,
-            x:Math.round(r.left), y:Math.round(r.top)});
+            x:Math.round(r.left), y:Math.round(r.top),
+            // スクロール枠でクリップされた行は座標だけ見ても分からない。
+            // 中心を押して自分に当たるかで「本当に見えているか」を判定する。
+            onScreen: (() => {
+              if (!(r.width > 0 && r.height > 0)) return false;
+              const cx = r.left + r.width/2, cy = r.top + r.height/2;
+              if (cx < 0 || cx > innerWidth || cy < 0 || cy > innerHeight) return false;
+              const hit = document.elementFromPoint(cx, cy);
+              return !!(hit && (hit === e || e.contains(hit)));
+            })()});
   e.blur();
 }
 return {count: items.length, res};
@@ -356,7 +368,9 @@ def main():
                 # 実害は「フッタに着くまで★を全部通る」ことだったが、それは
                 # 「地図をとばす」リンク (N33) で解消済み。逆行は 34件中4-6件で、
                 # 残りは既に上から下の順。よって地図の中の逆行は注記に留める。
-                order = F["res"]
+                # スクロールで画面の外に出ている行は、位置を比べても意味がない
+                # (2026-07-31: 画面外の行と可視のチップを比べて逆行と誤検出した)。
+                order = [x for x in F["res"] if 0 <= x["y"] <= 2000 and x["onScreen"]]
                 bad_out, bad_map = [], []
                 for i in range(len(order) - 1):
                     a, b = order[i], order[i+1]
