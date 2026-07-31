@@ -1,0 +1,55 @@
+{
+  "receipt_schema_version": 4,
+  "receipt_id": "e7e07f2a-b6c3-437d-8eae-413076d5f723",
+  "session_id": "019fb6f5-e754-7820-8983-3f758a6ef2e5",
+  "stage": "submit",
+  "status": "pass",
+  "target": "reviewer",
+  "return_to": "ai:claude-code",
+  "reviewer": "ai:claude-code",
+  "issue": "LightAim-hub/nakayama-guidemap#23",
+  "codex_mode": "implement",
+  "intake_contract_sha256": "59954729b36de21939275f47dfcac19cb54c56d27c1e34f27ee65af8d56b473f",
+  "parent_intake_receipt": "C:\\Users\\paipa\\nakayama-guidemap\\.handoff_receipts\\019fb6f5-e754-7820-8983-3f758a6ef2e5\\LightAim-hub_nakayama-guidemap_23\\intake-20260731T070246.869553Z-51048-132f5bc6ecc1.json",
+  "parent_intake_sha256": "a24649d800e6d6c5529ced97ea3d3bb93a5cea2451586d0b3e11176150122a22",
+  "manifest_path": "C:\\Users\\paipa\\nakayama-guidemap\\.task-ab-handoff-manifest.json",
+  "manifest_snapshot_sha256": "c1c5876fbeb210f97a7ef387e8106644bed9b339b9c6c6d47a2ed7d4d639e85e",
+  "submit_evidence_sha256": "976142db32932918152115c55c84fa52c43dc5dd22ec642f32c01fe426354a92",
+  "evidence_layer": 3,
+  "artifact_bundle_sha256": "4d4562a45fa7cc8841e313948cd473404c4e7046b4ba9ba02aafa287bb985c94",
+  "artifact_count": 4,
+  "artifacts": [
+    {
+      "type": "file",
+      "label": "generated production index",
+      "path": "C:\\Users\\paipa\\nakayama-guidemap\\index.html",
+      "sha256": "2701acc0d01f63faf78b2d9e46b19abcd214bb2f7abb9168fcdb1604e1cd2fd4",
+      "size_bytes": 127601
+    },
+    {
+      "type": "file",
+      "label": "generated map data",
+      "path": "C:\\Users\\paipa\\nakayama-guidemap\\tools\\v2-build\\mapdata.json",
+      "sha256": "3447daf4a45cd66df785e5f01096323e6de160b642a46ac562d387fb19cc9c74",
+      "size_bytes": 35121
+    },
+    {
+      "type": "file",
+      "label": "production template",
+      "path": "C:\\Users\\paipa\\nakayama-guidemap\\tools\\v2-build\\template.html",
+      "sha256": "955d959825b410699d732b82f8410e00e02a6e76b4462a953586759617821ec5",
+      "size_bytes": 91846
+    },
+    {
+      "type": "file",
+      "label": "generated production v2",
+      "path": "C:\\Users\\paipa\\nakayama-guidemap\\v2.html",
+      "sha256": "2701acc0d01f63faf78b2d9e46b19abcd214bb2f7abb9168fcdb1604e1cd2fd4",
+      "size_bytes": 127601
+    }
+  ],
+  "created_at": "2026-07-31T07:08:49.408182+00:00",
+  "writer_key_id": "105fe445cd2385e5",
+  "payload_sha256": "488dbc6a1409c75d3a63e56894ede2b6763de033b5e84b298b13d4c81551934c",
+  "writer_attestation": "add90f0e729258bf78f10bb79b2159c156967d0f08a50b244169cef15943066b"
+}

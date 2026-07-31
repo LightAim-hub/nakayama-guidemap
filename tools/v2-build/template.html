@@ -994,13 +994,14 @@ function updateLabelLeader(entry,scale){
     path.style.display='none';
     return;
   }
-  const startPx=Math.min(currentStarTargetPx/2+1.5,dist*.4);
+  const startPx=Math.min(currentStarTargetPx/2,dist*.4);
   const a=svg.createSVGPoint(), b=svg.createSVGPoint(), inverse=matrix.inverse();
   a.x=ox+dx*startPx/dist; a.y=oy+dy*startPx/dist;
   b.x=tx; b.y=ty;
   const start=a.matrixTransform(inverse), end=b.matrixTransform(inverse);
   path.setAttribute('d','M'+start.x+','+start.y+' L'+end.x+','+end.y);
   path.dataset.lengthPx=(dist-startPx).toFixed(1);
+  path.removeAttribute('display');
   path.style.display='';
 }
 function rectsOverlap(a,b){

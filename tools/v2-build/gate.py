@@ -8,7 +8,7 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N37 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N39 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
@@ -117,6 +117,12 @@ MAP_LABEL_MIN_PX = 14.0
 # 地図なのにピンチで拡大できず、ページ全体が5倍になる (実測)。
 # 歩きながら片手で使うので、指で拡大できないのは致命的。
 ZOOM_GESTURES = ("ピンチ", "ダブルタップ", "ホイール")
+# 引き出し線の長さの上限。実測 (2026-07-31) では最長224px = 画面幅の62%で、
+# 地図を横切る「配線」になり かえって読みにくかった。線は「少しずらした」ことが
+# 分かる長さに留め、そこに届かない店は名前を出さない (拡大すれば出る)。
+# こどもの声の店は看板機能で必ず名前が要る (N26) ので、少しだけ長い線を許す。
+LEADER_MAX_PX = 90.0
+LEADER_MAX_PX_VOICE = 130.0
 
 # ---------------- GEO ----------------
 src = io.open(A.target, encoding="utf-8").read()
@@ -301,6 +307,17 @@ if not A.no_browser:
                         labelMapW: tb ? +tb.width.toFixed(1) : 0,
                         // 引き出し線で結ばれているラベルか (N14 の除外 / N37 の対象)
                         leader: !!(GEO.shops[i] && GEO.shops[i].labelLeader),
+                        voice: !!(GEO.shops[i] && (GEO.shops[i].voices||[]).length),
+                        // N39 ★が表示域の中にいるのに、名前が縁で切れていないか。
+                        // 画面外の店の名前が見えないのは当たり前なので対象外。
+                        starInView: (() => { if (!sr) return false;
+                          const v = document.getElementById('viewport').getBoundingClientRect();
+                          const cx = sr.left + sr.width/2, cy = sr.top + sr.height/2;
+                          return cx >= v.left && cx <= v.right && cy >= v.top && cy <= v.bottom; })(),
+                        labelCutPx: (() => { if (!tr || tr.width <= 1) return 0;
+                          const v = document.getElementById('viewport').getBoundingClientRect();
+                          return Math.round(Math.max(0, v.left - tr.left,
+                                                     tr.right - v.right)); })(),
                         // 印が付いているだけで線が描かれていないと、
                         // 「どの★がどの店名か分からない」状態のまま N14/N4 を素通りする。
                         // 自分の★の近くから始まって自分のラベルで終わる線が
@@ -951,7 +968,7 @@ P("")
 fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
                          "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
                          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27",
-                         "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37")}
+                         "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -1240,6 +1257,28 @@ def _zoom_checks(D, zname, is_default):
             if _seg_rect_hit(sx, sy, ex, ey, o["labelRect"]):
                 fails["N37"].append("%s の引き出し線が %s のラベルを横切る (%s)"
                                     % (r["name"], o["name"], zname))
+        # N38 長さ
+        _lim = LEADER_MAX_PX_VOICE if r.get("voice") else LEADER_MAX_PX
+        _len = math.hypot(ex - sx, ey - sy)
+        if _len > _lim:
+            fails["N38"].append("%s の引き出し線が %.0fpx (上限%.0f%s) — 地図を横切る配線になる (%s)"
+                                % (r["name"], _len, _lim,
+                                   "・こどもの声" if r.get("voice") else "", zname))
+
+    # ---- N39 引き出し線で外へ運んだ結果、名前が縁で切れていないか ----
+    # 画面の縁で名前が切れること自体は、地図を動かせる以上ふつうのこと。
+    # 問題なのは「置き場が無いので外へ運んだら画面の外だった」場合で、
+    # それは配置の失敗。線を引かない普通のラベルは対象にしない。
+    for r in rows:
+        if not r.get("leader"):
+            continue
+        if not r.get("starInView") or not r.get("labelRect"):
+            continue
+        cut = r.get("labelCutPx") or 0
+        if cut > 1:
+            w = r["labelRect"][2] - r["labelRect"][0]
+            fails["N39"].append("%s は引き出し線で運んだ名前の %dpx / %dpx が画面の外に出ている (%s)"
+                                % (r["name"], cut, round(w), zname))
 
 
 if REND:
@@ -1463,11 +1502,13 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N34": "絵文字をアイコン代わりに使っていない",
        "N35": "地図の店名が読める大きさ",
        "N36": "指で地図を拡大できる",
-       "N37": "引き出し線がどの★のものか紛れない"}
+       "N37": "引き出し線がどの★のものか紛れない",
+       "N38": "引き出し線が長すぎない",
+       "N39": "引き出し線で運んだ名前が画面の外に出ていない"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
-              "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37"):
+              "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -1517,7 +1558,7 @@ for k in fails:
         nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
 P("")
 P("=" * 78)
-P("歩ける店 (N1..N37 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
+P("歩ける店 (N1..N39 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
 P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
