@@ -328,7 +328,7 @@
   .lrow .laddr{ font-size:14px; }
   /* Task AE: 一本道の実座標を主役にした二列表示 */
   body{ --controls-h:164px; }
-  #stripview{ flex:1 1 auto; min-height:0; margin-bottom:8px; overflow-y:auto; overflow-x:hidden;
+  #stripview{ flex:1 1 auto; min-height:0; margin-bottom:12px; overflow-y:auto; overflow-x:hidden;
     background:var(--paper); -webkit-overflow-scrolling:touch; overscroll-behavior-y:contain; }
   .strip-guide{ position:sticky; top:0; z-index:8; display:grid;
     grid-template-columns:minmax(0,1fr) 68px minmax(0,1fr); align-items:center;
@@ -1346,10 +1346,8 @@ Object.keys(CATS).forEach(k => {
 /* ---------- 通り沿い二列表示 (Task AE) ---------- */
 const STRIP_PX_PER_M = 1;
 const STRIP_TOP_PAD = 26;
-const STRIP_ROW_HEIGHT = 45;
 const STRIP_GAP_FLOOR = 8;
-const STRIP_GAP_TARGET = 9;
-const STRIP_ROW_GAP = STRIP_ROW_HEIGHT + STRIP_GAP_FLOOR;
+const STRIP_FACING_MAX = 47;
 const mainBusway = (GEO.busway || []).slice().sort((a,b) => b.length-a.length)[0] || [];
 function trueShopPoint(s){
   return {
@@ -1378,57 +1376,91 @@ const stripAlong = stripShops.filter(p => p.distance <= 60).sort((a,b) => a.y-b.
 const stripFar = stripShops.filter(p => p.distance > 60).sort((a,b) => a.y-b.y || a.x-b.x || a.i-b.i);
 const stripYMin = Math.min(...stripShops.map(p => p.y));
 const stripYMax = Math.max(...stripShops.map(p => p.y));
-const collisionPairs = [];
-['west','east'].forEach(side => {
-  const sideRows=stripAlong.filter(p => p.side === side);
-  sideRows.forEach((a,ai) => sideRows.slice(ai+1).forEach(b => {
-    if (b.y-a.y <= 12) collisionPairs.push({upper:a,lower:b});
-  }));
-});
-const stripAnchorYs = Array.from(new Set([stripYMin,stripYMax]
-  .concat(stripAlong.map(p => p.y))
-  .concat((GEO.signals||[]).map(p => p[1])))).sort((a,b) => a-b);
-const stripAnchorTops = new Map();
-let stripExtra = 0;
-stripAnchorYs.forEach(y => {
-  const base=STRIP_TOP_PAD+(y-stripYMin)*STRIP_PX_PER_M;
-  let top=base+stripExtra;
-  collisionPairs.filter(pair => pair.lower.y === y).forEach(pair => {
-    top=Math.max(top,(stripAnchorTops.get(pair.upper.y)||base)+STRIP_ROW_GAP);
-  });
-  stripExtra=top-base;
-  stripAnchorTops.set(y,top);
-});
-function stripTopForY(y){
-  if (stripAnchorTops.has(y)) return stripAnchorTops.get(y);
-  let upperIndex=stripAnchorYs.findIndex(v => v > y);
-  if (upperIndex < 0) return stripAnchorTops.get(stripAnchorYs[stripAnchorYs.length-1]) +
-    (y-stripAnchorYs[stripAnchorYs.length-1])*STRIP_PX_PER_M;
-  if (upperIndex === 0) return stripAnchorTops.get(stripAnchorYs[0]) -
-    (stripAnchorYs[0]-y)*STRIP_PX_PER_M;
-  const y0=stripAnchorYs[upperIndex-1], y1=stripAnchorYs[upperIndex];
-  const t=(y-y0)/Math.max(.001,y1-y0);
-  return stripAnchorTops.get(y0)+t*(stripAnchorTops.get(y1)-stripAnchorTops.get(y0));
+const stripRowNodes = new Map();
+const stripRowHeights = new Map();
+const stripSignalNodes = [];
+let stripLayoutFrame = 0;
+function stripIdealCenter(entry){
+  return STRIP_TOP_PAD+(entry.y-stripYMin)*STRIP_PX_PER_M;
 }
-const stripDisplayTops = new Map(stripAlong.map(entry => [entry.i,stripTopForY(entry.y)]));
-stripAlong.filter(entry => entry.side === 'west').forEach(entry => {
-  const opposite=stripAlong.filter(other => other.side === 'east' && Math.abs(other.y-entry.y) <= 20);
-  if (!opposite.length) return;
-  const tops=opposite.map(other => stripTopForY(other.y));
-  stripDisplayTops.set(entry.i,(Math.min(...tops)+Math.max(...tops))/2);
-});
-['west','east'].forEach(side => {
-  const sideRows=stripAlong.filter(entry => entry.side === side);
-  sideRows.forEach((entry,index) => {
-    let top=stripDisplayTops.get(entry.i);
-    sideRows.slice(0,index).forEach(upper => {
-      const gap=top-stripDisplayTops.get(upper.i)-STRIP_ROW_HEIGHT;
-      if (gap >= 0 && gap < STRIP_GAP_FLOOR) top += STRIP_GAP_TARGET-gap;
-    });
-    stripDisplayTops.set(entry.i,top);
+function stripMeasuredRows(){
+  return stripAlong.map(entry => {
+    const row=stripRowNodes.get(entry.i);
+    const rendered=row && !row.hidden ? row.getBoundingClientRect().height : 0;
+    if (rendered > 0) stripRowHeights.set(entry.i,rendered);
+    return {entry,row,h:stripRowHeights.get(entry.i)||44,center:stripIdealCenter(entry)};
   });
-});
-function stripRowTop(entry){ return stripDisplayTops.get(entry.i); }
+}
+function stripChooseCenter(item, desired, previous, low, high){
+  low=Math.max(low,item.h/2);
+  desired=Math.min(high,Math.max(low,desired));
+  if (!previous) return desired;
+  const touching=previous.center+(previous.h+item.h)/2;
+  const candidates=[];
+  if (touching >= low && touching <= high) candidates.push(touching);
+  const separated=Math.max(touching+STRIP_GAP_FLOOR,low,desired);
+  if (separated <= high) candidates.push(separated);
+  if (!candidates.length) return touching;
+  return candidates.reduce((best,value) =>
+    Math.abs(value-desired) < Math.abs(best-desired) ? value : best);
+}
+function stripPlaceColumn(items, desiredFor){
+  const placed=[];
+  items.sort((a,b) => a.entry.y-b.entry.y || a.entry.x-b.entry.x || a.entry.i-b.entry.i)
+    .forEach(item => {
+      const bounds=desiredFor(item);
+      item.center=stripChooseCenter(item,bounds.desired,placed[placed.length-1],
+        bounds.low,bounds.high);
+      placed.push(item);
+    });
+  return placed;
+}
+function stripCenterForY(y, placed){
+  const grouped=[];
+  placed.slice().sort((a,b) => a.entry.y-b.entry.y).forEach(item => {
+    const last=grouped[grouped.length-1];
+    if (last && Math.abs(last.y-item.entry.y) < .001){
+      last.total+=item.center; last.count++;
+    } else grouped.push({y:item.entry.y,total:item.center,count:1});
+  });
+  const anchors=grouped.map(p => ({y:p.y,center:p.total/p.count}));
+  if (!anchors.length) return STRIP_TOP_PAD+(y-stripYMin)*STRIP_PX_PER_M;
+  if (y <= anchors[0].y) return anchors[0].center-(anchors[0].y-y)*STRIP_PX_PER_M;
+  if (y >= anchors[anchors.length-1].y) return anchors[anchors.length-1].center+
+    (y-anchors[anchors.length-1].y)*STRIP_PX_PER_M;
+  const upper=anchors.findIndex(p => p.y > y);
+  const a=anchors[upper-1], b=anchors[upper], t=(y-a.y)/Math.max(.001,b.y-a.y);
+  return a.center+t*(b.center-a.center);
+}
+function layoutStripRows(){
+  stripLayoutFrame=0;
+  const measured=stripMeasuredRows();
+  const east=stripPlaceColumn(measured.filter(p => p.entry.side === 'east'),
+    item => ({desired:stripIdealCenter(item.entry),low:-Infinity,high:Infinity}));
+  const west=stripPlaceColumn(measured.filter(p => p.entry.side === 'west'), item => {
+    const facing=east.filter(other => Math.abs(other.entry.y-item.entry.y) <= 20);
+    if (!facing.length) return {desired:stripIdealCenter(item.entry),low:-Infinity,high:Infinity};
+    const low=Math.max(...facing.map(other => other.center-STRIP_FACING_MAX));
+    const high=Math.min(...facing.map(other => other.center+STRIP_FACING_MAX));
+    return {desired:(Math.min(...facing.map(other => other.center))+
+      Math.max(...facing.map(other => other.center)))/2,low,high};
+  });
+  const placed=east.concat(west);
+  placed.forEach(item => { item.row.style.top=item.center+'px'; });
+  stripSignalNodes.forEach(item => {
+    item.node.style.top=stripCenterForY(item.y,placed)+'px';
+  });
+  const rowBottom=Math.max(0,...placed.map(item => item.center+item.h/2));
+  const signalBottom=Math.max(0,...stripSignalNodes.map(item =>
+    stripCenterForY(item.y,placed)+12));
+  const geoBottom=stripCenterForY(stripYMax,placed);
+  document.getElementById('strip').style.height=
+    Math.ceil(Math.max(rowBottom,signalBottom,geoBottom)+STRIP_TOP_PAD)+'px';
+}
+function scheduleStripLayout(){
+  if (stripLayoutFrame) return;
+  stripLayoutFrame=requestAnimationFrame(layoutStripRows);
+}
 function stripChild(tag,className,text){
   const node=document.createElement(tag);
   if (className) node.className=className;
@@ -1463,7 +1495,8 @@ function makeStripRow(entry, far){
     row.appendChild(main);
     row.appendChild(stripChild('span','strip-distance',(entry.side === 'west' ? '西へ約' : '東へ約')+Math.round(entry.distance)+'m'));
   } else {
-    row.style.top=stripRowTop(entry)+'px';
+    row.style.top=stripIdealCenter(entry)+'px';
+    stripRowNodes.set(entry.i,row);
     row.appendChild(stripChild('span','strip-shop-dot'));
     row.appendChild(stripChild('span','strip-shop-name',entry.s.name));
     if ((entry.s.voices||[]).length){
@@ -1493,16 +1526,19 @@ function buildStrip(){
   (GEO.signals||[]).forEach(p => {
     const signal=stripChild('div','strip-signal');
     signal.dataset.y=Number(p[1]).toFixed(1);
-    signal.style.top=stripTopForY(p[1])+'px';
+    signal.style.top=(STRIP_TOP_PAD+(p[1]-stripYMin)*STRIP_PX_PER_M)+'px';
     signal.setAttribute('aria-label','信号');
     signal.title='信号';
     strip.appendChild(signal);
+    stripSignalNodes.push({node:signal,y:Number(p[1])});
   });
-  strip.style.height=(stripTopForY(stripYMax)+STRIP_TOP_PAD)+'px';
   const far=document.getElementById('stripfar');
   far.replaceChildren(...stripFar.map(entry => makeStripRow(entry,true)));
+  layoutStripRows();
 }
 buildStrip();
+window.addEventListener('resize',scheduleStripLayout);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(scheduleStripLayout);
 document.getElementById('q').addEventListener('input', e => {
   query = e.target.value.trim().toLowerCase();
   hideDetail();
@@ -1541,6 +1577,7 @@ function applyFilter({fromSearch=false} = {}){
     row.tabIndex=ok ? 0 : -1;
     row.setAttribute('aria-hidden',ok ? 'false' : 'true');
   });
+  scheduleStripLayout();
   const status = document.getElementById('searchstatus');
   const filtering = query.length > 0 || voiceOnly || activeCats.size > 0;
   status.textContent = filtering ? (matched.length ? matched.length+'件' : '見つかりません') : '';

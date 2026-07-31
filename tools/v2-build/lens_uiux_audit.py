@@ -163,7 +163,10 @@ out.tight = [];
     const dx = ox>0 ? 0 : Math.max(a.left-b.right, b.left-a.right);
     const dy = oy>0 ? 0 : Math.max(a.top-b.bottom, b.top-a.bottom);
     const gap = Math.hypot(Math.max(dx,0), Math.max(dy,0));
-    if (gap < 8) out.tight.push({a:els[i].nm, b:els[j].nm, gap:+gap.toFixed(1)});
+    // 隙間0 = 一覧やカードが接している普通の設計。面そのものが的なので
+    // 押し間違いにならない。危ないのは「少しだけ空いている」場合だけ
+    // (ゲート N31 は既にこの規則。レンズ側に入れ忘れて9件の誤検出を出した)。
+    if (gap >= .5 && gap < 8) out.tight.push({a:els[i].nm, b:els[j].nm, gap:+gap.toFixed(1)});
   }
 }
 
