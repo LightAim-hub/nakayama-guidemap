@@ -88,6 +88,7 @@
   #viewport{ flex:1; overflow:auto; position:relative; background:var(--paper); -webkit-overflow-scrolling:touch; touch-action:pan-x pan-y; }
   #mapwrap{ width:100%; max-width:1000px; margin:0 auto; position:relative; }
   svg{ display:block; width:100%; height:auto; }
+  body.map-open #mapwrap, body.map-open #map{ width:100%; height:100%; }
   text{ user-select:none; }
 
   .road-major-c{ stroke:#8a6a44; fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.85; }
@@ -103,16 +104,20 @@
   .water{ fill:#bcd9e6; stroke:#8fbdd2; stroke-width:2; opacity:.9; }
   .park{ fill:#d9e7bd; stroke:#a9c37e; stroke-width:2; opacity:.85; }
 
-  .star{ stroke:var(--ink); stroke-width:1.6; cursor:pointer; }
-  .star.medical{ fill:#fffdf5; stroke-width:2.1; } .star.life{ fill:#5cae4a; } .star.food{ fill:#eda03e; }
+  .star{ stroke:var(--ink); stroke-width:2.5; stroke-linejoin:round; paint-order:stroke fill; cursor:pointer; }
+  .star.medical{ fill:#fffdf5; stroke-width:3; } .star.life{ fill:#5cae4a; } .star.food{ fill:#eda03e; }
   .star.edu{ fill:#5a95d6; } .star.place{ fill:#46b3ae; }
   .hit{ cursor:pointer; }
   .hit .pad{ fill:transparent; }
   .hit:focus{ outline:none; }
   .hit:focus-visible .star{ filter:drop-shadow(0 0 4px rgba(201,123,61,.95)); }
-  .hit:focus .star, .hit:hover .star{ stroke-width:2.8; }
+  .hit:focus .star, .hit:hover .star{ stroke-width:4; }
   .hit.dim{ opacity:.25; pointer-events:none; }
-  .hit.glowing .star{ filter:drop-shadow(0 0 5px rgba(233,150,60,.95)); stroke-width:2.8; }
+  .hit.glowing .star{ filter:drop-shadow(0 0 5px rgba(233,150,60,.95)); stroke-width:4; }
+  .current-location-accuracy{ fill:rgba(38,116,123,.14); stroke:rgba(38,116,123,.5);
+    stroke-width:1.5; vector-effect:non-scaling-stroke; pointer-events:none; }
+  .current-location-halo{ fill:#fffaf0; stroke:rgba(92,67,39,.28); stroke-width:1.5; }
+  .current-location-dot{ fill:var(--voice); stroke:#fff; stroke-width:2.5; }
   .selected-ring{ fill:#fffaf0; fill-opacity:.8; stroke:var(--accent); stroke-width:3; opacity:0; }
   .hit.selected .selected-ring, .hit:focus-visible .selected-ring{ opacity:1; }
   .voice-badge{ pointer-events:none; }
@@ -215,6 +220,7 @@
   .chooser .copt:active{ background:#f3e7cc; }
   .chooser .cdot{ width:12px; height:12px; border-radius:50%; flex:0 0 auto; border:1.5px solid rgba(92,67,39,.4); }
 
+  .map-float-tools{ display:none; }
   .zoomctl{ position:fixed; right:12px; bottom:62px; z-index:25; display:flex; flex-direction:column; gap:8px; }
   .zoomctl button{ width:44px; height:44px; font-size:1.25rem; font-weight:700; color:var(--ink);
     background:var(--paper); border:2px solid var(--ink-soft);
@@ -410,13 +416,18 @@
   #controls .searchbar input{ width:100%; max-width:none; height:44px; }
   #controls #searchstatus{ min-width:5.5em; }
   .control-actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px; height:44px; }
-  #mapbtn, #listbtn{ width:100%; min-height:44px; height:44px; display:inline-flex;
+  #mapbtn, #listbtn, .map-tool-button{ width:100%; min-height:44px; height:44px; display:inline-flex;
     align-items:center; justify-content:center; gap:6px; padding:7px 12px; border:2px solid var(--ink-soft);
     border-radius:999px; background:#fffaf0; color:var(--ink); box-shadow:2px 3px 0 rgba(92,67,39,.22);
     font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
   #mapbtn{ border-color:var(--accent); color:#9a4f28; }
-  #mapbtn:active, #listbtn:active{ transform:translateY(2px); box-shadow:none; }
-  #mapbtn:focus-visible, #listbtn:focus-visible{ outline:3px solid rgba(201,123,61,.45); outline-offset:2px; }
+  #locatebtn{ border-color:var(--voice); color:var(--voice); }
+  #wholebtn{ border-color:#6d8a3c; color:#58732e; }
+  #mapbtn:active, #listbtn:active, .map-tool-button:active{ transform:translateY(2px); box-shadow:none; }
+  #mapbtn:focus-visible, #listbtn:focus-visible, .map-tool-button:focus-visible{
+    outline:3px solid rgba(201,123,61,.45); outline-offset:2px; }
+  .map-tool-button:disabled{ opacity:.58; cursor:wait; box-shadow:none; }
+  #locatebtn, #wholebtn, #locationStatus{ display:none; }
 
   #viewport{ display:none; }
   body.map-open{ --map-head-h:44px; --map-controls-h:56px; }
@@ -442,11 +453,32 @@
   body.map-open #stripview{ visibility:hidden; }
   .zoomctl, #editbar, #srcinfo{ display:none; }
   body.map-open #controls{ position:fixed; inset:auto 0 0; z-index:31; height:var(--map-controls-h); min-height:var(--map-controls-h);
-    padding:6px 112px 6px 82px; display:block; border-top:2px dashed rgba(92,67,39,.35); }
+    padding:6px 8px; display:grid; grid-template-columns:74px minmax(0,1fr);
+    grid-template-rows:44px; column-gap:0; row-gap:0; border-top:2px dashed rgba(92,67,39,.35); }
   body.map-open #controls .filters, body.map-open #controls .searchbar{ display:none; }
-  body.map-open #controls .control-actions{ height:44px; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:8px; }
-  body.map-open #mapbtn, body.map-open #listbtn{ padding-inline:4px; font-size:14px; white-space:nowrap; }
-  body.map-open .zoomctl{ display:flex; z-index:32; right:8px; bottom:6px; flex-direction:row; gap:8px; }
+  body.map-open #controls .control-actions{ grid-column:2; grid-row:1; height:44px;
+    grid-template-columns:repeat(2,minmax(44px,1fr)); gap:8px; }
+  body.map-open #mapbtn, body.map-open #listbtn{
+    display:inline-flex; padding-inline:4px; font-size:14px; white-space:nowrap; }
+  body.map-open #listbtn{ grid-column:1; grid-row:1; }
+  body.map-open #mapbtn{ grid-column:2; grid-row:1; }
+  body.map-open #locationStatus{ position:fixed; z-index:32; left:8px; top:52px; display:none;
+    width:max-content; max-width:min(244px,calc(100vw - 72px)); min-height:32px; height:auto; padding:5px 10px;
+    align-items:center; justify-content:center; border:1.5px solid rgba(122,92,59,.45); border-radius:999px;
+    background:rgba(255,250,240,.94); box-shadow:1px 2px 0 rgba(92,67,39,.18);
+    color:var(--ink-soft); font-size:14px; font-weight:700; line-height:1.2; text-align:center;
+    pointer-events:none; }
+  body.map-open #locationStatus.is-visible{ display:flex; }
+  body.map-open .map-float-tools{ position:fixed; right:8px; bottom:calc(var(--map-controls-h) + 8px);
+    z-index:32; display:flex; flex-direction:column; gap:8px; }
+  body.map-open #locatebtn, body.map-open #wholebtn,
+  body.map-open .map-float-tools .zoomctl button{ display:inline-flex; width:44px; min-width:44px; height:44px;
+    min-height:44px; padding:0; align-items:center; justify-content:center; border-radius:50%;
+    background:#fffaf0; font-size:14px; line-height:1; white-space:nowrap; }
+  body.map-open .map-float-tools .zoomctl button{ font-size:18px; }
+  .map-tool-icon{ width:24px; height:24px; display:block; fill:none; stroke:currentColor;
+    stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; }
+  body.map-open .zoomctl{ position:static; display:flex; z-index:auto; flex-direction:column; gap:8px; }
   body.map-open.edit #editbar{ display:flex; bottom:calc(var(--map-controls-h) + 8px); }
   body.map-open.debug #srcinfo{ display:block; bottom:calc(var(--map-controls-h) + 58px); }
   footer.credit{ display:none; }
@@ -496,6 +528,8 @@
     body.strip-compact .strip-guide{ display:none; }
     body.map-open.edit #editbar{ bottom:calc(var(--map-controls-h) + 8px); }
     body.map-open.debug #srcinfo{ bottom:calc(var(--map-controls-h) + 58px); }
+    body.map-open .map-float-tools{ display:grid; grid-template-columns:44px 44px; grid-template-rows:44px 44px; gap:8px; }
+    body.map-open .map-float-tools .zoomctl{ display:contents; }
   }
   @media(prefers-reduced-motion:reduce){
     .chip, #chooser, .detail-panel{ transition:none; }
@@ -537,11 +571,24 @@
     <button id="mapbtn" type="button" aria-controls="viewport" aria-expanded="false">地図で見る</button>
     <button id="listbtn" aria-controls="listpanel" aria-expanded="false">お店一覧</button>
   </div>
+  <p id="locationStatus" role="status" aria-live="polite">押した時だけ位置を使います</p>
 </div>
 
-<div class="zoomctl">
-  <button id="zin" aria-label="拡大">＋</button>
-  <button id="zout" aria-label="縮小">－</button>
+<div class="map-float-tools" aria-label="地図の操作">
+  <button id="locatebtn" class="map-tool-button" type="button" aria-label="現在地" aria-controls="map"
+    aria-describedby="locationStatus" title="現在地を表示（押した時だけ位置を使います）">
+    <svg class="map-tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="5.5"></circle>
+      <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"></circle>
+    </svg>
+  </button>
+  <button id="wholebtn" class="map-tool-button" type="button" aria-label="商店街の全体を見る"
+    aria-controls="map" title="商店街の全体を見る">全体</button>
+  <div class="zoomctl">
+    <button id="zin" aria-label="拡大">＋</button>
+    <button id="zout" aria-label="縮小">－</button>
+  </div>
 </div>
 <section id="listpanel" role="region" aria-labelledby="listtitle" aria-hidden="true">
   <div class="lhead"><h2 id="listtitle">お店一覧</h2><button class="lclose" id="listclose" aria-label="閉じる">✕</button></div>
@@ -606,6 +653,7 @@ const W = GEO.meta.W, H = GEO.meta.H, PAD = 115;
 const svg = document.getElementById('map');
 const FULL_VIEWBOX = {x:0, y:0, width:W, height:H};
 const INITIAL_VIEWBOX = {x:362, y:677, width:424, height:646};
+let mapViewMode = 'initial';
 svg.setAttribute('viewBox', [INITIAL_VIEWBOX.x, INITIAL_VIEWBOX.y,
   INITIAL_VIEWBOX.width, INITIAL_VIEWBOX.height].join(' '));
 const mapButton = document.getElementById('mapbtn');
@@ -624,6 +672,7 @@ function setMapOpen(open, restoreFocus){
   mapButton.textContent = open ? '通りへ' : '地図で見る';
   if (open){
     requestAnimationFrame(() => {
+      applyResponsiveMapView();
       drawShops();
       scheduleMapScaleStyles();
       mapButton.focus({preventScroll:true});
@@ -684,6 +733,7 @@ const gNames = el('g', {}, svg);
 const gLead  = el('g', {}, svg);
 const gShops = el('g', {}, svg);
 const gDeco  = el('g', {}, svg);
+const gCurrent = el('g', {class:'current-location', 'aria-label':'現在地', visibility:'hidden'}, svg);
 
 GEO.parks.forEach(p => el('path', {d:polyClosed(p.pts), class:'park'}, gWater));
 GEO.waters.forEach(w => el('path', {d:polyClosed(w.pts), class:'water'}, gWater));
@@ -846,8 +896,8 @@ const ROAD_WIDTHS = {
   mid:   {fill:9,  casing:12.5, floorPx:8},
   minor: {fill:5,  casing:7,    floorPx:5},
 };
-const MIN_STAR_PX = 6, MAX_STAR_PX = 11, STAR_ROAD_RATIO = .60;
-const LABEL_OWNER_RATIO = .79;
+const MIN_STAR_PX = 6, MAX_STAR_PX = 14, STAR_ROAD_RATIO = 2.0, MAX_WALK_STAR_M = 5.45;
+const LABEL_OWNER_RATIO = .72;
 const VOICE_BADGE_WIDTH_PX = 13, VOICE_BADGE_HEIGHT_PX = 11, VOICE_BADGE_GAP_PX = 3;
 const PRIORITY_SEARCH_STEP_LIMIT = 20000;
 const LEADER_STAR_CLEARANCE_PX = 6.5;
@@ -1019,7 +1069,7 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     visibleEntries.forEach(hideLabel);
     stats.visibleEntries=visibleEntries.length;
     document.body.dataset.labelLayoutVisible=String(visibleEntries.length);
-    const keepOut = ['#listbtn', '.zoomctl', '#editbar', '#srcinfo']
+    const keepOut = ['.map-float-tools', '#locationStatus', '#editbar', '#srcinfo']
       .map(q => document.querySelector(q))
       .filter(e => e && getComputedStyle(e).position === 'fixed'
         && getComputedStyle(e).display !== 'none')
@@ -1065,19 +1115,23 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     });
     const labelInsideViewport = rect => {
       if (!viewportRect) return true;
-      const intersects = rect.right > viewportRect.left && rect.left < viewportRect.right &&
-        rect.bottom > viewportRect.top && rect.top < viewportRect.bottom;
+      // getBBox() does not include every painted pixel of the outlined SVG text.
+      // Keep an extra metric guard so a candidate judged just outside the visible
+      // band cannot paint back across the header/footer edge by a few pixels.
+      const paintedRect=expandedRect(rect,4);
+      const intersects = paintedRect.right > viewportRect.left && paintedRect.left < viewportRect.right &&
+        paintedRect.bottom > viewportRect.top && paintedRect.top < viewportRect.bottom;
       if (!intersects) return true;
-      return rect.left >= viewportRect.left+6 && rect.right <= viewportRect.right-6 &&
-        rect.top >= viewportRect.top+6 && rect.bottom <= viewportRect.bottom-6;
+      return paintedRect.left >= viewportRect.left+6 && paintedRect.right <= viewportRect.right-6 &&
+        paintedRect.top >= viewportRect.top+6 && paintedRect.bottom <= viewportRect.bottom-6;
     };
     const kept = [];
     let placed = [];
     const placementGrid=new LabelSpatialGrid();
     const placementConflicts = (rect,segment,other) =>
       labelsCollide(rect,other.rect) ||
-      (other.segment && segmentIntersectsRect(other.segment,rect)) ||
-      (segment && segmentIntersectsRect(segment,other.rect));
+      (other.segment && segmentIntersectsRect(other.segment,expandedRect(rect,3))) ||
+      (segment && segmentIntersectsRect(segment,expandedRect(other.rect,3)));
     const addPlacement = (entry,rect,segment) => {
       const item={entry,rect,segment};
       placed.push(item);
@@ -1131,10 +1185,12 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     const placeCandidate = (entry,candidate,withLeader) => {
       const {mainRect,rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
       const renderedMainRect=renderedCandidateRect(entry,mainRect);
+      const renderedRect=renderedCandidateRect(entry,rect);
       if (withLeader){
         if (containsOtherStar(entry,renderedMainRect)) return false;
       } else if (!anchorBelongsToOwnStar(entry,candidate) || !belongsToOwnStar(entry,renderedMainRect)) return false;
-      if (!labelInsideViewport(rect) || overlapsKeepOut(rect) || overlapsMapSymbol(entry,rect)) return false;
+      if (!labelInsideViewport(renderedRect) || overlapsKeepOut(renderedRect) ||
+          overlapsMapSymbol(entry,renderedRect)) return false;
       let segment = null;
       if (withLeader){
         segment = labelLeaderSegment(entry,renderedMainRect,starCenters);
@@ -1142,20 +1198,22 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
         if (!segment || Math.hypot(segment.x2-segment.x1,segment.y2-segment.y1) > maxLength ||
             !leaderIsClear(entry,segment,placementGrid)) return false;
       }
-      if (nearbyPlacementConflicts(rect,segment).length) return false;
+      if (nearbyPlacementConflicts(renderedRect,segment).length) return false;
       setLabelPosition(entry,candidate,scale);
       entry.s.labelVisible = true;
       entry.s.labelLeader = withLeader;
-      addPlacement(entry,rect,segment);
+      addPlacement(entry,renderedRect,segment);
       return true;
     };
     const placeCandidateShadow = (entry,candidate,withLeader) => {
       const {mainRect,rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
       const renderedMainRect=renderedCandidateRect(entry,mainRect);
+      const renderedRect=renderedCandidateRect(entry,rect);
       if (withLeader){
         if (containsOtherStar(entry,renderedMainRect)) return false;
       } else if (!anchorBelongsToOwnStar(entry,candidate) || !belongsToOwnStar(entry,renderedMainRect)) return false;
-      if (!labelInsideViewport(rect) || overlapsKeepOut(rect) || overlapsMapSymbol(entry,rect)) return false;
+      if (!labelInsideViewport(renderedRect) || overlapsKeepOut(renderedRect) ||
+          overlapsMapSymbol(entry,renderedRect)) return false;
       let segment=null;
       if (withLeader){
         segment=labelLeaderSegment(entry,renderedMainRect,starCenters);
@@ -1163,8 +1221,8 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
         if (!segment || Math.hypot(segment.x2-segment.x1,segment.y2-segment.y1) > maxLength ||
             !leaderIsClear(entry,segment,placementGrid)) return false;
       }
-      if (nearbyPlacementConflicts(rect,segment).length) return false;
-      addPlacement(entry,rect,segment);
+      if (nearbyPlacementConflicts(renderedRect,segment).length) return false;
+      addPlacement(entry,renderedRect,segment);
       return true;
     };
     const placeGreedyShadow = entry => {
@@ -1205,10 +1263,12 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       const normal = labelCandidates(entry.s);
       const collectOption = (candidate,withLeader,mainRect,rect) => {
         const renderedMainRect=renderedCandidateRect(entry,mainRect);
+        const renderedRect=renderedCandidateRect(entry,rect);
         if (withLeader){
           if (containsOtherStar(entry,renderedMainRect)) return;
         } else if (!anchorBelongsToOwnStar(entry,candidate) || !belongsToOwnStar(entry,renderedMainRect)) return;
-        if (!labelInsideViewport(rect) || overlapsKeepOut(rect) || overlapsMapSymbol(entry,rect)) return;
+        if (!labelInsideViewport(renderedRect) || overlapsKeepOut(renderedRect) ||
+            overlapsMapSymbol(entry,renderedRect)) return;
         let segment=null;
         if (withLeader){
           segment=labelLeaderSegment(entry,renderedMainRect,starCenters);
@@ -1216,9 +1276,9 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
           if (!segment || Math.hypot(segment.x2-segment.x1,segment.y2-segment.y1) > maxLength ||
               !leaderIsClear(entry,segment,null)) return;
         }
-        const blockers=nearbyPlacementConflicts(rect,segment);
+        const blockers=nearbyPlacementConflicts(renderedRect,segment);
         if (blockers.some(other => labelPriority(other.entry.s) !== 1)) return;
-        options.push({candidate,rect,segment,blockers:blockers.map(other => other.entry)});
+        options.push({candidate,rect:renderedRect,segment,blockers:blockers.map(other => other.entry)});
       };
       for (const candidate of normal){
         const {mainRect,rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
@@ -1343,7 +1403,10 @@ function isPrimaryLabel(s){
 }
 let currentMapScale = 1, currentStarTargetPx = MAX_STAR_PX, mapStyleFrame = 0;
 function starTargetPx(){ return currentStarTargetPx; }
-function labelTargetPx(s){ return isPrimaryLabel(s) ? 17 : 14; }
+function labelTargetPx(s){
+  if ((s.voices||[]).length) return 14;
+  return isPrimaryLabel(s) ? 16 : 14;
+}
 function starSize(s){
   return starTargetPx(s) / (20 * Math.max(.001, currentMapScale));
 }
@@ -1358,11 +1421,20 @@ function updateRoadWidths(scale){
   });
   return mainPx;
 }
-function updateSignalStyles(scale, mainRoadPx){
+function updateSignalStyles(scale, mainRoadPx, starCenters){
   const targetPx=Math.max(14,Math.min(1.4*mainRoadPx,26));
   const signalScale=targetPx/(22*scale);
   signalEntries.forEach(entry => {
-    entry.g.setAttribute('transform','translate('+entry.x+','+entry.y+') scale('+signalScale+')');
+    const offsets=[[0,0],[0,-10],[0,10],[-10,0],[10,0],[-8,-8],[-8,8],[8,-8],[8,8]];
+    let accepted=offsets[0];
+    for (const [dx,dy] of offsets){
+      entry.g.setAttribute('transform','translate('+(entry.x+dx/scale)+','+(entry.y+dy/scale)+') scale('+signalScale+')');
+      const rect=entry.g.getBoundingClientRect();
+      const blocked=[...(starCenters||new Map()).values()].some(point =>
+        point.x+7 > rect.left && point.x-7 < rect.right && point.y+7 > rect.top && point.y-7 < rect.bottom);
+      if (!blocked){ accepted=[dx,dy]; break; }
+    }
+    entry.g.dataset.offsetPx=accepted.join(',');
     entry.g.dataset.widthPx=targetPx.toFixed(2);
   });
 }
@@ -1537,12 +1609,15 @@ function updateLabelLeader(entry,scale){
     path.style.display='none';
     return;
   }
-  const startPx=Math.min(currentStarTargetPx/2,dist*.4);
+  const startPx=Math.min(Math.max(0,currentStarTargetPx/2-2),dist*.4);
   const a=svg.createSVGPoint(), b=svg.createSVGPoint(), inverse=matrix.inverse();
   a.x=ox+dx*startPx/dist; a.y=oy+dy*startPx/dist;
   b.x=tx; b.y=ty;
   const start=a.matrixTransform(inverse), end=b.matrixTransform(inverse);
-  path.setAttribute('d','M'+start.x+','+start.y+' L'+end.x+','+end.y);
+  const bendPx=1.5, mx=(a.x+b.x)/2-dy/dist*bendPx, my=(a.y+b.y)/2+dx/dist*bendPx;
+  const mid=svg.createSVGPoint(); mid.x=mx; mid.y=my;
+  const curve=mid.matrixTransform(inverse);
+  path.setAttribute('d','M'+start.x+','+start.y+' Q'+curve.x+','+curve.y+' '+end.x+','+end.y);
   path.dataset.lengthPx=(dist-startPx).toFixed(1);
   path.removeAttribute('display');
   path.style.display='';
@@ -1618,9 +1693,10 @@ function updateMapScaleStyles(){
   const scale = matrix ? Math.hypot(matrix.a, matrix.b) : 0;
   if (!(scale > 0)) return;
   currentMapScale = scale;
+  updateCurrentLocationStyle(scale);
   const mainRoadPx = updateRoadWidths(scale);
-  currentStarTargetPx = Math.max(MIN_STAR_PX,
-    Math.min(STAR_ROAD_RATIO * mainRoadPx, MAX_STAR_PX));
+  currentStarTargetPx = scale < 1.5 ? MAX_STAR_PX : Math.max(MIN_STAR_PX,
+    Math.min(STAR_ROAD_RATIO * mainRoadPx, MAX_STAR_PX, MAX_WALK_STAR_M * scale));
   const entries = [...document.querySelectorAll('.hit')].map(h => {
     const idx = +h.dataset.i, s = GEO.shops[idx], star = h.querySelector('.star');
     if (star) star.setAttribute('transform', 'scale('+(starSize(s) * (idx===selectedIndex?1.18:1))+')');
@@ -1632,7 +1708,7 @@ function updateMapScaleStyles(){
     const rect = entry.star && entry.star.getBoundingClientRect();
     return [entry.idx, rect ? {x:rect.left+rect.width/2, y:rect.top+rect.height/2} : null];
   }).filter(([, point]) => point));
-  updateSignalStyles(scale,mainRoadPx);
+  updateSignalStyles(scale,mainRoadPx,starCenters);
   const signalRects=signalEntries.map(entry=>({rect:entry.g.getBoundingClientRect()}));
   const badgeRects=layoutVoiceBadges(scale,entries,starCenters);
   const labelRects=layoutLabels(scale,entries,starCenters,badgeRects.concat(signalRects));
@@ -2425,29 +2501,85 @@ chooser.addEventListener('click', e => e.stopPropagation());
 document.addEventListener('click', () => { hideDetail(); hideChooser(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape'){ hideDetail(true); hideChooser(); } });
 
-/* ---------- ズーム (操作位置を中心に維持・全canvasまで縮小可) ---------- */
+/* ---------- 表示範囲・現在地・ズーム ---------- */
 const wrap = document.getElementById('mapwrap');
 const ZOOM_STEP = 1.45;
 const MIN_VIEWBOX = {width:176, height:268};
-function clampViewBox(box){
-  const width = Math.min(FULL_VIEWBOX.width, Math.max(MIN_VIEWBOX.width, box.width));
-  const height = Math.min(FULL_VIEWBOX.height, Math.max(MIN_VIEWBOX.height, box.height));
-  const minX = FULL_VIEWBOX.x, maxX = FULL_VIEWBOX.x + FULL_VIEWBOX.width - width;
-  const minY = FULL_VIEWBOX.y, maxY = FULL_VIEWBOX.y + FULL_VIEWBOX.height - height;
-  return {x:Math.max(minX, Math.min(maxX, box.x)),
-    y:Math.max(minY, Math.min(maxY, box.y)), width, height};
+const VIEW_BOUNDS = {x:-PAD, y:-PAD, width:W+2*PAD, height:H+2*PAD};
+const shopXs = GEO.shops.map(s => s.x), shopYs = GEO.shops.map(s => s.y);
+const COMMERCIAL_BOUNDS = {
+  minX:Math.min(...shopXs), maxX:Math.max(...shopXs),
+  minY:Math.min(...shopYs), maxY:Math.max(...shopYs)
+};
+const COMMERCIAL_VIEWBOX = {
+  x:COMMERCIAL_BOUNDS.minX-15, y:COMMERCIAL_BOUNDS.minY-15,
+  width:COMMERCIAL_BOUNDS.maxX-COMMERCIAL_BOUNDS.minX+30,
+  height:COMMERCIAL_BOUNDS.maxY-COMMERCIAL_BOUNDS.minY+30
+};
+function mapFrameAspect(){
+  const width=viewport.clientWidth, height=viewport.clientHeight;
+  return width>0 && height>0 ? width/height : INITIAL_VIEWBOX.width/INITIAL_VIEWBOX.height;
 }
-function setMapViewBox(box){
-  const next = clampViewBox(box);
+function fitBoxToAspect(box,aspect){
+  const next={x:box.x,y:box.y,width:box.width,height:box.height};
+  if (!(aspect>0)) return next;
+  const current=next.width/next.height;
+  if (current>aspect){
+    const height=next.width/aspect;
+    next.y-=(height-next.height)/2; next.height=height;
+  } else {
+    const width=next.height*aspect;
+    next.x-=(width-next.width)/2; next.width=width;
+  }
+  return next;
+}
+function reshapeBoxToAspect(box,aspect){
+  if (!(aspect>0)) return box;
+  const area=Math.max(1,box.width*box.height), width=Math.sqrt(area*aspect), height=width/aspect;
+  return {x:box.x+(box.width-width)/2,y:box.y+(box.height-height)/2,width,height};
+}
+function maxViewBoxForAspect(aspect){
+  let width=VIEW_BOUNDS.width, height=width/aspect;
+  if (height>VIEW_BOUNDS.height){ height=VIEW_BOUNDS.height; width=height*aspect; }
+  return {x:VIEW_BOUNDS.x+(VIEW_BOUNDS.width-width)/2,
+    y:VIEW_BOUNDS.y+(VIEW_BOUNDS.height-height)/2,width,height};
+}
+function clampViewBox(box){
+  const centerX=box.x+box.width/2, centerY=box.y+box.height/2;
+  let width=Math.max(.001,box.width), height=Math.max(.001,box.height);
+  const grow=Math.max(1,MIN_VIEWBOX.width/width,MIN_VIEWBOX.height/height);
+  width*=grow; height*=grow;
+  const shrink=Math.min(1,VIEW_BOUNDS.width/width,VIEW_BOUNDS.height/height);
+  width*=shrink; height*=shrink;
+  const minX=VIEW_BOUNDS.x, maxX=VIEW_BOUNDS.x+VIEW_BOUNDS.width-width;
+  const minY=VIEW_BOUNDS.y, maxY=VIEW_BOUNDS.y+VIEW_BOUNDS.height-height;
+  return {x:Math.max(minX, Math.min(maxX, centerX-width/2)),
+    y:Math.max(minY, Math.min(maxY, centerY-height/2)), width, height};
+}
+function setMapViewBox(box,mode){
+  const next = mode==='whole' || mode==='initial' ? box : clampViewBox(box);
+  if (mode) mapViewMode=mode;
   svg.setAttribute('viewBox', [next.x, next.y, next.width, next.height].join(' '));
   updateZoomButtons();
 }
+function applyResponsiveMapView(){
+  if (!document.body.classList.contains('map-open')) return;
+  const aspect=mapFrameAspect();
+  let next;
+  if (mapViewMode==='initial') next=fitBoxToAspect(INITIAL_VIEWBOX,aspect);
+  else if (mapViewMode==='whole') next=fitBoxToAspect(COMMERCIAL_VIEWBOX,aspect);
+  else {
+    const vb=svg.viewBox.baseVal;
+    next=reshapeBoxToAspect({x:vb.x,y:vb.y,width:vb.width,height:vb.height},aspect);
+  }
+  setMapViewBox(next,mapViewMode);
+}
 function updateZoomButtons(){
   const vb = svg.viewBox.baseVal;
+  const max=maxViewBoxForAspect(vb.width/Math.max(.001,vb.height));
   document.getElementById('zin').disabled = vb.width <= MIN_VIEWBOX.width + .01 &&
     vb.height <= MIN_VIEWBOX.height + .01;
-  document.getElementById('zout').disabled = vb.width >= FULL_VIEWBOX.width - .01 &&
-    vb.height >= FULL_VIEWBOX.height - .01;
+  document.getElementById('zout').disabled = vb.width >= max.width - .01 && vb.height >= max.height - .01;
 }
 function zoomViewBoxAt(factor, clientX, clientY){
   const vb = svg.viewBox.baseVal;
@@ -2461,16 +2593,137 @@ function zoomViewBoxAt(factor, clientX, clientY){
     ratioX = Math.max(0, Math.min(1, (anchorX-vb.x)/vb.width));
     ratioY = Math.max(0, Math.min(1, (anchorY-vb.y)/vb.height));
   }
-  let width = vb.width * factor, height = vb.height * factor;
-  if (factor > 1 && (width >= FULL_VIEWBOX.width || height >= FULL_VIEWBOX.height)){
-    width = FULL_VIEWBOX.width; height = FULL_VIEWBOX.height;
-  }
-  setMapViewBox({x:anchorX-width*ratioX, y:anchorY-height*ratioY, width, height});
+  const width = vb.width * factor, height = vb.height * factor;
+  setMapViewBox({x:anchorX-width*ratioX, y:anchorY-height*ratioY, width, height},'custom');
   hideDetail(); hideChooser();
 }
 function zoomViewBox(factor){ zoomViewBoxAt(factor, NaN, NaN); }
 document.getElementById('zin').addEventListener('click', () => zoomViewBox(1/ZOOM_STEP));
 document.getElementById('zout').addEventListener('click', () => zoomViewBox(ZOOM_STEP));
+
+const locateButton=document.getElementById('locatebtn');
+const wholeButton=document.getElementById('wholebtn');
+const locationStatus=document.getElementById('locationStatus');
+const LOCATION_DISCLOSURE=locationStatus.textContent;
+let locationStatusTimer=0;
+let currentLocationPoint=null;
+function announceLocationStatus(message,hideAfter=4500){
+  window.clearTimeout(locationStatusTimer);
+  locationStatus.classList.add('is-visible');
+  locationStatus.textContent=message;
+  if (hideAfter>0){
+    locationStatusTimer=window.setTimeout(()=>{
+      locationStatus.classList.remove('is-visible');
+      locationStatus.textContent=LOCATION_DISCLOSURE;
+    },hideAfter);
+  }
+}
+function updateCurrentLocationStyle(scale){
+  const dot=gCurrent.querySelector('.current-location-marker');
+  if (!dot || !currentLocationPoint || !(scale>0)) return;
+  dot.setAttribute('transform','translate('+currentLocationPoint.x+','+currentLocationPoint.y+') scale('+(1/scale)+')');
+}
+function showCurrentLocation(point,accuracy){
+  currentLocationPoint={x:point.x,y:point.y,accuracy};
+  gCurrent.innerHTML='';
+  el('circle',{cx:point.x,cy:point.y,r:Math.max(1,accuracy),class:'current-location-accuracy'},gCurrent);
+  const marker=el('g',{class:'current-location-marker'},gCurrent);
+  el('circle',{cx:0,cy:0,r:12,class:'current-location-halo'},marker);
+  el('circle',{cx:0,cy:0,r:8,class:'current-location-dot'},marker);
+  el('circle',{cx:-2.5,cy:-2.5,r:2,fill:'rgba(255,255,255,.72)'},marker);
+  gCurrent.setAttribute('visibility','visible');
+  updateCurrentLocationStyle(currentMapScale);
+}
+function geoToMap(latitude,longitude){
+  const p=GEO.meta.proj, angle=p.rot_deg*Math.PI/180;
+  const x0=(longitude-p.lon0)*111320*p.cosf;
+  const y0=-(latitude-p.lat0)*111320;
+  const gx=x0*Math.cos(angle)-y0*Math.sin(angle);
+  const gy=x0*Math.sin(angle)+y0*Math.cos(angle);
+  return {x:gx-GEO.meta.minx,y:gy-GEO.meta.miny};
+}
+function commercialDistance(point){
+  const cx=(COMMERCIAL_BOUNDS.minX+COMMERCIAL_BOUNDS.maxX)/2;
+  const cy=(COMMERCIAL_BOUNDS.minY+COMMERCIAL_BOUNDS.maxY)/2;
+  return Math.hypot(point.x-cx,point.y-cy);
+}
+function withinCommercialArea(point){
+  const withinEnds=point.y>=COMMERCIAL_BOUNDS.minY-140 && point.y<=COMMERCIAL_BOUNDS.maxY+140;
+  const nearShop=GEO.shops.some(s=>Math.hypot(point.x-s.x,point.y-s.y)<=300);
+  const nearStreet=GEO.busway.some(seg=>seg.slice(1).some((b,i)=>
+    pointSegmentInfo([point.x,point.y],seg[i],b).distance<=220));
+  return withinEnds && (nearShop || nearStreet);
+}
+function locationErrorMessage(error){
+  if (error && error.code===1) return '位置情報は許可されませんでした';
+  if (error && error.code===3) return '現在地の取得に時間がかかっています';
+  return '現在地を取得できませんでした';
+}
+function shopsInViewBox(box){
+  return GEO.shops.filter(s => s.x>=box.x && s.x<=box.x+box.width &&
+    s.y>=box.y && s.y<=box.y+box.height);
+}
+function currentLocationViewBox(point){
+  const vb=svg.viewBox.baseVal;
+  const base={x:point.x-vb.width/2,y:point.y-vb.height/2,width:vb.width,height:vb.height};
+  let next=clampViewBox(base);
+  if (shopsInViewBox(next).length>=3) return next;
+
+  const whole=fitBoxToAspect(COMMERCIAL_VIEWBOX,mapFrameAspect());
+  const maxFactor=Math.max(1,Math.min(whole.width/base.width,whole.height/base.height));
+  const fifthScale=GEO.shops.map(s => Math.max(
+    Math.abs(s.x-point.x)/(base.width/2),
+    Math.abs(s.y-point.y)/(base.height/2)
+  )).sort((a,b)=>a-b)[Math.min(4,GEO.shops.length-1)] || 1;
+  let factor=Math.min(maxFactor,Math.max(1,fifthScale*1.001));
+  const expanded=()=>clampViewBox({x:point.x-base.width*factor/2,y:point.y-base.height*factor/2,
+    width:base.width*factor,height:base.height*factor});
+  next=expanded();
+  while (shopsInViewBox(next).length<5 && factor<maxFactor-.001){
+    factor=Math.min(maxFactor,factor*1.05);
+    next=expanded();
+  }
+  return next;
+}
+function nearestShopMessage(point,accuracy){
+  const nearest=GEO.shops.map(s => {
+    const actual=trueShopPoint(s);
+    return {s,actual,distance:Math.hypot(actual.x-point.x,actual.y-point.y)};
+  }).sort((a,b)=>a.distance-b.distance)[0];
+  const prefix=accuracy>=50 ? '現在地（誤差 約'+Math.round(accuracy)+'m）を表示しました。' :
+    '現在地を表示しました。';
+  if (!nearest) return prefix;
+  const direction=nearest.actual.x>=point.x ? '東へ約' : '西へ約';
+  return prefix+'いちばん近いのは '+nearest.s.name+'（'+direction+Math.round(nearest.distance)+'m）';
+}
+function requestCurrentLocation(){
+  if (!navigator.geolocation){ announceLocationStatus('この端末では現在地を使えません'); return; }
+  locateButton.disabled=true;
+  announceLocationStatus('現在地を確認しています…',0);
+  navigator.geolocation.getCurrentPosition(position=>{
+    locateButton.disabled=false;
+    const point=geoToMap(position.coords.latitude,position.coords.longitude);
+    if (!withinCommercialArea(point)){
+      const km=commercialDistance(point)/1000;
+      announceLocationStatus('今は中山から'+(km<10?km.toFixed(1):Math.round(km))+'km離れています');
+      return;
+    }
+    const accuracy=Math.max(1,Number(position.coords.accuracy)||1);
+    showCurrentLocation(point,accuracy);
+    setMapViewBox(currentLocationViewBox(point),'custom');
+    announceLocationStatus(nearestShopMessage(point,accuracy));
+    scheduleMapScaleStyles();
+  },error=>{
+    locateButton.disabled=false;
+    announceLocationStatus(locationErrorMessage(error));
+  },{enableHighAccuracy:true,timeout:10000,maximumAge:0});
+}
+locateButton.addEventListener('click',requestCurrentLocation);
+wholeButton.addEventListener('click',()=>{
+  setMapViewBox(fitBoxToAspect(COMMERCIAL_VIEWBOX,mapFrameAspect()),'whole');
+  announceLocationStatus('端から端まで表示中',2500);
+  hideDetail(); hideChooser(); scheduleMapScaleStyles();
+});
 
 let gestureZoomFrame = 0, gestureZoomFactor = 1, gestureZoomPoint = null;
 function queueGestureZoom(factor, clientX, clientY){
@@ -2564,9 +2817,15 @@ viewport.addEventListener('wheel', e => {
   const factor=Math.max(.72,Math.min(1.39,Math.exp(e.deltaY*.0015)));
   queueGestureZoom(factor,e.clientX,e.clientY);
 }, {passive:false});
+let responsiveMapFrame=0;
 window.addEventListener('resize', () => {
   hideChooser();
-  scheduleMapScaleStyles();
+  if (responsiveMapFrame) cancelAnimationFrame(responsiveMapFrame);
+  responsiveMapFrame=requestAnimationFrame(()=>{
+    responsiveMapFrame=0;
+    applyResponsiveMapView();
+    scheduleMapScaleStyles();
+  });
   if (detailIndex >= 0) requestAnimationFrame(() => detailRail.scrollTo({left:detailIndex * detailRail.clientWidth, behavior:'auto'}));
 });
 

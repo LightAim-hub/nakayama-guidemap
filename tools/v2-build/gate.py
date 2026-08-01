@@ -8,7 +8,7 @@
 
 = 正しい位置関係 と 見やすさ が同時に成り立つこと。片方だけでは不合格。
 
-店ごとに N1..N51 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
+店ごとに N1..N52 を判定し、全部通った店だけ「歩ける (NAVIGABLE)」とする。
 1件でも落ちれば exit 1。
 
   N1..N10  位置関係と歩きズームでの見やすさ
@@ -69,7 +69,11 @@ MAP_FRAME_JS = """() => {
 
   // 地図の矩形に重なって見えている要素を、地図より手前(z)にあるものだけ拾う
   const cands = ['header','#controls','footer.credit','.zoomctl','#srcinfo','#editbar',
-                 '.strip-guide','#stripview','.detail-panel','#listpanel'];
+                 '.strip-guide','#stripview','.detail-panel','#listpanel',
+                 // 2026-08-01: 地図に浮く飾り・説明も対象にする。現在地の断り書きが
+                 // 出っぱなしで下のタップを塞いでいたのを見逃していた。
+                 '.geo-hint','#geoHint','.map-hint','.map-note','.mapfloat',
+                 '.locate-note','#locationStatus','[role="status"]'];
   for (const sel of cands) {
     for (const e of document.querySelectorAll(sel)) {
       const c = getComputedStyle(e);
@@ -79,8 +83,29 @@ MAP_FRAME_JS = """() => {
       const ox = Math.max(0, Math.min(r.right, v.right) - Math.max(r.x, v.x));
       const oy = Math.max(0, Math.min(r.bottom, v.bottom) - Math.max(r.y, v.y));
       if (ox<=0 || oy<=0) continue;
+      // 2026-08-01 精密化。当初は「地図の上に何かが1pxでも乗ったら不合格」にしていたが、
+      // それだと Google マップや Uber Eats が普通にやっている「隅に浮く丸ボタン
+      // (現在地・拡大縮小)」まで禁止してしまい、実装は全部を下帯に押し込むしかなくなる。
+      // ボスが「見切れてる」と言ったのは 横いっぱいの帯が216px乗っていたからで、
+      // 隅の44pxの丸ボタンのことではない。
+      // 不合格にするのは (a) 横いっぱいに広がる帯 (b) 地図の面積を大きく食うもの。
+      const spansWidth = ox >= v.width * 0.60;
+      const eatsArea   = (ox*oy) >= (v.width * v.height) * 0.12;
+      // 小さくても「ずっと居座って下のタップを塞ぐ」ものは別問題。
+      // 2026-08-01: 現在地の断り書き (204x32px・面積3.4%) が地図の左上に出っぱなしで、
+      // pointer-events:auto のまま下の店へのタップを塞いでいた。
+      // 面積が小さいので (a)(b) では引っかからない。押せるもの (button/a/[role=button]) は
+      // 操作なので除く。それ以外の飾り・説明は タップを通す (pointer-events:none) こと。
+      const isControl = e.matches('button, a[href], [role="button"], input, select, textarea')
+                        || !!e.querySelector('button, a[href], [role="button"], input');
+      const blocksTap = !isControl && c.pointerEvents !== 'none';
+      if (!spansWidth && !eatsArea && !blocksTap) continue;
       R.occ.push({sel, area: Math.round(ox*oy), rect:[Math.round(r.x),Math.round(r.y),
-                  Math.round(r.width),Math.round(r.height)], z:c.zIndex});
+                  Math.round(r.width),Math.round(r.height)],
+                  why: spansWidth ? '横いっぱいの帯'
+                       : (eatsArea ? '地図の面積を12%以上食う'
+                                   : '出っぱなしで下のタップを塞ぐ'),
+                  z:c.zIndex});
     }
   }
   // 地図が本当に見えている縦幅 = viewport から 上下の覆いを引いたもの
@@ -94,6 +119,17 @@ MAP_FRAME_JS = """() => {
   }
   R.band = [Math.round(top), Math.round(bot)];
   R.openRatio = +(Math.max(0, bot-top) / innerHeight).toFixed(3);
+
+  // N52 地図(SVG)が地図の枠を埋めているか。埋めていないと下が空いて
+  // 「枠の中で地図が見切れている」ように見える。
+  const svg = document.getElementById('map');
+  if (svg) {
+    const sr = svg.getBoundingClientRect();
+    R.svgH = Math.round(sr.height);
+    R.frameH = Math.round(Math.max(0, bot - top));
+    R.fillRatio = R.frameH > 0 ? +(sr.height / R.frameH).toFixed(3) : 0;
+    R.deadPx = Math.max(0, R.frameH - Math.round(sr.height));
+  }
 
   // 見出しと「地図を閉じる/戻る」手段が、地図の帯の外(上か下の固定部)にあるか
   const vis = e => { if(!e) return false; const c=getComputedStyle(e);
@@ -267,7 +303,21 @@ SETBACK = 2.0              # 道路の帯からこれだけ離れていること
 #   ★は 6px 未満だと見えない (MIN_STAR_PX)。★ ≤ 0.60 × 道路幅 を満たすには
 #   道路幅 ≥ 10px が必要で、10px では★がちょうど6pxで余裕がない。12px なら★7.2px。
 ROAD_FLOOR_PX = 12.0       # バス通りが通りとして読める最小の描画幅
-STAR_ROAD_MAX = 0.60       # ★の幅 / バス通りの描画幅 の上限 (超えると通りを覆う)
+# 2026-08-01 全面改訂。
+# 元は STAR_ROAD_MAX = 0.60 (★ ≤ 道路幅の0.60倍) で、道路12px から ★7.2px が決まっていた。
+# 理由は「★が通りより太いと通りを覆う」。これが誤りだった。
+#   ・実測すると ★7.2px に対して店名は11〜18px。地図の主役である店の印が、文字の半分以下。
+#   ・ボスの指摘「星がちっちゃくて見にくい」はここ。
+#   ・Google マップも Uber Eats も、ピンは20〜30px あって道路に堂々と重なる。
+#     それで位置が狂わないのは「ピンのアンカー点が正確な位置を指す」から。
+#     正確さは 印を小さくすることで担保するものではない。アンカーで担保する。
+#   ・「通りを覆う」は作り手の美意識であって、利用者の困りごとではない。
+#     利用者の困りごとは「見えない・押せる場所が分からない」。
+# よって: 下限 (見える大きさ) を主にし、上限は暴走よけの緩い枠にする。
+# 「どちら側の店か」は N15 の第1段 (★の中心が帯の外) で引き続き厳密に守る。
+# これがボスの受け入れ条件「この店舗はここの向かい側あってるね」の担保。
+STAR_MIN_VISIBLE_PX = 14.0 # 既定ズームで★がこれ未満だと、指で押す対象として見えない
+STAR_ROAD_MAX = 2.0        # ★の幅 / バス通りの描画幅 の上限 (暴走よけ)
 # 「自分の★が明確に最近傍」= 他のどの★より25%以上近い。
 # 0.55 (=2倍近い) にすると、人が問題なく読めるラベルまで非表示を強いるので採らない。
 # ボスの訴えは「どの星がどの店名か分からない」なので、順序が明確なら足りる。
@@ -275,7 +325,11 @@ LABEL_MARGIN_MAX = 0.80
 # ★の先端が帯にかすってよい量 (m)。現実が近い店 (中心線から9.2m 等) では
 # 可読な大きさの★は必ず縁に触れる。乗っている (中心が内側) は N15 で別に不合格。
 # 実測の最大は1.2m。2.0m を上限にして、これ以上悪化したら不合格になるようにする。
-MAX_STAR_ROAD_BITE = 2.0
+# 2026-08-01: ★を見える大きさ(14px以上)にすると、体は帯に重なる。
+# Google マップのピンも道路に重なる。重なること自体は利用者の困りごとではない。
+# 守るのは「中心がどちら側にあるか」(N15 の第1段)。食い込み量の上限は
+# ★が14pxになった分だけ緩める (7.2px→14px で半径が約2倍なので 2.0m→5.0m)。
+MAX_STAR_ROAD_BITE = 5.0
 
 # ---- 2026-07-30 追加 (N20-N23): UI/UX ----
 # ボス指示「文字の大きさ・位置・ボタンの配置と押しやすさを、位置関係を変えずに」。
@@ -340,6 +394,13 @@ SEARCH_HITS_MAX = 14       # 1語で14件超が返るなら絞れていない (�
 # N29 は「入れ物からのはみ出し」、N44 は「押せるもの同士の重なり」しか見ておらず、
 # 押せない飾りどうしの重なりを見る項目が無かった。
 STRIP_DECOR_OVERLAP_MAX = 0    # 通りの中の道路名・信号どうしが重なってはいけない
+
+# N52 (2026-08-01)。ボス指摘「なんで枠内というか地図が見切れてるんだろう」。
+# 実測すると 390x844 で 地図の枠は744px あるのに 地図(SVG)は594px しかなく、
+# 下に150pxの空白があった。SVG が width:100% / height:auto で、
+# viewBox の縦横比(424:646)がそのまま高さを決めていたため、枠を埋めていない。
+# 利用者から見れば「地図が枠の中で上に寄っていて、下がスカスカ」= 見切れて見える。
+MAP_FILL_MIN_RATIO = 0.98      # 地図(SVG)は 地図の枠の高さの98%以上を埋めること
 # 横向きの地図の床。実測 (2026-07-31) では 640x360 で地図が57px・844x390 で51px しかなく、
 # 上下のUIが画面の87%を占めていた。この状態では地図として使えない。
 # 横向きは横に余裕があるので、カテゴリと検索を横の列へ逃がせば縦は
@@ -1327,7 +1388,7 @@ fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "
                          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27",
                          "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39",
                          "N40", "N41", "N42", "N43", "N44",
-                         "N45", "N46", "N47", "N48", "N49", "N50", "N51")}
+                         "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -1525,7 +1586,13 @@ def _zoom_checks(D, zname, is_default):
             fails["N11"].append("%s でバス通りが%.1fpx (通りとして読める床%.0fpx)"
                                 % (zname, main, ROAD_FLOOR_PX))
         for r in rows:
-            if main and r["starPxNow"] / main > STAR_ROAD_MAX:
+            # 主: 指で押す対象として見える大きさか (2026-08-01 これが本題になった)
+            if r["starPxNow"] < STAR_MIN_VISIBLE_PX:
+                fails["N12"].append("%s ★が%.1fpx しかない (最低%.0f・店名は14-18pxなのに"
+                                    "主役の店の印がそれより小さい)"
+                                    % (r["name"], r["starPxNow"], STAR_MIN_VISIBLE_PX))
+            # 従: 大きくしすぎて地図が印だらけになっていないか
+            elif main and r["starPxNow"] / main > STAR_ROAD_MAX:
                 fails["N12"].append("%s ★%.1fpx が通り%.1fpx の%.2f倍 (上限%.2f)"
                                     % (r["name"], r["starPxNow"], main,
                                        r["starPxNow"] / main, STAR_ROAD_MAX))
@@ -1929,8 +1996,9 @@ if REND:
         mf = u.get("mapFrame")
         if mf and mf.get("vp"):
             for o in sorted(mf.get("occ") or [], key=lambda x: -x["area"]):
-                fails["N45"].append("地図の上に %s が %dpx² 乗っている %s [%s]"
-                                    % (o["sel"], o["area"], o["rect"], dev))
+                fails["N45"].append("地図の上に %s が %s (%dpx²) 乗っている %s [%s]"
+                                    % (o["sel"], o.get("why", ""), o["area"],
+                                       o["rect"], dev))
             if port and mf.get("openRatio", 0) < MAP_OPEN_MIN_RATIO:
                 fails["N45"].append("地図を開いても地図は画面の%.0f%%しかない (最低%.0f%%) [%s]"
                                     % (mf["openRatio"] * 100, MAP_OPEN_MIN_RATIO * 100, dev))
@@ -1944,6 +2012,14 @@ if REND:
             elif not top_back:
                 fails["N46"].append("地図から戻る手段が地図の中に埋もれている "
                                     "(帯の外に置く) [%s]" % dev)
+            # N52 地図が枠を埋めているか (縦向きのみ。横向きは前提が違う)
+            if port and mf.get("fillRatio") is not None:
+                if mf["fillRatio"] < MAP_FILL_MIN_RATIO:
+                    fails["N52"].append("地図が枠の高さ%dpx に対して%dpx しかなく、"
+                                        "下に%dpx の空白がある (枠の%.0f%%・最低%.0f%%) [%s]"
+                                        % (mf.get("frameH", 0), mf.get("svgH", 0),
+                                           mf.get("deadPx", 0), mf["fillRatio"] * 100,
+                                           MAP_FILL_MIN_RATIO * 100, dev))
             for c in (mf.get("cut") or []):
                 fails["N47"].append("地図の「%s」が%s %s [%s]"
                                     % (c["t"], c["why"], c["rect"], dev))
@@ -2046,7 +2122,7 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N5": "通りの東西と向かい合いが成立", "N6": "目印の信号が使える",
        "N7": "移動が通りに沿う方向に偏っていない", "N8": "★同士が重なっていない",
        "N9": "公園との内外が真座標と一致", "N10": "通り沿いの間隔が歪んでいない",
-       "N11": "既定ズームで通りが通りとして読める", "N12": "既定ズームで★が通りを覆わない",
+       "N11": "既定ズームで通りが通りとして読める", "N12": "★が指で押す対象として見える大きさ",
        "N13": "ラベルが他店の★を内包しない", "N14": "ラベルの縁から自分の★が明確に最近傍",
        "N15": "★が道路の帯の上に乗っていない",
        "N16": "座標の出典(src)が書き換えられていない",
@@ -2082,12 +2158,13 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N48": "二列のカード同士に押し分けられる隙間がある",
        "N49": "絞り込んだ結果が1画面で見渡せる",
        "N50": "探しそうな言葉で店が引ける",
-       "N51": "通りの中の道路名・信号が重なっていない"}
+       "N51": "通りの中の道路名・信号が重なっていない",
+       "N52": "地図が枠を埋めている (下に空白が残らない)"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
               "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43", "N44",
-              "N45", "N46", "N47", "N48", "N49", "N50", "N51"):
+              "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
