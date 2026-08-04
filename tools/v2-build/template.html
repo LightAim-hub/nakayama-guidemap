@@ -12,6 +12,8 @@
     --paper:#FBF4E2; --paper-deep:#F1E5C8; --ink:#5C4327; --ink-soft:#7A5C3B;
     --accent:#C97B3D; --voice:#26747B;
     --c-medical:#a8875f; --c-life:#4a9d3f; --c-food:#e8902f; --c-edu:#3f7ec7; --c-place:#2fa3a0;
+    --photo-backdrop:rgba(35,25,15,.9); --photo-surface:#fffaf0; --photo-rule:#d8c4a0;
+    --photo-focus:rgba(201,123,61,.72); --ease-photo:cubic-bezier(.16,1,.3,1); --dur-photo:140ms;
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;}
@@ -85,7 +87,9 @@
     header h1 small{ display:none; }
   }
 
-  #viewport{ flex:1; overflow:auto; position:relative; background:var(--paper); -webkit-overflow-scrolling:touch; touch-action:pan-x pan-y; }
+  #viewport{ flex:1; overflow:auto; position:relative; background:var(--paper); -webkit-overflow-scrolling:touch;
+    touch-action:none; cursor:grab; }
+  #viewport.is-panning{ cursor:grabbing; user-select:none; }
   #mapwrap{ width:100%; max-width:1000px; margin:0 auto; position:relative; }
   svg{ display:block; width:100%; height:auto; }
   body.map-open #mapwrap, body.map-open #map{ width:100%; height:100%; }
@@ -113,6 +117,8 @@
   .hit:focus-visible .star{ filter:drop-shadow(0 0 4px rgba(201,123,61,.95)); }
   .hit:focus .star, .hit:hover .star{ stroke-width:4; }
   .hit.dim{ opacity:.25; pointer-events:none; }
+  body.map-filtering .hit.dim .shoplabel,
+  body.map-filtering .hit.dim .voice-badge{ display:none !important; }
   .hit.glowing .star{ filter:drop-shadow(0 0 5px rgba(233,150,60,.95)); stroke-width:4; }
   .current-location-accuracy{ fill:rgba(38,116,123,.14); stroke:rgba(38,116,123,.5);
     stroke-width:1.5; vector-effect:non-scaling-stroke; pointer-events:none; }
@@ -129,9 +135,6 @@
   .shoplabel.b{ font-weight:700; }
   .shoplabel.detail{ opacity:1; }
   .hit.selected .shoplabel{ fill:#9a4f28; stroke:#fffaf0; stroke-width:9px; }
-  .faraway.detail{ opacity:1; }
-  .roadname{ font-family:'Yusei Magic',sans-serif; fill:var(--ink-soft); opacity:.75;
-    paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
   .parkname{ font-family:'Yusei Magic',sans-serif; fill:#6d8a3c;
     paint-order:stroke; stroke:var(--paper); stroke-width:3px; }
   .rivername{ font-family:'Yusei Magic',sans-serif; fill:#3d6579;
@@ -139,11 +142,6 @@
   .deco{ font-family:'Yusei Magic',sans-serif; fill:var(--ink-soft); }
   .direction-sign rect{ fill:#fffaf0; stroke:var(--ink-soft); stroke-width:2; }
   .direction-sign text{ font-family:'Yusei Magic',sans-serif; fill:var(--ink); font-size:15px; font-weight:700; }
-  .faraway{ stroke:rgba(122,92,59,.7); stroke-dasharray:4 4; fill:none; }
-  .label-leader{ stroke:rgba(122,92,59,.62); stroke-width:1.35; stroke-dasharray:3.2 4.6;
-    stroke-linecap:round; vector-effect:non-scaling-stroke; pointer-events:none; }
-  .label-leader.dim{ opacity:.25; }
-
   .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
     clip:rect(0,0,0,0); white-space:nowrap; border:0; }
   .detail-panel{ position:fixed; inset:0 0 0 auto; z-index:37; width:min(400px,calc(100vw - 24px)); height:100dvh;
@@ -172,6 +170,50 @@
   .detail-cat-label{ color:var(--detail-cat-ink); }
   .detail-card h2{ margin-top:13px; padding-right:6px; font-family:'Yusei Magic',sans-serif; font-size:1.42rem;
     line-height:1.35; letter-spacing:.01em; }
+  .detail-gallery{ display:grid; gap:8px; margin-top:14px; }
+  .detail-photo-main{ position:relative; display:block; width:100%; aspect-ratio:16/6.5; overflow:hidden; padding:0;
+    border:2px solid var(--photo-rule); border-radius:14px; background:var(--paper-deep); cursor:zoom-in;
+    transition:transform var(--dur-photo) var(--ease-photo); }
+  .detail-photo-main picture, .detail-photo-main img{ display:block; width:100%; height:100%; }
+  .detail-gallery img, .photo-lightbox img{ aspect-ratio:auto 4/3; }
+  .detail-photo-main img{ object-fit:cover; opacity:1; }
+  .detail-photo-thumbs{ display:flex; flex-wrap:wrap; gap:8px; }
+  .detail-photo-thumb{ position:relative; flex:0 0 62px; width:62px; height:46px; min-width:44px; min-height:44px;
+    overflow:hidden; padding:0; border:2px solid transparent; border-radius:9px; background:var(--paper-deep); cursor:pointer;
+    transition:transform var(--dur-photo) var(--ease-photo), opacity var(--dur-photo) var(--ease-photo); }
+  .detail-photo-thumb picture, .detail-photo-thumb img{ display:block; width:100%; height:100%; }
+  .detail-photo-thumb img{ object-fit:cover; opacity:.72; }
+  .detail-photo-thumb[aria-pressed="true"]{ border-color:var(--voice); }
+  .detail-photo-thumb[aria-pressed="true"] img{ opacity:1; }
+  .detail-photo-main:focus-visible, .detail-photo-thumb:focus-visible, .photo-lightbox-close:focus-visible{
+    outline:3px solid var(--photo-focus); outline-offset:2px; }
+  .detail-photo-main:active, .detail-photo-thumb:active, .photo-lightbox-close:active{ transform:translateY(1px); }
+  .detail-photo-main:disabled, .detail-photo-thumb:disabled, .photo-lightbox-close:disabled{
+    opacity:.5; cursor:not-allowed; }
+  .detail-photo-main.is-loading img, .detail-photo-thumb.is-loading img, .photo-lightbox-frame.is-loading img{ opacity:.38; }
+  .detail-photo-main.is-success img, .detail-photo-thumb.is-success img, .photo-lightbox-frame.is-success img{ opacity:1; }
+  .detail-photo-main.is-error::after, .photo-lightbox-frame.is-error::after{
+    content:'写真を読み込めませんでした'; position:absolute; inset:0; display:grid; place-items:center; padding:12px;
+    background:var(--paper-deep); color:var(--ink-soft); font-size:.78rem; font-weight:700; text-align:center; }
+  .detail-photo-thumb.is-error::after{ content:'×'; position:absolute; inset:0; display:grid; place-items:center;
+    background:var(--paper-deep); color:var(--ink-soft); font-weight:700; }
+  @media(hover:hover) and (pointer:fine){
+    .detail-photo-main:hover, .detail-photo-thumb:hover, .photo-lightbox-close:hover{ transform:translateY(-1px); }
+  }
+  .photo-lightbox{ position:fixed; inset:0; z-index:60; display:grid; place-items:center; padding:clamp(16px,4vw,40px);
+    background:var(--photo-backdrop); }
+  .photo-lightbox[hidden]{ display:none; }
+  .photo-lightbox-shell{ position:relative; width:min(100%,960px); max-height:calc(100dvh - 32px); display:grid; gap:10px;
+    justify-items:center; color:var(--photo-surface); }
+  .photo-lightbox-frame{ position:relative; display:grid; place-items:center; width:100%; min-height:160px; }
+  .photo-lightbox-frame picture{ display:grid; place-items:center; width:100%; }
+  .photo-lightbox-frame img{ display:block; max-width:100%; max-height:calc(100dvh - 120px); width:auto; height:auto;
+    object-fit:contain; border-radius:12px; }
+  .photo-lightbox-close{ position:absolute; z-index:1; top:8px; right:8px; width:44px; height:44px; border:2px solid var(--photo-rule);
+    border-radius:50%; background:var(--photo-surface); color:var(--ink); font:inherit; font-size:1rem; cursor:pointer;
+    transition:transform var(--dur-photo) var(--ease-photo); }
+  .photo-lightbox-caption{ max-width:70ch; padding-inline:52px; color:var(--photo-surface); font-size:.82rem;
+    line-height:1.5; text-align:center; }
   .detail-address{ display:flex; gap:8px; align-items:flex-start; margin-top:10px; color:var(--ink-soft);
     font-size:.82rem; line-height:1.55; }
   .detail-address::before{ content:'⌖'; flex:0 0 auto; color:var(--accent); font-weight:700; }
@@ -284,10 +326,13 @@
     border-top:3px solid #d8c4a0; border-radius:18px 18px 0 0; box-shadow:0 -10px 30px rgba(80,60,30,.3);
     max-height:calc(62vh - 2px); display:none; flex-direction:column; }
   #listpanel.show{ display:flex; }
-  #listpanel .lhead{ flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; padding:10px 14px; }
+  /* 上の余白は、パネルの外(二列表示のカード)と「閉じる」ボタンの指の間隔。
+     実測7.8pxで押し間違える距離だったので広げた (2026-08-04) */
+  #listpanel .lhead{ flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; padding:16px 14px 10px; }
   #listpanel .lhead h2{ font-size:.95rem; font-family:'Yusei Magic',sans-serif; }
   #listpanel .lclose{ width:44px; height:44px; border:0; background:transparent; font-size:1.1rem; color:var(--ink-soft); cursor:pointer; }
-  #listrows{ overflow:auto; -webkit-overflow-scrolling:touch; padding:8px 8px 14px; }
+  /* 上の余白は「閉じる」ボタンと1行目の指の間隔 (最低8px)。実測7.8pxだったので広げた */
+  #listrows{ overflow:auto; -webkit-overflow-scrolling:touch; padding:16px 8px 14px; }
   .lrow{ display:grid; grid-template-columns:14px minmax(0,1fr) auto; align-items:center; gap:4px 10px; width:100%; min-height:60px;
     border:0; border-bottom:1.5px dashed rgba(122,92,59,.25); background:transparent; padding:9px 10px;
     font:inherit; color:var(--ink); cursor:pointer; text-align:left; }
@@ -308,6 +353,9 @@
     .detail-card{ padding:16px 18px 14px; }
     .detail-card h2{ font-size:1.18rem; margin-top:9px; }
     .detail-address{ margin-top:7px; font-size:.76rem; }
+    .detail-gallery{ position:relative; margin-top:10px; }
+    .detail-photo-thumbs{ position:absolute; left:7px; bottom:7px; z-index:2; gap:6px; padding:3px;
+      border-radius:11px; background:rgba(255,250,240,.84); backdrop-filter:blur(2px); }
     .detail-statuses{ margin-top:9px; }
     .detail-status{ min-height:30px; padding:5px 9px; font-size:.68rem; }
     button.detail-status{ min-height:44px; }
@@ -534,6 +582,7 @@
   @media(prefers-reduced-motion:reduce){
     .chip, #chooser, .detail-panel{ transition:none; }
     .detail-rail{ scroll-behavior:auto; }
+    .detail-photo-main, .detail-photo-thumb, .photo-lightbox-close{ transition:none; }
   }
 </style>
 </head>
@@ -730,7 +779,6 @@ el('rect', {x:-PAD, y:-PAD, width:W+2*PAD, height:H+2*PAD, fill:'var(--paper)'},
 const gWater = el('g', {}, svg);
 const gRoads = el('g', {}, svg);
 const gNames = el('g', {}, svg);
-const gLead  = el('g', {}, svg);
 const gShops = el('g', {}, svg);
 const gDeco  = el('g', {}, svg);
 const gCurrent = el('g', {class:'current-location', 'aria-label':'現在地', visibility:'hidden'}, svg);
@@ -763,65 +811,17 @@ function pointSegmentInfo(p, a, b){
   const qx=a[0]+t*dx, qy=a[1]+t*dy, len=Math.hypot(dx,dy)||1;
   return {distance:Math.hypot(p[0]-qx,p[1]-qy), ux:dx/len, uy:dy/len};
 }
-function nearestRoadUnit(p){
-  let best={distance:Infinity,ux:0,uy:1};
-  GEO.roads.forEach(r => r.pts.slice(1).forEach((b,i) => {
-    const hit=pointSegmentInfo(p,r.pts[i],b);
-    if (hit.distance < best.distance) best=hit;
-  }));
-  return best;
-}
-const SIGNAL_SHIFT_BY_KEY = new Map([['580.9,1273.1',-11.5]]);
 const signalEntries = (GEO.signals||[]).map((p,idx) => {
-  const shiftM=SIGNAL_SHIFT_BY_KEY.get(p[0]+','+p[1])||0;
-  const road=nearestRoadUnit(p), x=p[0]+road.ux*shiftM, y=p[1]+road.uy*shiftM;
-  const g=el('g',{class:'signal-icon','data-i':idx,'data-shift-m':shiftM,
+  const x=p[0], y=p[1];
+  const g=el('g',{class:'signal-icon','data-i':idx,
     transform:'translate('+x+','+y+')'},gRoads);
   el('rect',{x:-11,y:-5.5,width:22,height:11,rx:5.5,fill:'#fffdf5',stroke:'var(--ink)','stroke-width':1.5},g);
   el('circle',{cx:-6,cy:0,r:2.7,fill:'#e4574d'},g);
   el('circle',{cx:0,cy:0,r:2.7,fill:'#f0c93f'},g);
   el('circle',{cx:6,cy:0,r:2.7,fill:'#57b06a'},g);
-  return {p,g,x,y,shiftM};
+  return {p,g,x,y};
 });
 
-/* 道路名 (実名・表示域内に実在する道路のみ) */
-const ROADLBL = [
-  {match:'中山幹線１号線', text:'中山バス通り', dy:-18, targetY:1455},
-  {match:'荒巻本沢街道線', text:'荒巻本沢街道', dy:-11},
-  {match:'通町中山線', text:'通町中山線', dy:-11, targetY:900, size:13},
-  {match:'北山実沢線', text:'北山実沢線', dy:-11, size:13},
-  {match:'荒巻泉線', text:'荒巻泉線', dy:-11, targetY:740, size:13},
-];
-const usedLbl = new Set();
-ROADLBL.forEach((rl, i) => {
-  let best = null;
-  GEO.roads.forEach(r => {
-    if (!r.name || r.name.indexOf(rl.match) < 0) return;
-    const len = r.pts.reduce((a,p,j)=> j? a+Math.hypot(p[0]-r.pts[j-1][0], p[1]-r.pts[j-1][1]) : 0, 0);
-    if (!best || len > best.len) best = {r, len};
-  });
-  if (!best || best.len < 150 || usedLbl.has(rl.text)) return;
-  usedLbl.add(rl.text);
-  let pts = best.r.pts;
-  if (pts[0][1] > pts[pts.length-1][1]) pts = pts.slice().reverse();
-  // targetY指定時: そのy付近を通る位置にラベルを置く (店ラベルとの被り回避)
-  let offsetPct = 42;
-  if (rl.targetY !== undefined){
-    let acc = 0, hit = null;
-    for (let k = 1; k < pts.length; k++){
-      const seg = Math.hypot(pts[k][0]-pts[k-1][0], pts[k][1]-pts[k-1][1]);
-      if (hit === null && ((pts[k-1][1] <= rl.targetY && rl.targetY <= pts[k][1]) || (pts[k][1] <= rl.targetY && rl.targetY <= pts[k-1][1]))){
-        hit = acc + seg / 2;
-      }
-      acc += seg;
-    }
-    if (hit !== null) offsetPct = Math.max(6, Math.min(82, hit / acc * 100));
-  }
-  const p = el('path', {id:'rl'+i, d:poly(pts), fill:'none'}, defs);
-  const t = el('text', {class:'roadname', 'font-size':rl.size || 16.5, dy:rl.dy}, gNames);
-  const tp = el('textPath', {href:'#rl'+i, startOffset:offsetPct+'%'}, t);
-  tp.textContent = rl.text;
-});
 GEO.parks.forEach(p => {
   // 店舗(SPOTS)として星＋ラベルを持つ公園は二重表示しない
   const hasShop = GEO.shops.some(s => s.name.replace(/なかやま/,'中山') === p.name || s.name === p.name);
@@ -900,9 +900,7 @@ const MIN_STAR_PX = 6, MAX_STAR_PX = 14, STAR_ROAD_RATIO = 2.0, MAX_WALK_STAR_M 
 const LABEL_OWNER_RATIO = .72;
 const VOICE_BADGE_WIDTH_PX = 13, VOICE_BADGE_HEIGHT_PX = 11, VOICE_BADGE_GAP_PX = 3;
 const PRIORITY_SEARCH_STEP_LIMIT = 20000;
-const LEADER_STAR_CLEARANCE_PX = 6.5;
-const LEADER_MAX_PX = 90, LEADER_MAX_PX_VOICE = 130;
-const labelLeaderPaths = new Map();
+const ROAD_LABEL_CLEARANCE_PX = 2;
 const LABEL_GRID_PX = 100;
 const labelMetricCache = new Map();
 let labelMetricGeneration = 0, activeLabelLayoutStats = null, labelFontsRevalidated = false;
@@ -1044,9 +1042,9 @@ function preferredLabelSide(s){
   return s.x >= busXAtY(s.y) ? 1 : -1;
 }
 function labelPriority(s){
-  if (s.name === '商店街モニュメント') return 1;
   if ((s.voices||[]).length) return 3;
-  return 2;
+  if (/^https?:\/\//.test(s.url||'') || s.cat === 'place') return 2;
+  return 1;
 }
 function layoutLabels(scale, entries, starCenters, symbolKeepOut){
   if (entries && starCenters && scale > 0){
@@ -1086,6 +1084,31 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     // geometry must use the rendered map-coordinate origin or its ownership margin can
     // pass in the cache and fail after setLabelPosition paints the same candidate.
     const screenMatrix=svg.getScreenCTM();
+    const roadGrid=new LabelSpatialGrid();
+    const screenPoint=point => screenMatrix ? {
+      x:screenMatrix.a*point[0]+screenMatrix.c*point[1]+screenMatrix.e,
+      y:screenMatrix.b*point[0]+screenMatrix.d*point[1]+screenMatrix.f,
+    } : null;
+    const addRoadSegments=(points,widthPx) => {
+      if (!screenMatrix || !(widthPx > 0)) return;
+      points.slice(1).forEach((point,index) => {
+        const a=screenPoint(points[index]), b=screenPoint(point);
+        const segment={x1:a.x,y1:a.y,x2:b.x,y2:b.y,halfWidth:widthPx/2};
+        roadGrid.insert(segment,expandedRect(segmentBounds(segment),
+          segment.halfWidth+ROAD_LABEL_CLEARANCE_PX));
+      });
+    };
+    GEO.roads.forEach(road => {
+      const cls=road.guide_spine ? 'main' : road.cls;
+      const widths=ROAD_WIDTHS[cls];
+      if (!widths) return;
+      const fillMap=Math.max(widths.fill,widths.floorPx/scale);
+      addRoadSegments(road.pts,fillMap*widths.casing/widths.fill*scale);
+    });
+    (GEO.sando||[]).forEach(points => addRoadSegments(points,3*scale));
+    const overlapsRoad = rect => countLayoutPairs(roadGrid.query(rect)).some(segment =>
+      segmentIntersectsRect(segment,expandedRect(rect,
+        segment.halfWidth+ROAD_LABEL_CLEARANCE_PX)));
     const alignOwnershipToRenderedOrigin=scale >= 1.5;
     const screenOrigins=new Map(visibleEntries.map(entry => {
       const s=entry.s, fallback=starCenters.get(entry.idx);
@@ -1128,27 +1151,21 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     const kept = [];
     let placed = [];
     const placementGrid=new LabelSpatialGrid();
-    const placementConflicts = (rect,segment,other) =>
-      labelsCollide(rect,other.rect) ||
-      (other.segment && segmentIntersectsRect(other.segment,expandedRect(rect,3))) ||
-      (segment && segmentIntersectsRect(segment,expandedRect(other.rect,3)));
-    const addPlacement = (entry,rect,segment) => {
-      const item={entry,rect,segment};
+    const placementConflicts = (rect,other) => labelsCollide(rect,other.rect);
+    const addPlacement = (entry,rect) => {
+      const item={entry,rect};
       placed.push(item);
       kept.push(rect);
-      placementGrid.insert(item,placementBounds(rect,segment));
+      placementGrid.insert(item,placementBounds(rect));
     };
     const rebuildPlacementIndexes = () => {
       placementGrid.clear();
       kept.splice(0,kept.length,...placed.map(item => item.rect));
-      placed.forEach(item => placementGrid.insert(item,placementBounds(item.rect,item.segment)));
+      placed.forEach(item => placementGrid.insert(item,placementBounds(item.rect)));
     };
-    const nearbyPlacementConflicts=(rect,segment) => countLayoutPairs(
-      placementGrid.query(placementBounds(rect,segment))).filter(other =>
-        placementConflicts(rect,segment,other));
-    const containsOtherStar=(entry,rect) => countLayoutPairs(starGrid.query(rect)).some(item =>
-      item.idx !== entry.idx && rect.left <= item.point.x && item.point.x <= rect.right &&
-        rect.top <= item.point.y && item.point.y <= rect.bottom);
+    const nearbyPlacementConflicts=rect => countLayoutPairs(
+      placementGrid.query(placementBounds(rect))).filter(other =>
+        placementConflicts(rect,other));
     const belongsToOwnStar=(entry,rect) => {
       const own=starCenters.get(entry.idx);
       if (!own) return false;
@@ -1174,80 +1191,90 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       const dx=origin.x-own.x, dy=origin.y-own.y;
       return {left:rect.left+dx,right:rect.right+dx,top:rect.top+dy,bottom:rect.bottom+dy};
     };
-    const leaderIsClear=(entry,segment,grid) => {
-      const starSearch=expandedRect(segmentBounds(segment),LEADER_STAR_CLEARANCE_PX);
-      if (countLayoutPairs(starGrid.query(starSearch)).some(item => item.idx !== entry.idx &&
-          pointSegmentDistance(item.point,segment) < LEADER_STAR_CLEARANCE_PX)) return false;
-      if (!grid) return true;
-      return !countLayoutPairs(grid.query(segmentBounds(segment))).some(item =>
-        segmentIntersectsRect(segment,item.rect));
-    };
-    const placeCandidate = (entry,candidate,withLeader) => {
+    const placeCandidate = (entry,candidate) => {
       const {mainRect,rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
       const renderedMainRect=renderedCandidateRect(entry,mainRect);
       const renderedRect=renderedCandidateRect(entry,rect);
-      if (withLeader){
-        if (containsOtherStar(entry,renderedMainRect)) return false;
-      } else if (!anchorBelongsToOwnStar(entry,candidate) || !belongsToOwnStar(entry,renderedMainRect)) return false;
+      if (!anchorBelongsToOwnStar(entry,candidate) || !belongsToOwnStar(entry,renderedMainRect)) return false;
       if (!labelInsideViewport(renderedRect) || overlapsKeepOut(renderedRect) ||
-          overlapsMapSymbol(entry,renderedRect)) return false;
-      let segment = null;
-      if (withLeader){
-        segment = labelLeaderSegment(entry,renderedMainRect,starCenters);
-        const maxLength = (entry.s.voices||[]).length ? LEADER_MAX_PX_VOICE : LEADER_MAX_PX;
-        if (!segment || Math.hypot(segment.x2-segment.x1,segment.y2-segment.y1) > maxLength ||
-            !leaderIsClear(entry,segment,placementGrid)) return false;
-      }
-      if (nearbyPlacementConflicts(renderedRect,segment).length) return false;
+          overlapsMapSymbol(entry,renderedRect) || overlapsRoad(renderedRect)) return false;
+      if (nearbyPlacementConflicts(renderedRect).length) return false;
       setLabelPosition(entry,candidate,scale);
       entry.s.labelVisible = true;
-      entry.s.labelLeader = withLeader;
-      addPlacement(entry,renderedRect,segment);
+      entry.s.labelLeader = false;
+      addPlacement(entry,renderedRect);
       return true;
     };
-    const placeCandidateShadow = (entry,candidate,withLeader) => {
+    const placeCandidateShadow = (entry,candidate) => {
       const {mainRect,rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
       const renderedMainRect=renderedCandidateRect(entry,mainRect);
       const renderedRect=renderedCandidateRect(entry,rect);
-      if (withLeader){
-        if (containsOtherStar(entry,renderedMainRect)) return false;
-      } else if (!anchorBelongsToOwnStar(entry,candidate) || !belongsToOwnStar(entry,renderedMainRect)) return false;
+      if (!anchorBelongsToOwnStar(entry,candidate) || !belongsToOwnStar(entry,renderedMainRect)) return false;
       if (!labelInsideViewport(renderedRect) || overlapsKeepOut(renderedRect) ||
-          overlapsMapSymbol(entry,renderedRect)) return false;
-      let segment=null;
-      if (withLeader){
-        segment=labelLeaderSegment(entry,renderedMainRect,starCenters);
-        const maxLength=(entry.s.voices||[]).length ? LEADER_MAX_PX_VOICE : LEADER_MAX_PX;
-        if (!segment || Math.hypot(segment.x2-segment.x1,segment.y2-segment.y1) > maxLength ||
-            !leaderIsClear(entry,segment,placementGrid)) return false;
-      }
-      if (nearbyPlacementConflicts(renderedRect,segment).length) return false;
-      addPlacement(entry,renderedRect,segment);
+          overlapsMapSymbol(entry,renderedRect) || overlapsRoad(renderedRect)) return false;
+      if (nearbyPlacementConflicts(renderedRect).length) return false;
+      addPlacement(entry,renderedRect);
       return true;
     };
     const placeGreedyShadow = entry => {
       for (const candidate of labelCandidates(entry.s)){
-        if (placeCandidateShadow(entry,candidate,false)) return true;
-      }
-      for (const candidate of leaderLabelCandidates(entry.s)){
-        if (placeCandidateShadow(entry,candidate,true)) return true;
+        if (placeCandidateShadow(entry,candidate)) return true;
       }
       return false;
     };
-    const placeGreedy = (entry,allowNearLeader=false) => {
+    const placeGreedy = entry => {
       for (const candidate of labelCandidates(entry.s)){
-        if (placeCandidate(entry,candidate,false)) return true;
-      }
-      if (allowNearLeader){
-        for (const candidate of labelCandidates(entry.s)){
-          if (placeCandidate(entry,{...candidate,leader:true},true)) return true;
-        }
-      }
-      for (const candidate of leaderLabelCandidates(entry.s)){
-        if (placeCandidate(entry,candidate,true)) return true;
+        if (placeCandidate(entry,candidate)) return true;
       }
       hideLabel(entry);
       return false;
+    };
+    const staticCandidateOptions = entry => {
+      const options=[];
+      for (const candidate of labelCandidates(entry.s)){
+        const {mainRect,rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
+        const renderedMainRect=renderedCandidateRect(entry,mainRect);
+        const renderedRect=renderedCandidateRect(entry,rect);
+        if (!anchorBelongsToOwnStar(entry,candidate) ||
+            !belongsToOwnStar(entry,renderedMainRect)) continue;
+        if (!labelInsideViewport(renderedRect) || overlapsKeepOut(renderedRect) ||
+            overlapsMapSymbol(entry,renderedRect) || overlapsRoad(renderedRect)) continue;
+        options.push({candidate,rect:renderedRect});
+      }
+      return options;
+    };
+    const placeConstrainedGroup = group => {
+      const pending=group.map(entry=>({entry,options:staticCandidateOptions(entry)}));
+      while (pending.length){
+        let bestIndex=-1, bestOption=null, bestCount=Infinity;
+        for (let i=0;i<pending.length;i++){
+          const item=pending[i];
+          let first=null, count=0;
+          for (const option of item.options){
+            if (nearbyPlacementConflicts(option.rect).length) continue;
+            if (!first) first=option;
+            count++;
+            if (count > bestCount) break;
+          }
+          if (!first) continue;
+          if (count < bestCount ||
+              (count === bestCount &&
+               item.entry.main.textContent.length > pending[bestIndex].entry.main.textContent.length)){
+            bestIndex=i;
+            bestOption=first;
+            bestCount=count;
+          }
+        }
+        if (bestIndex < 0){
+          pending.forEach(item=>hideLabel(item.entry));
+          break;
+        }
+        const [{entry}]=pending.splice(bestIndex,1);
+        setLabelPosition(entry,bestOption.candidate,scale);
+        entry.s.labelVisible=true;
+        entry.s.labelLeader=false;
+        addPlacement(entry,bestOption.rect);
+      }
     };
     const lowerPriorityEntries = visibleEntries.filter(entry => labelPriority(entry.s) < 3)
       .sort((a,b) => labelPriority(b.s)-labelPriority(a.s) ||
@@ -1258,42 +1285,33 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     const initiallyPlacedPriorityOne = new Set(placed.filter(item => labelPriority(item.entry.s) === 1)
       .map(item => item.entry));
     const priorityEntries = visibleEntries.filter(entry => labelPriority(entry.s) === 3);
+    const priorityReject = new Map();
     const priorityOptions = new Map(priorityEntries.map(entry => {
       const options = [];
       const normal = labelCandidates(entry.s);
-      const collectOption = (candidate,withLeader,mainRect,rect) => {
+      // 2026-08-04: 候補が0個になった店の原因を、推測でなく数で残す。
+      // (こどもの声の店の名前が出ない時、どの条件で落ちたかが分からなかった)
+      const reject = {anchor:0, owner:0, viewport:0, keepout:0, symbol:0, road:0, blocked:0};
+      const collectOption = (candidate,mainRect,rect) => {
         const renderedMainRect=renderedCandidateRect(entry,mainRect);
         const renderedRect=renderedCandidateRect(entry,rect);
-        if (withLeader){
-          if (containsOtherStar(entry,renderedMainRect)) return;
-        } else if (!anchorBelongsToOwnStar(entry,candidate) || !belongsToOwnStar(entry,renderedMainRect)) return;
-        if (!labelInsideViewport(renderedRect) || overlapsKeepOut(renderedRect) ||
-            overlapsMapSymbol(entry,renderedRect)) return;
-        let segment=null;
-        if (withLeader){
-          segment=labelLeaderSegment(entry,renderedMainRect,starCenters);
-          const maxLength=(entry.s.voices||[]).length ? LEADER_MAX_PX_VOICE : LEADER_MAX_PX;
-          if (!segment || Math.hypot(segment.x2-segment.x1,segment.y2-segment.y1) > maxLength ||
-              !leaderIsClear(entry,segment,null)) return;
-        }
-        const blockers=nearbyPlacementConflicts(renderedRect,segment);
-        if (blockers.some(other => labelPriority(other.entry.s) !== 1)) return;
-        options.push({candidate,rect:renderedRect,segment,blockers:blockers.map(other => other.entry)});
+        if (!anchorBelongsToOwnStar(entry,candidate)){ reject.anchor++; return; }
+        if (!belongsToOwnStar(entry,renderedMainRect)){ reject.owner++; return; }
+        if (!labelInsideViewport(renderedRect)){ reject.viewport++; return; }
+        if (overlapsKeepOut(renderedRect)){ reject.keepout++; return; }
+        if (overlapsMapSymbol(entry,renderedRect)){ reject.symbol++; return; }
+        if (overlapsRoad(renderedRect)){ reject.road++; return; }
+        const blockers=nearbyPlacementConflicts(renderedRect);
+        if (blockers.some(other => labelPriority(other.entry.s) !== 1)){ reject.blocked++; return; }
+        options.push({candidate,rect:renderedRect,blockers:blockers.map(other => other.entry)});
       };
       for (const candidate of normal){
         const {mainRect,rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
-        collectOption(candidate,false,mainRect,rect);
-        collectOption({...candidate,leader:true},true,mainRect,rect);
-      }
-      for (const candidate of leaderLabelCandidates(entry.s)){
-        const {mainRect,rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
-        collectOption(candidate,true,mainRect,rect);
+        collectOption(candidate,mainRect,rect);
       }
       options.sort((a,b) => a.blockers.length-b.blockers.length ||
-        Number(!!a.segment)-Number(!!b.segment) ||
-        (a.segment ? Math.hypot(a.segment.x2-a.segment.x1,a.segment.y2-a.segment.y1) : 0) -
-          (b.segment ? Math.hypot(b.segment.x2-b.segment.x1,b.segment.y2-b.segment.y1) : 0) ||
         Math.hypot(a.candidate.gapPx,a.candidate.dyPx)-Math.hypot(b.candidate.gapPx,b.candidate.dyPx));
+      if (!options.length) priorityReject.set(entry.s.name, {...reject, tried:normal.length});
       return [entry, options];
     }));
     priorityEntries.sort((a,b) => priorityOptions.get(a).length-priorityOptions.get(b).length ||
@@ -1311,16 +1329,20 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       prioritySteps++;
       if (pos === priorityEntries.length) return true;
       const entry = priorityEntries[pos];
+      // 2026-08-04: 置ける場所が1つも無い店が来ると、ここで探索全体が false になり、
+      // 優先配置そのものが働かなくなっていた (実測: path=greedy-no-solution / steps=1)。
+      // 置けない店は飛ばして、置ける店だけでも置く。
+      if (!priorityOptions.get(entry).length) return placePriority(pos+1, evicted);
       for (const option of priorityOptions.get(entry)){
         const conflicts=countLayoutPairs(prioritySelectedGrid.query(
-          placementBounds(option.rect,option.segment))).some(other =>
-            placementConflicts(option.rect,option.segment,other));
+          placementBounds(option.rect))).some(other =>
+            placementConflicts(option.rect,other));
         if (conflicts) continue;
         const nextEvicted=new Set(evicted);
         option.blockers.forEach(blocker => nextEvicted.add(blocker));
-        const selected={rect:option.rect,segment:option.segment};
+        const selected={rect:option.rect};
         prioritySelected.push(selected);
-        prioritySelectedGrid.insert(selected,placementBounds(selected.rect,selected.segment));
+        prioritySelectedGrid.insert(selected,placementBounds(selected.rect));
         priorityChoice.set(entry, option);
         if (placePriority(pos+1,nextEvicted)){
           priorityEvicted=nextEvicted;
@@ -1340,15 +1362,17 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       document.body.dataset.labelLayout = 'priority-evict';
       priorityEntries.forEach(entry => {
         const option=priorityChoice.get(entry);
+        // 置ける場所が無くて飛ばした店は、名前を出さない (他の店を巻き込まない)
+        if (!option){ hideLabel(entry); return; }
         setLabelPosition(entry, option.candidate, scale);
         entry.s.labelVisible = true;
-        entry.s.labelLeader = !!option.segment;
-        addPlacement(entry,option.rect,option.segment);
+        entry.s.labelLeader = false;
+        addPlacement(entry,option.rect);
       });
       placed=placed.filter(item => labelPriority(item.entry.s) > 1);
       rebuildPlacementIndexes();
-      priorityTwoEntries.forEach(placeGreedy);
-      priorityOneEntries.filter(entry => !priorityEvicted.has(entry)).forEach(placeGreedy);
+      placeConstrainedGroup(priorityTwoEntries);
+      placeConstrainedGroup(priorityOneEntries.filter(entry => !priorityEvicted.has(entry)));
       const actualHigherRects=placed.filter(item => labelPriority(item.entry.s) > 1)
         .map(item => labelRect(item.entry,item.entry.main.getBoundingClientRect()));
       const actualPriorityOne=placed.filter(item => labelPriority(item.entry.s) === 1)
@@ -1367,17 +1391,18 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       kept.length = 0;
       placementGrid.clear();
       placed = [];
-      priorityEntries.forEach(entry => placeGreedy(entry,true));
-      lowerPriorityEntries.forEach(placeGreedy);
+      placeConstrainedGroup(priorityEntries);
+      placeConstrainedGroup(priorityTwoEntries);
+      placeConstrainedGroup(priorityOneEntries);
       evictedEntries=[...initiallyPlacedPriorityOne].filter(entry => !entry.s.labelVisible);
     }
     document.body.dataset.labelLayoutSteps = String(prioritySteps);
+    window.__labelPriorityReject = Object.fromEntries(priorityReject);
     const evictedNames=evictedEntries.map(entry => entry.s.name).sort((a,b) => a.localeCompare(b,'ja'));
     document.body.dataset.evictedLabelCount = String(evictedNames.length);
     document.body.dataset.evictedLabels = JSON.stringify(evictedNames);
     window.__labelEvictions = evictedNames.slice();
-    entries.forEach(entry => updateLabelLeader(entry,scale));
-    document.body.dataset.labelLeaders = String(entries.filter(entry => entry.s.labelLeader).length);
+    document.body.dataset.labelLeaders = '0';
     window.__labelLayoutStats={...stats};
     window.__labelLayoutHistory=(window.__labelLayoutHistory||[]).concat({...stats}).slice(-24);
     labelLayoutInitialized=true;
@@ -1446,7 +1471,7 @@ function setLabelPosition(entry, candidate, scale){
   s.anchor = side > 0 ? 'start' : 'end';
   s.lx = s.x + side * offsetMap;
   s.ly = s.y + dyPx / scale;
-  s.labelLeader = !!candidate.leader;
+  s.labelLeader = false;
   main.setAttribute('x', s.lx);
   main.setAttribute('y', s.ly);
   if (main.getAttribute('text-anchor') !== s.anchor) main.setAttribute('text-anchor', s.anchor);
@@ -1477,10 +1502,6 @@ function hideLabel(entry){
   if (entry.distance) entry.distance.style.display = 'none';
   entry.s.labelVisible = false;
   entry.s.labelLeader = false;
-  if (entry.leader){
-    entry.leader.style.display = 'none';
-    entry.leader.removeAttribute('data-length-px');
-  }
 }
 function labelRect(entry, mainRect){
   const rects = [mainRect || entry.main.getBoundingClientRect()];
@@ -1499,28 +1520,16 @@ function labelsCollide(a, b){
 function labelCandidates(s){
   const preferred = preferredLabelSide(s);
   const baseGap = starTargetPx(s) / 2 + LABEL_GAP_PX;
-  const gaps = [0,4,8,12,18,26,36,48].map(v => baseGap + v);
-  const dySteps = [0,-4,4,-8,8,-12,12,-16,16,-20,20,-24,24,-28,28,-32,32,-40,40,-48,48];
+  const gaps = [0,2,4,6,8,10,12,16,20,24,30,36,44,52,64,80,96]
+    .map(v => baseGap + v);
+  const dySteps = [0,-2,2,-4,4,-6,6,-8,8,-10,10,-12,12,-16,16,-20,20,
+    -24,24,-28,28,-32,32,-40,40,-48,48,-56,56,-64,64,-72,72,-80,80,-96,96];
   const candidates = [];
-  [preferred, -preferred].forEach(side => gaps.forEach(gapPx =>
+  [preferred].forEach(side => gaps.forEach(gapPx =>
     dySteps.forEach(dyPx => candidates.push({side, gapPx, dyPx}))));
   return candidates.sort((a,b) =>
     Math.hypot(a.gapPx,a.dyPx)-Math.hypot(b.gapPx,b.dyPx) ||
-    Number(a.side!==preferred)-Number(b.side!==preferred) || a.dyPx-b.dyPx);
-}
-function leaderLabelCandidates(s){
-  const preferred = preferredLabelSide(s);
-  const baseGap = starTargetPx(s) / 2 + LABEL_GAP_PX;
-  const maxLength = (s.voices||[]).length ? LEADER_MAX_PX_VOICE : LEADER_MAX_PX;
-  const gaps = [64,80,96,120,148].map(v => baseGap + v);
-  const dySteps = [0,-12,12,-24,24,-36,36,-52,52,-72,72,-96,96];
-  const candidates = [];
-  [preferred,-preferred].forEach(side => gaps.forEach(gapPx =>
-    dySteps.forEach(dyPx => candidates.push({side,gapPx,dyPx,leader:true}))));
-  return candidates.filter(candidate => Math.hypot(candidate.gapPx,candidate.dyPx) <= maxLength)
-    .sort((a,b) =>
-    Math.hypot(a.gapPx,a.dyPx)-Math.hypot(b.gapPx,b.dyPx) ||
-    Number(a.side!==preferred)-Number(b.side!==preferred) || Math.abs(a.dyPx)-Math.abs(b.dyPx));
+    a.dyPx-b.dyPx);
 }
 function rectDistance(rect, x, y){
   return Math.hypot(Math.max(rect.left-x, 0, x-rect.right),
@@ -1551,18 +1560,6 @@ function labelAnchorBelongsToOwnStar(entry, starCenters){
   }
   return !Number.isFinite(nearestOther) || ownDistance + .01 < nearestOther;
 }
-function labelContainsOtherStar(entry,rect,starCenters){
-  for (const [idx,point] of starCenters){
-    if (idx !== entry.idx && rect.left <= point.x && point.x <= rect.right &&
-        rect.top <= point.y && point.y <= rect.bottom) return true;
-  }
-  return false;
-}
-function pointSegmentDistance(point,segment){
-  const dx=segment.x2-segment.x1, dy=segment.y2-segment.y1, den=dx*dx+dy*dy;
-  const t=den ? Math.max(0,Math.min(1,((point.x-segment.x1)*dx+(point.y-segment.y1)*dy)/den)) : 0;
-  return Math.hypot(point.x-(segment.x1+t*dx),point.y-(segment.y1+t*dy));
-}
 function segmentIntersectsRect(segment,rect){
   const {x1,y1,x2,y2}=segment;
   if (Math.max(x1,x2) < rect.left || Math.min(x1,x2) > rect.right ||
@@ -1576,51 +1573,6 @@ function segmentIntersectsRect(segment,rect){
     const d3=(bx-ax)*(y1-ay)-(by-ay)*(x1-ax), d4=(bx-ax)*(y2-ay)-(by-ay)*(x2-ax);
     return (d1>0)!==(d2>0) && (d3>0)!==(d4>0);
   });
-}
-function labelLeaderSegment(entry,rect,starCenters){
-  const own=starCenters.get(entry.idx);
-  return own ? {x1:own.x,y1:own.y,
-    x2:(rect.left+rect.right)/2,
-    y2:(rect.top+rect.bottom)/2} : null;
-}
-function leaderSegmentIsClear(entry,segment,starCenters,labelRects){
-  for (const [idx,point] of starCenters){
-    if (idx !== entry.idx && pointSegmentDistance(point,segment) < LEADER_STAR_CLEARANCE_PX) return false;
-  }
-  return !labelRects.some(rect => segmentIntersectsRect(segment,rect));
-}
-function updateLabelLeader(entry,scale){
-  const path=entry.leader, s=entry.s;
-  if (!path || !s.labelVisible || !s.labelLeader){
-    if (path) path.style.display='none';
-    return;
-  }
-  const matrix=svg.getScreenCTM(), starRect=entry.star&&entry.star.getBoundingClientRect();
-  const mainRect=entry.main&&entry.main.getBoundingClientRect();
-  if (!matrix || !starRect || !mainRect){
-    path.style.display='none';
-    return;
-  }
-  const ox=starRect.left+starRect.width/2, oy=starRect.top+starRect.height/2;
-  const tx=Math.max(mainRect.left,Math.min(ox,mainRect.right));
-  const ty=Math.max(mainRect.top,Math.min(oy,mainRect.bottom));
-  const dx=tx-ox, dy=ty-oy, dist=Math.hypot(dx,dy);
-  if (!(dist > 0)){
-    path.style.display='none';
-    return;
-  }
-  const startPx=Math.min(Math.max(0,currentStarTargetPx/2-2),dist*.4);
-  const a=svg.createSVGPoint(), b=svg.createSVGPoint(), inverse=matrix.inverse();
-  a.x=ox+dx*startPx/dist; a.y=oy+dy*startPx/dist;
-  b.x=tx; b.y=ty;
-  const start=a.matrixTransform(inverse), end=b.matrixTransform(inverse);
-  const bendPx=1.5, mx=(a.x+b.x)/2-dy/dist*bendPx, my=(a.y+b.y)/2+dx/dist*bendPx;
-  const mid=svg.createSVGPoint(); mid.x=mx; mid.y=my;
-  const curve=mid.matrixTransform(inverse);
-  path.setAttribute('d','M'+start.x+','+start.y+' Q'+curve.x+','+curve.y+' '+end.x+','+end.y);
-  path.dataset.lengthPx=(dist-startPx).toFixed(1);
-  path.removeAttribute('display');
-  path.style.display='';
 }
 function rectsOverlap(a,b){
   return Math.min(a.right,b.right)-Math.max(a.left,b.left) > .05 &&
@@ -1697,36 +1649,27 @@ function updateMapScaleStyles(){
   const mainRoadPx = updateRoadWidths(scale);
   currentStarTargetPx = scale < 1.5 ? MAX_STAR_PX : Math.max(MIN_STAR_PX,
     Math.min(STAR_ROAD_RATIO * mainRoadPx, MAX_STAR_PX, MAX_WALK_STAR_M * scale));
-  const entries = [...document.querySelectorAll('.hit')].map(h => {
+  const allEntries = [...document.querySelectorAll('.hit')].map(h => {
     const idx = +h.dataset.i, s = GEO.shops[idx], star = h.querySelector('.star');
     if (star) star.setAttribute('transform', 'scale('+(starSize(s) * (idx===selectedIndex?1.18:1))+')');
     return {idx, s, star, badge:h.querySelector('g.voice-badge'),
-      main:h.querySelector('text[data-main-label="1"]'), distance:h.querySelector('text.distance-label'),
-      leader:labelLeaderPaths.get(idx)};
+      main:h.querySelector('text[data-main-label="1"]'), distance:h.querySelector('text.distance-label')};
   }).filter(entry => entry.main);
-  const starCenters = new Map(entries.map(entry => {
+  const allStarCenters = new Map(allEntries.map(entry => {
     const rect = entry.star && entry.star.getBoundingClientRect();
     return [entry.idx, rect ? {x:rect.left+rect.width/2, y:rect.top+rect.height/2} : null];
   }).filter(([, point]) => point));
-  updateSignalStyles(scale,mainRoadPx,starCenters);
+  const filtering=document.body.classList.contains('map-filtering');
+  const entries=filtering ? allEntries.filter(entry=>matchesFilter(entry.s)) : allEntries;
+  const activeIndexes=new Set(entries.map(entry=>entry.idx));
+  allEntries.filter(entry=>!activeIndexes.has(entry.idx)).forEach(hideLabel);
+  const starCenters = new Map(entries.map(entry => [entry.idx,allStarCenters.get(entry.idx)])
+    .filter(([, point]) => point));
+  updateSignalStyles(scale,mainRoadPx,allStarCenters);
   const signalRects=signalEntries.map(entry=>({rect:entry.g.getBoundingClientRect()}));
   const badgeRects=layoutVoiceBadges(scale,entries,starCenters);
   const labelRects=layoutLabels(scale,entries,starCenters,badgeRects.concat(signalRects));
   layoutVoiceBadges(scale,entries,starCenters,labelRects);
-  const viewport=document.querySelector('#viewport');
-  const roadLabels=[...document.querySelectorAll('#map text.roadname')];
-  roadLabels.forEach(label => { label.style.display=''; });
-  if (viewport && getComputedStyle(viewport).display !== 'none'){
-    const visible=viewport.getBoundingClientRect();
-    roadLabels.forEach(label => {
-      const rect=label.getBoundingClientRect();
-      const intersects=rect.right > visible.left && rect.left < visible.right &&
-        rect.bottom > visible.top && rect.top < visible.bottom;
-      const inside=rect.left >= visible.left+6 && rect.right <= visible.right-6 &&
-        rect.top >= visible.top+6 && rect.bottom <= visible.bottom-6;
-      if (intersects && !inside) label.style.display='none';
-    });
-  }
 }
 function scheduleMapScaleStyles(){
   if (mapStyleFrame) cancelAnimationFrame(mapStyleFrame);
@@ -1748,19 +1691,10 @@ function setSelectedShop(s){
   updateSelectedMarker();
 }
 function drawShops(){
-  gShops.innerHTML = ''; gLead.innerHTML = '';
-  labelLeaderPaths.clear();
+  gShops.innerHTML = '';
   layoutLabels();
   GEO.shops.forEach((s, idx) => {
     const primary = isPrimaryLabel(s);
-    if (s.clamped && s.far_m > 0){
-      const rad = (s.far_deg||0) * Math.PI/180;
-      const ex = s.x + 30*Math.cos(rad), ey = s.y - 30*Math.sin(rad);
-      el('path', {d:'M'+s.x+','+s.y+' L'+ex+','+ey, class:'faraway '+(primary?'primary':'detail'), 'marker-end':''}, gLead);
-      el('path', {d:'M'+ex+','+ey+' l'+(-7*Math.cos(rad-0.5))+','+(7*Math.sin(rad-0.5))+' M'+ex+','+ey+' l'+(-7*Math.cos(rad+0.5))+','+(7*Math.sin(rad+0.5)), class:'faraway '+(primary?'primary':'detail')}, gLead);
-    }
-    const leaderPath=el('path',{class:'faraway label-leader','data-i':idx,display:'none'},gLead);
-    labelLeaderPaths.set(idx,leaderPath);
     const hasVoices = (s.voices||[]).length > 0;
     const g = el('g', {class:'hit'+(idx===selectedIndex?' selected':''), tabindex:0, role:'button',
       'aria-pressed':idx===selectedIndex?'true':'false', 'data-i':idx,
@@ -2228,8 +2162,6 @@ function applyFilter({fromSearch=false} = {}){
     if (ok) matched.push(s);
     h.classList.toggle('dim', !ok);
     h.classList.toggle('glowing', !!glow);
-    const leader=labelLeaderPaths.get(+h.dataset.i);
-    if (leader) leader.classList.toggle('dim',!ok);
     h.setAttribute('tabindex', ok ? 0 : -1);
   });
   document.querySelectorAll('.strip-row').forEach(row => {
@@ -2257,6 +2189,7 @@ function applyFilter({fromSearch=false} = {}){
     ? '声 '+matched.length+'件' : fullMapFilterText;
   mapFilterBadge.title = fullMapFilterText;
   mapFilterBadge.setAttribute('aria-label',fullMapFilterText);
+  scheduleMapScaleStyles();
 
   if (query) renderList(null, '検索結果'); else renderList();
 
@@ -2327,6 +2260,134 @@ function detailText(tag, className, text){
   if (text != null) node.textContent = text;
   return node;
 }
+function setPhotoState(target, state){
+  ['is-loading','is-error','is-success'].forEach(name => target.classList.remove(name));
+  target.classList.add('is-' + state);
+  target.setAttribute('aria-busy', state === 'loading' ? 'true' : 'false');
+}
+function setPhotoPicture(picture, photo, stateTarget){
+  const source = picture.querySelector('source');
+  const image = picture.querySelector('img');
+  setPhotoState(stateTarget, 'loading');
+  source.srcset = photo.src + '.webp';
+  image.src = photo.src + '.jpg';
+  image.alt = photo.alt;
+  if (image.complete){
+    setPhotoState(stateTarget, image.naturalWidth ? 'success' : 'error');
+  }
+}
+function createPhotoPicture(photo, className, stateTarget){
+  const picture = detailText('picture', className);
+  const source = document.createElement('source');
+  source.type = 'image/webp';
+  const image = document.createElement('img');
+  image.loading = 'lazy';
+  image.decoding = 'async';
+  image.addEventListener('load', () => setPhotoState(stateTarget, 'success'));
+  image.addEventListener('error', () => setPhotoState(stateTarget, 'error'));
+  picture.appendChild(source);
+  picture.appendChild(image);
+  setPhotoPicture(picture, photo, stateTarget);
+  return picture;
+}
+let photoLightbox = null, photoLightboxPicture = null, photoLightboxFrame = null;
+let photoLightboxTitle = null, photoLightboxCaption = null, photoLightboxTrigger = null;
+function ensurePhotoLightbox(photo){
+  if (photoLightbox) return;
+  photoLightbox = detailText('div', 'photo-lightbox');
+  photoLightbox.id = 'photoLightbox';
+  photoLightbox.hidden = true;
+  photoLightbox.setAttribute('role', 'dialog');
+  photoLightbox.setAttribute('aria-modal', 'true');
+  photoLightbox.setAttribute('aria-labelledby', 'photoLightboxTitle');
+  const shell = detailText('div', 'photo-lightbox-shell');
+  photoLightboxTitle = detailText('h2', 'sr-only');
+  photoLightboxTitle.id = 'photoLightboxTitle';
+  const close = detailText('button', 'photo-lightbox-close', '✕');
+  close.type = 'button';
+  close.setAttribute('aria-label', '拡大写真を閉じる');
+  photoLightboxFrame = detailText('div', 'photo-lightbox-frame');
+  photoLightboxPicture = createPhotoPicture(photo, 'photo-lightbox-picture', photoLightboxFrame);
+  photoLightboxCaption = detailText('p', 'photo-lightbox-caption');
+  shell.appendChild(photoLightboxTitle);
+  shell.appendChild(close);
+  shell.appendChild(photoLightboxFrame);
+  photoLightboxFrame.appendChild(photoLightboxPicture);
+  shell.appendChild(photoLightboxCaption);
+  photoLightbox.appendChild(shell);
+  document.body.appendChild(photoLightbox);
+  close.addEventListener('click', () => closePhotoLightbox(true));
+  photoLightbox.addEventListener('click', event => {
+    event.stopPropagation();
+    if (event.target === photoLightbox) closePhotoLightbox(true);
+  });
+  photoLightbox.addEventListener('keydown', event => {
+    if (event.key === 'Tab'){
+      event.preventDefault();
+      close.focus();
+    }
+  });
+}
+function openPhotoLightbox(photo, shopName, trigger){
+  ensurePhotoLightbox(photo);
+  photoLightboxTrigger = trigger;
+  photoLightboxTitle.textContent = shopName + 'の写真';
+  photoLightboxCaption.textContent = photo.alt;
+  setPhotoPicture(photoLightboxPicture, photo, photoLightboxFrame);
+  photoLightbox.hidden = false;
+  detailPanel.inert = true;
+  requestAnimationFrame(() => photoLightbox.querySelector('.photo-lightbox-close').focus());
+}
+function closePhotoLightbox(restoreFocus){
+  if (!photoLightbox || photoLightbox.hidden) return false;
+  photoLightbox.hidden = true;
+  if (detailPanel.getAttribute('aria-hidden') === 'false') detailPanel.inert = false;
+  const trigger = photoLightboxTrigger;
+  photoLightboxTrigger = null;
+  if (restoreFocus && trigger && trigger.isConnected){
+    requestAnimationFrame(() => trigger.focus());
+  }
+  return true;
+}
+function buildPhotoGallery(s, photos){
+  const gallery = detailText('section', 'detail-gallery');
+  gallery.setAttribute('aria-label', s.name + 'の写真');
+  let currentPhoto = photos[0];
+  const mainButton = detailText('button', 'detail-photo-main');
+  mainButton.type = 'button';
+  mainButton.setAttribute('aria-haspopup', 'dialog');
+  mainButton.setAttribute('aria-label', currentPhoto.alt + 'を拡大表示');
+  const mainPicture = createPhotoPicture(currentPhoto, 'detail-photo-picture', mainButton);
+  mainButton.appendChild(mainPicture);
+  mainButton.addEventListener('click', () => openPhotoLightbox(currentPhoto, s.name, mainButton));
+  gallery.appendChild(mainButton);
+  if (photos.length > 1){
+    const thumbnails = detailText('div', 'detail-photo-thumbs');
+    thumbnails.setAttribute('aria-label', '表示する写真を選ぶ');
+    const live = detailText('span', 'sr-only');
+    live.setAttribute('role', 'status');
+    live.setAttribute('aria-live', 'polite');
+    const buttons = photos.map((photo, index) => {
+      const button = detailText('button', 'detail-photo-thumb');
+      button.type = 'button';
+      button.setAttribute('aria-label', photo.alt + 'を表示');
+      button.setAttribute('aria-pressed', index === 0 ? 'true' : 'false');
+      button.appendChild(createPhotoPicture(photo, '', button));
+      button.addEventListener('click', () => {
+        currentPhoto = photo;
+        setPhotoPicture(mainPicture, photo, mainButton);
+        mainButton.setAttribute('aria-label', photo.alt + 'を拡大表示');
+        buttons.forEach(item => item.setAttribute('aria-pressed', item === button ? 'true' : 'false'));
+        live.textContent = photo.alt + 'を表示中';
+      });
+      thumbnails.appendChild(button);
+      return button;
+    });
+    gallery.appendChild(thumbnails);
+    gallery.appendChild(live);
+  }
+  return gallery;
+}
 function buildDetailCard(s){
   const card = detailText('article', 'detail-card');
   const cat = detailText('div', 'detail-cat');
@@ -2342,6 +2403,8 @@ function buildDetailCard(s){
     if (IS_DEBUG) address += '  ['+s.src+'] ('+s.lat.toFixed(6)+','+s.lng.toFixed(6)+')';
     card.appendChild(detailText('p', 'detail-address', address));
   }
+  const photos = Array.isArray(s.photos) ? s.photos.filter(photo => photo && photo.src && photo.alt) : [];
+  if (photos.length) card.appendChild(buildPhotoGallery(s, photos));
   const statuses = detailText('div', 'detail-statuses');
   const voices = s.voices || [];
   if (voices.length){
@@ -2425,6 +2488,7 @@ function showDetail(s, focusClose){
   if (focusClose) document.getElementById('detailClose').focus();
 }
 function hideDetail(restoreFocus){
+  closePhotoLightbox(false);
   const wasOpen = detailPanel.getAttribute('aria-hidden') === 'false';
   document.body.classList.remove('detail-open');
   detailPanel.inert = true;
@@ -2499,7 +2563,16 @@ detailRail.addEventListener('keydown', e => {
 });
 chooser.addEventListener('click', e => e.stopPropagation());
 document.addEventListener('click', () => { hideDetail(); hideChooser(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape'){ hideDetail(true); hideChooser(); } });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (closePhotoLightbox(true)){
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    return;
+  }
+  hideDetail(true);
+  hideChooser();
+});
 
 /* ---------- 表示範囲・現在地・ズーム ---------- */
 const wrap = document.getElementById('mapwrap');
@@ -2738,7 +2811,18 @@ function queueGestureZoom(factor, clientX, clientY){
   });
 }
 function touchDistance(a, b){ return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+function panViewBoxByClientDelta(deltaX,deltaY){
+  const vb=svg.viewBox.baseVal, rect=svg.getBoundingClientRect();
+  if (!(rect.width > 0) || !(rect.height > 0)) return;
+  setMapViewBox({
+    x:vb.x-deltaX*vb.width/rect.width,
+    y:vb.y-deltaY*vb.height/rect.height,
+    width:vb.width,
+    height:vb.height,
+  },'custom');
+}
 let pinchGesture = null, singleTouch = null, lastTap = null, lastTouchZoomAt = 0;
+let lastTouchDragAt = 0;
 viewport.addEventListener('touchstart', e => {
   if (e.touches.length === 2){
     const a=e.touches[0], b=e.touches[1];
@@ -2746,8 +2830,10 @@ viewport.addEventListener('touchstart', e => {
     singleTouch = null; lastTap = null;
     suppressMapClickUntil = performance.now() + 700;
   } else if (e.touches.length === 1 && !pinchGesture){
+    if (e.target.closest('.chooser,button,input,a,.detail-panel')) return;
     const t=e.touches[0];
-    singleTouch = {x:t.clientX, y:t.clientY, target:e.target, moved:false};
+    singleTouch = {x:t.clientX, y:t.clientY, lastX:t.clientX, lastY:t.clientY,
+      target:e.target, moved:false};
   }
 }, {passive:true});
 viewport.addEventListener('touchmove', e => {
@@ -2768,6 +2854,14 @@ viewport.addEventListener('touchmove', e => {
       singleTouch.moved=true;
       suppressMapClickUntil=performance.now()+500;
     }
+    if (singleTouch.moved){
+      e.preventDefault();
+      panViewBoxByClientDelta(t.clientX-singleTouch.lastX,t.clientY-singleTouch.lastY);
+      singleTouch.lastX=t.clientX;
+      singleTouch.lastY=t.clientY;
+      lastTouchDragAt=performance.now();
+      hideChooser();
+    }
   }
 }, {passive:false});
 viewport.addEventListener('touchend', e => {
@@ -2779,10 +2873,15 @@ viewport.addEventListener('touchend', e => {
   if (!singleTouch || e.touches.length) return;
   const moved=singleTouch.moved;
   singleTouch=null;
-  if (moved) lastTap=null;
+  if (moved){
+    lastTap=null;
+    lastTouchDragAt=performance.now();
+    suppressMapClickUntil=performance.now()+700;
+  }
 }, {passive:true});
 document.addEventListener('touchend', e => {
   if (pinchGesture || e.touches.length || e.changedTouches.length !== 1) return;
+  if (performance.now()-lastTouchDragAt < 700){ lastTap=null; return; }
   if (singleTouch && singleTouch.moved){ lastTap=null; return; }
   const t=e.changedTouches[0], rect=viewport.getBoundingClientRect();
   if (t.clientX < rect.left || t.clientX > rect.right ||
@@ -2805,8 +2904,39 @@ viewport.addEventListener('touchcancel', () => {
   pinchGesture=null; singleTouch=null; lastTap=null;
   suppressMapClickUntil=performance.now()+500;
 }, {passive:true});
+let mousePan = null;
+viewport.addEventListener('pointerdown', e => {
+  if (e.pointerType !== 'mouse' || e.button !== 0 ||
+      e.target.closest('.chooser,button,input,a,.detail-panel')) return;
+  mousePan={pointerId:e.pointerId,x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,moved:false};
+  viewport.setPointerCapture(e.pointerId);
+});
+viewport.addEventListener('pointermove', e => {
+  if (!mousePan || e.pointerId !== mousePan.pointerId) return;
+  if (Math.hypot(e.clientX-mousePan.x,e.clientY-mousePan.y) > 10){
+    mousePan.moved=true;
+    suppressMapClickUntil=performance.now()+500;
+  }
+  if (!mousePan.moved) return;
+  e.preventDefault();
+  viewport.classList.add('is-panning');
+  panViewBoxByClientDelta(e.clientX-mousePan.lastX,e.clientY-mousePan.lastY);
+  mousePan.lastX=e.clientX;
+  mousePan.lastY=e.clientY;
+  hideChooser();
+});
+function endMousePan(e){
+  if (!mousePan || e.pointerId !== mousePan.pointerId) return;
+  if (mousePan.moved) suppressMapClickUntil=performance.now()+700;
+  if (viewport.hasPointerCapture(e.pointerId)) viewport.releasePointerCapture(e.pointerId);
+  mousePan=null;
+  viewport.classList.remove('is-panning');
+}
+viewport.addEventListener('pointerup',endMousePan);
+viewport.addEventListener('pointercancel',endMousePan);
 viewport.addEventListener('dblclick', e => {
   e.preventDefault();
+  if (performance.now() < suppressMapClickUntil) return;
   if (performance.now()-lastTouchZoomAt < 550) return;
   if (e.target.closest('.hit,button,input,a,.chooser,.detail-panel')) return;
   suppressMapClickUntil=performance.now()+500;

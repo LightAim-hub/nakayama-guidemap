@@ -29,17 +29,31 @@ else:
     OUT_HTMLS = [P('v2_index.html')]
     TEMPLATE_HTML = P('preview.template.html' if ARGS.preview else 'template.html')
 
+PRODUCTION_SHOP_COUNT = 61
+PRODUCTION_SIGNAL_COUNT = 11
+PRODUCTION_MIGRATION_SHOP_COUNTS = {60, PRODUCTION_SHOP_COUNT}
+PRODUCTION_MIGRATION_SIGNAL_COUNTS = {13, PRODUCTION_SIGNAL_COUNT}
+SIGNAL_MERGE_DISTANCE_M = 30.0
+SLOPE_TOP_NAME = '中山の坂の上'
+
 # 通常ビルドは、現在の本番mapdataを位置修正前の凍結ベースとして使う。
 # preview側で増えた道路・信号・meta・店舗付帯情報を本番へ混ぜないための境界。
 PRODUCTION_BASELINE = None
 if not ARGS.preview:
     with open(P('mapdata.json'), encoding='utf-8') as f:
         PRODUCTION_BASELINE = json.load(f)
+    _baseline_shop_count = len(PRODUCTION_BASELINE.get('shops', []))
     _baseline_road_count = len(PRODUCTION_BASELINE.get('roads', []))
-    if (len(PRODUCTION_BASELINE.get('shops', [])) != 60 or
+    _baseline_signal_count = len(PRODUCTION_BASELINE.get('signals', []))
+    if (_baseline_shop_count not in PRODUCTION_MIGRATION_SHOP_COUNTS or
             not 62 <= _baseline_road_count <= 78 or
-            len(PRODUCTION_BASELINE.get('signals', [])) != 13):
-        raise SystemExit('production baseline guard failed: expected shops=60 roads=62..78 signals=13')
+            _baseline_signal_count not in PRODUCTION_MIGRATION_SIGNAL_COUNTS):
+        raise SystemExit(
+            'production baseline guard failed: expected shops=60|61 roads=62..78 signals=13|11')
+    if (_baseline_shop_count == PRODUCTION_SHOP_COUNT and
+            not any(sh.get('name') == SLOPE_TOP_NAME
+                    for sh in PRODUCTION_BASELINE.get('shops', []))):
+        raise SystemExit('production baseline guard failed: 61st shop is not 中山の坂の上')
 
 LAT0, LON0 = 38.2935, 140.8435
 COSF = math.cos(math.radians(LAT0))
@@ -286,8 +300,8 @@ shops.append({'name': '商店街モニュメント', 'cat': 'place', 'url': '#',
 shops.append({'name': 'たきみち公園', 'cat': 'place', 'url': '#', 'voices': [],
               'note': '', 'addr': '', 'lat': 38.291917, 'lng': 140.85282, 'src': 'osm:exact'})
 
-# あみさんFBテスト版: 本番生成は変えず、--preview の時だけ写真と坂の上を加える。
-PREVIEW_PHOTOS = {
+# 公開用スポット写真。preview で確認済みの内容を本番データへ昇格する。
+SPOT_PHOTOS = {
     'なかやまとびのこ公園': [
         {'src': 'assets/photos/tobinoko_1', 'alt': 'なかやまとびのこ公園の東屋とすべり台'},
         {'src': 'assets/photos/tobinoko_2', 'alt': 'なかやまとびのこ公園の石組みの小川'},
@@ -301,25 +315,24 @@ PREVIEW_PHOTOS = {
         {'src': 'assets/photos/takimichi_2', 'alt': 'たきみち公園の桜の木'},
     ],
 }
-if ARGS.preview:
-    for sh in shops:
-        photos = PREVIEW_PHOTOS.get(sh['name'])
-        if not photos:
-            continue
-        # JSON上でもvoicesの直後にphotosを置く。
-        ordered = {}
-        for key, value in sh.items():
-            ordered[key] = value
-            if key == 'voices':
-                ordered['photos'] = photos
-        sh.clear()
-        sh.update(ordered)
-    shops.append({
-        'name': '中山の坂の上', 'cat': 'place', 'url': '#', 'voices': [],
-        'photos': [{'src': 'assets/photos/sakanoue_1', 'alt': '中山の坂の上から見た市街地の眺め'}],
-        'note': 'バス通りでいちばん高いところ（標高155m）。ここから南へ下る坂が「中山の坂」で、坂の上からは市街地が見渡せます。',
-        'addr': '', 'lat': 38.294850, 'lng': 140.836401, 'src': 'gsi_dem',
-    })
+for sh in shops:
+    photos = SPOT_PHOTOS.get(sh['name'])
+    if not photos:
+        continue
+    # JSON上でもvoicesの直後にphotosを置く。
+    ordered = {}
+    for key, value in sh.items():
+        ordered[key] = value
+        if key == 'voices':
+            ordered['photos'] = photos
+    sh.clear()
+    sh.update(ordered)
+shops.append({
+    'name': SLOPE_TOP_NAME, 'cat': 'place', 'url': '#', 'voices': [],
+    'photos': [{'src': 'assets/photos/sakanoue_1', 'alt': '中山の坂の上から見た市街地の眺め'}],
+    'note': 'バス通りでいちばん高いところ（標高155m）。ここから南へ下る坂が「中山の坂」で、坂の上からは市街地が見渡せます。',
+    'addr': '', 'lat': 38.294850, 'lng': 140.836401, 'src': 'gsi_dem',
+})
 
 # ---------------- 道路・河川・公園 ----------------
 raw = json.load(open(P('osm_raw2.json'), encoding='utf-8'))
@@ -872,8 +885,8 @@ if not ARGS.preview:
     _task_i_fresh_shops = json.loads(json.dumps(shops, ensure_ascii=False))
     generated_names = {sh['name'] for sh in shops}
     baseline_names = {sh['name'] for sh in PRODUCTION_BASELINE['shops']}
-    if generated_names != baseline_names:
-        raise SystemExit('production shop guard failed: generated/baseline names differ')
+    if generated_names != baseline_names | {SLOPE_TOP_NAME}:
+        raise SystemExit('production shop guard failed: only 中山の坂の上 may extend baseline names')
     # 店舗以外の本番地物はbyte由来の凍結データを維持する。
     meta = json.loads(json.dumps(PRODUCTION_BASELINE['meta'], ensure_ascii=False))
     roads = json.loads(json.dumps(PRODUCTION_BASELINE['roads'], ensure_ascii=False))
@@ -884,9 +897,11 @@ if not ARGS.preview:
     busway = json.loads(json.dumps(PRODUCTION_BASELINE['busway'], ensure_ascii=False))
     exits = json.loads(json.dumps(PRODUCTION_BASELINE['exits'], ensure_ascii=False))
     signals = json.loads(json.dumps(PRODUCTION_BASELINE['signals'], ensure_ascii=False))
-    if len(shops) != 60 or not 62 <= len(roads) <= 78 or len(signals) != 13:
-        raise SystemExit('production output guard failed: expected shops=60 roads=62..78 signals=13')
-    print('production compatibility geometry: shops=60 roads=%d signals=13' % len(roads))
+    if (len(shops) != PRODUCTION_SHOP_COUNT or not 62 <= len(roads) <= 78 or
+            len(signals) not in PRODUCTION_MIGRATION_SIGNAL_COUNTS):
+        raise SystemExit('production output guard failed: expected shops=61 roads=62..78 signals=13|11')
+    print('production compatibility geometry: shops=61 roads=%d baseline_signals=%d' %
+          (len(roads), len(signals)))
 
     # ---------------- Task I: 歩行者が使える本番ジオメトリ ----------------
     # 店の真座標は毎回ローカル入力JSONから再生成した値へ戻す。mapdata.json は
@@ -900,8 +915,17 @@ if not ARGS.preview:
         for key in ('lat', 'lng', 'src', 'addr', 'clamped', 'far_m', 'far_deg', 'hint'):
             if key in fresh:
                 sh[key] = fresh[key]
+        if fresh.get('photos'):
+            sh['photos'] = json.loads(json.dumps(fresh['photos'], ensure_ascii=False))
+        else:
+            sh.pop('photos', None)
         sh['x'], sh['y'] = fresh['x'], fresh['y']
         sh['tx'], sh['ty'] = fresh.get('tx', fresh['x']), fresh.get('ty', fresh['y'])
+    if SLOPE_TOP_NAME not in baseline_names:
+        shops.append(json.loads(json.dumps(_task_i_fresh_by_name[SLOPE_TOP_NAME],
+                                          ensure_ascii=False)))
+    if len(shops) != PRODUCTION_SHOP_COUNT:
+        raise SystemExit('production shop guard failed after adding 中山の坂の上')
 
     # 住所の枝番表記だけが異なる同一施設は、ゲートと同じ住所由来グループへ正規化する。
     # 店名・表示文言は変えず、分離制約の入力だけを一意にする。
@@ -942,7 +966,9 @@ if not ARGS.preview:
         raise SystemExit('Task I road-count guard failed: before=62 after=%d' % len(roads))
 
     # 手置き2基を落とし、OSM traffic_signals ノードだけを1対1で使う。
-    # 現行表示域に既にあった11基 + 改訂specで欠落判定された2基。
+    # baseline は移行前の生座標13点と統合後の中点11点のどちらも受ける。
+    # 統合中点から閾値の半分以内にある生ノードを復元し、丸め誤差0.6mを許容する。
+    # required 2基は、さらに古い11点baselineからの移行互換として残す。
     _task_i_manual_signals = {(403.6, 272.2), (490.9, 482.5)}
     _task_i_required_signal_ids = {10309219409, 13831368321}
     _task_i_baseline_signal_points = [tuple(p) for p in PRODUCTION_BASELINE['signals']
@@ -953,14 +979,62 @@ if not ARGS.preview:
             continue
         sx, sy = project(e['lat'], e['lon'])
         pxy = (round(sx - minx, 1), round(sy - miny, 1))
-        existed = any(math.hypot(pxy[0]-q[0], pxy[1]-q[1]) <= 0.6
+        existed = any(math.hypot(pxy[0]-q[0], pxy[1]-q[1]) <=
+                      SIGNAL_MERGE_DISTANCE_M / 2 + 0.6
                       for q in _task_i_baseline_signal_points)
         if existed or e.get('id') in _task_i_required_signal_ids:
             _task_i_signal_rows.append((e.get('id'), pxy))
     _task_i_signal_rows.sort()
-    signals = [[p[0], p[1]] for _, p in _task_i_signal_rows]
-    if len(signals) != 13 or len({tuple(p) for p in signals}) != 13:
+    _task_i_raw_signal_points = [p for _, p in _task_i_signal_rows]
+    if (len(_task_i_raw_signal_points) != 13 or
+            len(set(_task_i_raw_signal_points)) != 13):
         raise SystemExit('Task I signal 1:1 guard failed: expected 13 unique OSM nodes')
+
+    # 同じ交差点の両側にある信号は歩行者向け地図では1基の目印として扱う。
+    # ボス実測で重複に見えた2組が17.1m/19.6mだったため、30m未満を同一交差点とする。
+    _signal_parent = list(range(len(_task_i_signal_rows)))
+
+    def _signal_find(index_):
+        while _signal_parent[index_] != index_:
+            _signal_parent[index_] = _signal_parent[_signal_parent[index_]]
+            index_ = _signal_parent[index_]
+        return index_
+
+    def _signal_union(a_, b_):
+        root_a_, root_b_ = _signal_find(a_), _signal_find(b_)
+        if root_a_ != root_b_:
+            _signal_parent[root_b_] = root_a_
+
+    for i_, (_, point_) in enumerate(_task_i_signal_rows):
+        for j_ in range(i_ + 1, len(_task_i_signal_rows)):
+            other_ = _task_i_signal_rows[j_][1]
+            if math.dist(point_, other_) < SIGNAL_MERGE_DISTANCE_M:
+                _signal_union(i_, j_)
+
+    _signal_groups = defaultdict(list)
+    for i_, row_ in enumerate(_task_i_signal_rows):
+        _signal_groups[_signal_find(i_)].append(row_)
+    _task_i_signal_display_rows = []
+    for members_ in sorted(_signal_groups.values(), key=lambda rows_: min(row_[0] for row_ in rows_)):
+        ids_ = tuple(sorted(row_[0] for row_ in members_))
+        point_ = (
+            round(sum(row_[1][0] for row_ in members_) / len(members_), 1),
+            round(sum(row_[1][1] for row_ in members_) / len(members_), 1),
+        )
+        _task_i_signal_display_rows.append((ids_, point_))
+
+    signals = [[point_[0], point_[1]] for _, point_ in _task_i_signal_display_rows]
+    _merged_signal_nodes = sum(len(ids_) - 1 for ids_, _ in _task_i_signal_display_rows)
+    _remaining_near_signal_pairs = [
+        (signals[i_], signals[j_], round(math.dist(signals[i_], signals[j_]), 1))
+        for i_ in range(len(signals)) for j_ in range(i_ + 1, len(signals))
+        if math.dist(signals[i_], signals[j_]) < SIGNAL_MERGE_DISTANCE_M
+    ]
+    if (len(signals) != PRODUCTION_SIGNAL_COUNT or _merged_signal_nodes != 2 or
+            _remaining_near_signal_pairs):
+        raise SystemExit(
+            'signal merge guard failed: displayed=%d merged=%d remaining_near=%s' %
+            (len(signals), _merged_signal_nodes, _remaining_near_signal_pairs))
 
     # 既存の本番spineは変更しない。N5の東西判定も同じ正本を使う。
     busway = json.loads(json.dumps(PRODUCTION_BASELINE['busway'], ensure_ascii=False))
@@ -1112,7 +1186,7 @@ if not ARGS.preview:
     _task_i_open_sites = {
         'たきみち公園', 'なかやまとびのこ公園', '中山山の神公園',
         '中山小学校', '中山中学校', '中山ドライブスクール',
-        '中山鳥瀧不動尊（目の神様）', '商店街モニュメント',
+        '中山鳥瀧不動尊（目の神様）', '商店街モニュメント', SLOPE_TOP_NAME,
     }
     _task_i_candidate_cache = {}
 
@@ -1600,7 +1674,7 @@ if not ARGS.preview:
     if not all(distance_ <= 20.0 for distance_ in _task_i_signal_distances):
         raise SystemExit('Task I signal intersection guard failed: %s' %
                          [(row_[0], row_[1], round(distance_, 1))
-                          for row_, distance_ in zip(_task_i_signal_rows,
+                          for row_, distance_ in zip(_task_i_signal_display_rows,
                                                      _task_i_signal_distances)])
 
     meta['road_counts'] = dict(sorted(Counter(r['cls'] for r in roads).items()))
@@ -1626,6 +1700,10 @@ if not ARGS.preview:
     }
     meta['signal_counts'] = {
         'displayed': len(signals), 'osm_one_to_one': len(_task_i_signal_rows),
+        'merge_threshold_m': SIGNAL_MERGE_DISTANCE_M,
+        'merged_intersection_groups': sum(len(ids_) > 1
+                                          for ids_, _ in _task_i_signal_display_rows),
+        'merged_signal_nodes': _merged_signal_nodes,
         'removed_manual': 2, 'added_required': 2,
         'at_intersection_20m': sum(d_ <= 20.0 for d_ in _task_i_signal_distances),
         'max_intersection_distance_m': round(max(_task_i_signal_distances), 2),

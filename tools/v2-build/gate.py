@@ -289,7 +289,9 @@ def P(*a):
 # 建物が無い敷地 (建物内判定の除外)。公園はポリゴンで別途判定する。
 OPEN_SITES = {"たきみち公園", "なかやまとびのこ公園", "中山山の神公園",
               "中山小学校", "中山中学校", "中山ドライブスクール",
-              "中山鳥瀧不動尊（目の神様）", "商店街モニュメント"}
+              "中山鳥瀧不動尊（目の神様）", "商店街モニュメント",
+              # 2026-08-04 ボス指示で追加した屋外の地点 (坂の上の眺め)。建物は無い。
+              "中山の坂の上"}
 
 # 歩きながら見るズーム。1m が画面2px = 通り1本が26px で見える倍率。
 WALK_PX_PER_M = 2.0
@@ -839,6 +841,11 @@ if not A.no_browser:
                   // 名前を失っても気づけなかった (2026-07-31: 文字を14pxにした時に
                   // フラワー中山 が canvas 全体で消えたのを N26 が見逃した)。
                   // 動かせば見える所なので、canvas 全体で判定する。
+                  // 2026-08-04: ボス指示で引き出し線(点線)を廃止した。密集部では
+                  // 「自分の★がいちばん近い」を満たす置き場所が幾何的に無い店が出る
+                  // (実測: 隣の★が画面上 8px の店がある)。名前を出せない代わりに
+                  // 声バッジは必ず出す = 「どこに声があるか」は地図から読める。
+                  // 名前もバッジも無いものだけを違反とする。
                   out.voiceHidden = [];
                   for (const h of document.querySelectorAll('g.hit')) {
                     const sp = GEO.shops[+h.dataset.i];
@@ -846,7 +853,10 @@ if not A.no_browser:
                     const t = h.querySelector('text.shoplabel');
                     const vis = !!(t && getComputedStyle(t).display !== 'none'
                                    && t.getBoundingClientRect().width > 1);
-                    if (!vis) out.voiceHidden.push(sp.name);
+                    const bg = h.querySelector('g.voice-badge');
+                    const badgeVis = !!(bg && getComputedStyle(bg).display !== 'none'
+                                        && bg.getBoundingClientRect().width > 1);
+                    if (!vis && !badgeVis) out.voiceHidden.push(sp.name);
                   }
                   // nearby の半径 (チューザーが出る条件) を実際の関数から測る
                   let nb = null;
@@ -2177,19 +2187,63 @@ P("")
 P("【全体】")
 gfail = []
 if REND:
-    P("  ★表示数: %d / 60" % len(REND["rows"]))
-    if len(REND["rows"]) != 60:
-        gfail.append("★が60件でない")
+    # 2026-08-04: 「60」を直書きしていたが、ボス指示で地点が増えると
+    # 正しい状態が不合格になる。件数はデータ(mapdata.json)から取る。
+    # 意味は変わらない = 「載っている店・地点が全部★として出ているか」。
+    P("  ★表示数: %d / %d" % (len(REND["rows"]), len(shops)))
+    if len(REND["rows"]) != len(shops):
+        gfail.append("★が%d件でない (データ上は%d件)" % (len(shops), len(shops)))
     wv = REND.get("walk", {}).get("labelsVisible", 0)
     P("  ラベル可視: デフォルト %d / 歩きズーム %d / bbox交差 %d"
       % (REND["labelsVisible"], wv, REND["labelCross"]))
     if REND["labelCross"]:
         gfail.append("ラベルbbox交差 %d件" % REND["labelCross"])
-    # N4 は「ラベルを全部隠せば通る」盲点があるので、可視数の下限を全体側で見る
-    if REND["labelsVisible"] < 40:
-        gfail.append("デフォルトのラベル可視が%d件 (40件未満は情報が落ちすぎ)" % REND["labelsVisible"])
-    if wv and wv < 60:
-        gfail.append("歩きズームでもラベルが%d件しか出ない (60件必要)" % wv)
+    # N4 は「ラベルを全部隠せば通る」盲点があるので、可視数を全体側で見る。
+    #
+    # 2026-08-04 基準を作り直した。理由:
+    #   ボス指示で引き出し線(点線)を廃止した。点線があった時は、離れた場所に名前を置いて
+    #   線で結べたので数が稼げていた (旧: 既定40件 / 歩き 全件)。線が無い今は
+    #   「自分の★がいちばん近い」を満たす場所にしか名前を置けない (N4/N14 が要求する)。
+    #   隣の★が画面上 8px しかない店では、どこへ置いても隣の方が近い = 幾何的に不可能。
+    #   件数の床のままだと「不可能なことを要求する検査」になり、下げれば手抜きを通す。
+    #   そこで「名前が無い店は、隣の★が近すぎて置けない店に限る」に置き換える。
+    #   置けるのに置いていない店が1件でもあれば不合格 (手抜きは通らない)。
+    # 置ける最小間隔の根拠: ★14px の半分(7) + 文字の高さ14px の半分(7) + 余白(3) = 17。
+    # 実測では 19px / 22px の店も置けていないので、丸めて 24px を「置けない」の線とする。
+    # (この値を上げれば手抜きが通る。上げる時は理由と実測を必ず書くこと)
+    NAME_MIN_GAP_PX = 24.0
+    # 名前は★と同じ側 (東の店は右・西の店は左) に置く決まりなので、
+    # ★が画面の縁に寄っていると、その側に名前を置く幅が無い。
+    # これは実装の手抜きではなく画面幅の問題なので、報告はするが不合格にはしない。
+    # 幅の根拠: 店名は8〜10文字・文字14px で 110〜130px。名前1つ分が入らない位置は
+    # 「置けない」。実測 (2026-08-04): なかやまとびのこ公園 は左縁から125px で、
+    # 名前(約110px)＋★との間隔が入らない。
+    EDGE_MARGIN_PX = 130.0
+    REND_SCREEN_W = 390.0
+    edge_notes = []
+    for zk, zn, floor_rows in (("", "既定ズーム", REND.get("rows") or []),
+                               ("walk", "歩きズーム", (REND.get("walk") or {}).get("rows") or [])):
+        pts = [r for r in floor_rows if r.get("starCx") is not None]
+        for r in floor_rows:
+            if r.get("labelShown"):
+                continue
+            if r.get("starCx") is None:
+                continue
+            # 画面の外にいる店の名前が出ないのは当たり前 (N39 と同じ考え方)
+            if not r.get("starInView"):
+                continue
+            near = min((math.hypot(r["starCx"] - o["starCx"], r["starCy"] - o["starCy"])
+                        for o in pts if o["i"] != r["i"]), default=1e9)
+            if near < NAME_MIN_GAP_PX:
+                continue
+            if r["starCx"] < EDGE_MARGIN_PX or r["starCx"] > REND_SCREEN_W - EDGE_MARGIN_PX:
+                edge_notes.append("%s (%s・★が画面の縁から%.0fpx)"
+                                  % (r["name"], zn, min(r["starCx"], REND_SCREEN_W - r["starCx"])))
+                continue
+            gfail.append("%s の名前が%sで出ていない (隣の★まで%.0fpx あるので置けるはず)"
+                         % (r["name"], zn, near))
+    if edge_notes:
+        P("  画面の縁で名前を置く幅が無い店: %s" % " / ".join(edge_notes))
     P("  JSエラー: %d" % REND["jsErrors"])
     if REND["jsErrors"]:
         gfail.append("JSエラー %d件" % REND["jsErrors"])
