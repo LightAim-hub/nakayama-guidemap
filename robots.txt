@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+# 検証用・生成元のファイルは検索結果に出さない (2026-08-04)
+Disallow: /tools/
+Disallow: /handoff/
+Disallow: /preview.html
+Disallow: /v2.html
+Sitemap: https://lightaim-hub.github.io/nakayama-guidemap/sitemap.xml

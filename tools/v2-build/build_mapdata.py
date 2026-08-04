@@ -15,6 +15,8 @@ def P(name):
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--preview', action='store_true', help='preview専用データとテンプレートでpreview.htmlだけを生成')
+parser.add_argument('--allow-shop-change', action='store_true',
+                    help='店の増減を承知の上で生成する (お店を追加・削除した時に付ける)')
 ARGS = parser.parse_args()
 
 # リポジトリ直下 (tools/v2-build/ の2つ上)。無ければスクリプト隣に確認用HTMLを出力
@@ -886,7 +888,15 @@ if not ARGS.preview:
     generated_names = {sh['name'] for sh in shops}
     baseline_names = {sh['name'] for sh in PRODUCTION_BASELINE['shops']}
     if generated_names != baseline_names | {SLOPE_TOP_NAME}:
-        raise SystemExit('production shop guard failed: only 中山の坂の上 may extend baseline names')
+        # 2026-08-04: 店が1件でも増減するとここで落ち、組合側で更新できなかった。
+        # 「気づかずに変わる」のを止めるのが目的なので、意図した変更は
+        #   python tools/v2-build/build_mapdata.py --allow-shop-change
+        # で通す。差分は必ず表示して、黙って変わらないようにする。
+        added = sorted(generated_names - (baseline_names | {SLOPE_TOP_NAME}))
+        removed = sorted((baseline_names | {SLOPE_TOP_NAME}) - generated_names)
+        print('店の増減を検出: 追加=%s / 削除=%s' % (added or 'なし', removed or 'なし'))
+        if not ARGS.allow_shop_change:
+            raise SystemExit('店が増減しています。意図した変更なら --allow-shop-change を付けて実行してください。')
     # 店舗以外の本番地物はbyte由来の凍結データを維持する。
     meta = json.loads(json.dumps(PRODUCTION_BASELINE['meta'], ensure_ascii=False))
     roads = json.loads(json.dumps(PRODUCTION_BASELINE['roads'], ensure_ascii=False))
@@ -897,9 +907,11 @@ if not ARGS.preview:
     busway = json.loads(json.dumps(PRODUCTION_BASELINE['busway'], ensure_ascii=False))
     exits = json.loads(json.dumps(PRODUCTION_BASELINE['exits'], ensure_ascii=False))
     signals = json.loads(json.dumps(PRODUCTION_BASELINE['signals'], ensure_ascii=False))
-    if (len(shops) != PRODUCTION_SHOP_COUNT or not 62 <= len(roads) <= 78 or
-            len(signals) not in PRODUCTION_MIGRATION_SIGNAL_COUNTS):
-        raise SystemExit('production output guard failed: expected shops=61 roads=62..78 signals=13|11')
+    if ((len(shops) != PRODUCTION_SHOP_COUNT and not ARGS.allow_shop_change)
+            or not 62 <= len(roads) <= 78
+            or len(signals) not in PRODUCTION_MIGRATION_SIGNAL_COUNTS):
+        raise SystemExit('production output guard failed: expected shops=%d roads=62..78 signals=13|11'
+                         % PRODUCTION_SHOP_COUNT)
     print('production compatibility geometry: shops=61 roads=%d baseline_signals=%d' %
           (len(roads), len(signals)))
 

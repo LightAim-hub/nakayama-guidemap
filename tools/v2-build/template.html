@@ -11,6 +11,17 @@
 <meta property="og:url" content="https://lightaim-hub.github.io/nakayama-guidemap/">
 <meta property="og:image" content="https://lightaim-hub.github.io/nakayama-guidemap/assets/photos/sakanoue_1.jpg">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://lightaim-hub.github.io/nakayama-guidemap/">
+<meta name="theme-color" content="#FBF4E2">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite",
+ "name":"なかやま商店街マップ",
+ "url":"https://lightaim-hub.github.io/nakayama-guidemap/",
+ "inLanguage":"ja",
+ "description":"なかやま商店街（仙台市青葉区）のお店を、実際の位置で見られるデジタルマップ。",
+ "about":{"@type":"Place","name":"なかやま商店街",
+   "address":{"@type":"PostalAddress","addressLocality":"仙台市青葉区","addressRegion":"宮城県","addressCountry":"JP"}}}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- 2026-08-04: 日本語Webフォントは字形が細かく分かれて87ファイル取りに行く。
@@ -277,6 +288,16 @@
   .chooser .copt:active{ background:#f3e7cc; }
   .chooser .cdot{ width:12px; height:12px; border-radius:50%; flex:0 0 auto; border:1.5px solid rgba(92,67,39,.4); }
 
+  .map-compass{ display:none; }
+  body.map-open .map-compass{ position:fixed; right:64px; bottom:calc(var(--map-controls-h) + 10px); z-index:26;
+    display:block; width:36px; height:36px; pointer-events:none; }
+  body.map-open.list-open .map-compass, body.detail-open .map-compass{ display:none; }
+  .map-compass svg{ width:36px; height:36px; }
+  .compass-face{ fill:#fffaf0; stroke:#d8c4a0; stroke-width:2; }
+  .compass-north{ fill:#b3562e; }
+  .compass-south{ fill:#c9b28c; }
+  .compass-label{ font-family:'Yusei Magic',sans-serif; font-size:9px; fill:var(--ink);
+    text-anchor:middle; font-weight:700; }
   .map-float-tools{ display:none; }
   .zoomctl{ position:fixed; right:12px; bottom:62px; z-index:25; display:flex; flex-direction:column; gap:8px; }
   .zoomctl button{ width:44px; height:44px; font-size:1.25rem; font-weight:700; color:var(--ink);
@@ -344,6 +365,7 @@
   /* 上の余白は、パネルの外(二列表示のカード)と「閉じる」ボタンの指の間隔。
      実測7.8pxで押し間違える距離だったので広げた (2026-08-04) */
   #listpanel .lhead{ flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; padding:16px 14px 10px; }
+  @media (max-height:720px){ #listpanel{ max-height:calc(56vh - 2px); } }
   #listpanel .lhead h2{ font-size:.95rem; font-family:'Yusei Magic',sans-serif; }
   #listpanel .lclose{ width:44px; height:44px; border:0; background:transparent; font-size:1.1rem; color:var(--ink-soft); cursor:pointer; }
   /* 上の余白は「閉じる」ボタンと1行目の指の間隔 (最低8px)。実測7.8pxだったので広げた */
@@ -496,6 +518,7 @@
   #controls .searchbar{ height:44px; padding:0; gap:8px; }
   #controls .searchbar input{ width:100%; max-width:none; height:44px; }
   #controls #searchstatus{ min-width:5.5em; }
+  #searchbtn{ display:none; }
   .control-actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px; height:44px; }
   #mapbtn, #listbtn, .map-tool-button{ width:100%; min-height:44px; height:44px; display:inline-flex;
     align-items:center; justify-content:center; gap:6px; padding:7px 12px; border:2px solid var(--ink-soft);
@@ -584,6 +607,20 @@
     #controls{ grid-template-rows:96px 44px 44px; }
     #controls .filters{ grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:44px 44px; height:96px; }
   }
+  /* 2026-08-04: 背の低い端末では固定UIが画面の40〜48%を占め、61件中4〜5件しか
+     見えなかった。検索欄は「さがす」ボタンの中にしまい、通りの方向案内も省く。
+     指の基準44pxは崩さない。(この規則は上のportrait規則より後に置くこと) */
+  @media(max-width:759px) and (orientation:portrait) and (max-height:720px){
+    body{ --controls-h:164px; }
+    #controls{ grid-template-rows:96px 44px; }
+    #controls .searchbar{ display:none; }
+    body.search-open{ --controls-h:216px; }
+    body.search-open #controls{ grid-template-rows:96px 44px 44px; }
+    body.search-open #controls .searchbar{ display:flex; }
+    .strip-guide{ display:none; }
+    .control-actions{ grid-template-columns:auto minmax(0,1fr) minmax(0,1fr); }
+    #searchbtn{ display:inline-flex; width:auto; min-width:44px; padding-inline:12px; font-size:14px; }
+  }
   @media(max-width:480px){
     .strip-guide{ grid-template-columns:minmax(0,1fr) 60px minmax(0,1fr); padding-inline:5px; }
     .strip-row{ width:calc(50% - 35px); gap:4px; padding:6px 4px; font-size:14px; }
@@ -650,12 +687,24 @@
   <div class="filters" id="filters"></div>
   <div class="searchbar"><input id="q" type="search" placeholder="お店をさがす（例：ケーキ）" aria-label="お店を検索"><span id="searchstatus" role="status" aria-live="polite"></span></div>
   <div class="control-actions">
-    <button id="mapbtn" type="button" aria-controls="viewport" aria-expanded="false">地図で見る</button>
+    <button id="searchbtn" type="button" aria-controls="q" aria-expanded="false">さがす</button>
     <button id="listbtn" aria-controls="listpanel" aria-expanded="false">お店一覧</button>
+    <button id="mapbtn" type="button" aria-controls="viewport" aria-expanded="false">地図で見る</button>
   </div>
   <p id="locationStatus" role="status" aria-live="polite">押した時だけ位置を使います</p>
 </div>
 
+<!-- 方位記号。この地図は通りを縦に見せるため北から46.4°回してある (2026-08-04追加) -->
+<div class="map-compass" id="mapCompass" aria-hidden="true" title="北の向き">
+  <svg viewBox="0 0 44 44" focusable="false">
+    <circle cx="22" cy="22" r="20" class="compass-face"/>
+    <g id="compassNeedle">
+      <path d="M22 5 L27 24 L22 20 L17 24 Z" class="compass-north"/>
+      <path d="M22 39 L17 20 L22 24 L27 20 Z" class="compass-south"/>
+    </g>
+    <text x="22" y="15" class="compass-label">北</text>
+  </svg>
+</div>
 <div class="map-float-tools" aria-label="地図の操作">
   <button id="locatebtn" class="map-tool-button" type="button" aria-label="現在地" aria-controls="map"
     aria-describedby="locationStatus" title="現在地を表示（押した時だけ位置を使います）">
@@ -742,6 +791,54 @@ const mapButton = document.getElementById('mapbtn');
 const mapBackButton = document.getElementById('mapback');
 const credit = document.querySelector('footer.credit');
 const creditSummary = document.getElementById('creditSummary');
+// --- 二列表示と地図で「見ている場所」を合わせる (2026-08-04) ---
+function shopNearStripCenter(){
+  const view = document.getElementById('stripview');
+  if (!view) return null;
+  // 先頭を見ている時は「特定の店を見ている」わけではないので、地図は既定の位置で開く
+  if (view.scrollTop <= 40) return null;
+  const mid = view.getBoundingClientRect().top + view.clientHeight / 2;
+  let best = null, bd = Infinity;
+  document.querySelectorAll('#strip .strip-row').forEach(row => {
+    if (row.hidden) return;
+    const b = row.getBoundingClientRect();
+    if (b.height < 1) return;
+    const d = Math.abs((b.top + b.bottom) / 2 - mid);
+    if (d < bd){ bd = d; best = GEO.shops[+row.dataset.i]; }
+  });
+  return best;
+}
+function centerMapOn(s){
+  if (!s) return;
+  const vb = svg.viewBox.baseVal;
+  setMapViewBox({x:s.x - vb.width / 2, y:s.y - vb.height / 2,
+    width:vb.width, height:vb.height});
+}
+function shopNearMapCenter(){
+  const vb = svg.viewBox.baseVal;
+  if (!(vb && vb.width > 0)) return null;
+  const cx = vb.x + vb.width / 2, cy = vb.y + vb.height / 2;
+  let best = null, bd = Infinity;
+  GEO.shops.forEach(s => {
+    if (!matchesFilter(s)) return;
+    const d = Math.hypot(s.x - cx, s.y - cy);
+    if (d < bd){ bd = d; best = s; }
+  });
+  return best;
+}
+function scrollStripTo(s){
+  const row = document.querySelector('#strip .strip-row[data-i="' + GEO.shops.indexOf(s) + '"]');
+  const view = document.getElementById('stripview');
+  if (!row || !view || row.hidden) return;
+  const b = row.getBoundingClientRect(), vb = view.getBoundingClientRect();
+  view.scrollTop += (b.top + b.height / 2) - (vb.top + view.clientHeight / 2);
+}
+// 方位記号の針を北へ向ける。投影は rot_deg だけ回してあるので、その分だけ戻す。
+(function orientCompass(){
+  const needle = document.getElementById('compassNeedle');
+  const rot = GEO.meta && GEO.meta.proj ? GEO.meta.proj.rot_deg : 0;
+  if (needle && rot) needle.setAttribute('transform', 'rotate(' + (-rot) + ' 22 22)');
+})();
 function setMapOpen(open, restoreFocus){
   document.body.classList.toggle('map-open', open);
   const viewportNode = document.getElementById('viewport');
@@ -753,13 +850,20 @@ function setMapOpen(open, restoreFocus){
   mapButton.setAttribute('aria-expanded', open ? 'true' : 'false');
   mapButton.textContent = open ? '通りへ' : '地図で見る';
   if (open){
+    // 2026-08-04: 二列で見ていた場所と関係なく、いつも同じ位置で地図が開いていた
+    // (実測: 直前に見ていた10店のうち0件しか映らない)。見ていた辺りを地図でも開く。
+    const lookingAt = shopNearStripCenter();
     requestAnimationFrame(() => {
       applyResponsiveMapView();
       drawShops();
+      if (lookingAt) centerMapOn(lookingAt);
       scheduleMapScaleStyles();
       mapButton.focus({preventScroll:true});
     });
   } else {
+    // 地図で見ていた辺りのカードへ、通りの一覧側も合わせる
+    const center = shopNearMapCenter();
+    if (center) requestAnimationFrame(() => scrollStripTo(center));
     hideChooser();
     credit.classList.remove('expanded');
     creditSummary.setAttribute('aria-expanded','false');
@@ -2102,7 +2206,13 @@ function makeStripRow(entry, far){
       main.appendChild(voice);
     }
     row.appendChild(main);
-    row.appendChild(stripChild('span','strip-distance',(entry.side === 'west' ? '西へ約' : '東へ約')+Math.round(entry.distance)+'m'));
+    // 2026-08-04: 1km以上離れた店にも「東へ約147m」と通りからの直角距離を出していて、
+    // 実際の遠さが伝わらなかった。縁に寄せている店は本当の距離を出す。
+    const far = entry.s.far_m;
+    const distText = far && far >= 400
+      ? (far >= 1000 ? '約' + (far/1000).toFixed(1) + 'km先' : '約' + far + 'm先')
+      : (entry.side === 'west' ? '西へ約' : '東へ約') + Math.round(entry.distance) + 'm';
+    row.appendChild(stripChild('span','strip-distance',distText));
   } else {
     row.style.top=stripIdealCenter(entry)+'px';
     stripRowNodes.set(entry.i,row);
@@ -2698,6 +2808,16 @@ gShops.addEventListener('keydown', e => {
   e.preventDefault(); lastFocusHit = h;
   pinned = GEO.shops[+h.dataset.i]; showDetail(pinned, true);
 });
+// 画面の低い端末では検索欄をしまってあるので、ボタンで開く (2026-08-04)
+const searchBtn = document.getElementById('searchbtn');
+if (searchBtn){
+  searchBtn.addEventListener('click', () => {
+    const open = !document.body.classList.contains('search-open');
+    document.body.classList.toggle('search-open', open);
+    searchBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) requestAnimationFrame(() => document.getElementById('q').focus());
+  });
+}
 document.getElementById('detailClose').addEventListener('click', e => { e.stopPropagation(); hideDetail(true); });
 detailPanel.addEventListener('click', e => e.stopPropagation());
 detailPrev.addEventListener('click', () => moveDetailTo(detailIndex - 1, true));
@@ -2884,7 +3004,14 @@ function withinCommercialArea(point){
   return withinEnds && (nearShop || nearStreet);
 }
 function locationErrorMessage(error){
-  if (error && error.code===1) return '位置情報は許可されませんでした';
+  if (error && error.code===1){
+    // 2026-08-04: 埋め込み(iframe)では許可を聞かれる前に拒否されるので、
+    // 「許可しなかった」と誤って伝えないようにする。
+    const embedded = window.self !== window.top;
+    return embedded
+      ? 'この画面では現在地を使えません（地図を別のタブで開くと使えます）'
+      : '位置情報は許可されませんでした';
+  }
   if (error && error.code===3) return '現在地の取得に時間がかかっています';
   return '現在地を取得できませんでした';
 }
