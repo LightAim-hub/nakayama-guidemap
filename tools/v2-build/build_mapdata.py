@@ -6,7 +6,7 @@
 preview出力: リポジトリ直下の preview.html (本番2ファイルは非変更)
 実行: python tools/v2-build/build_mapdata.py [--preview] (どこから実行してもよい)
 """
-import argparse, json, math, os, re, unicodedata
+import argparse, json, math, os, re, sys, unicodedata
 from collections import Counter, defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -38,12 +38,74 @@ PRODUCTION_MIGRATION_SIGNAL_COUNTS = {13, PRODUCTION_SIGNAL_COUNT}
 SIGNAL_MERGE_DISTANCE_M = 30.0
 SLOPE_TOP_NAME = '中山の坂の上'
 
+# ---------------- 掲載名・リンクを公式サイトに合わせる (2026-08-04 実測) ----------------
+# 公式 nakayaman.com の各ページを実ブラウザで開き、見出し(h1)と突き合わせた結果の差分。
+# 店名の誤記は掲載される側の信用に関わるので、公式の表記を正とする。
+# 生成側にも凍結ベース側にも同じ表を当てるので、何度実行しても結果は変わらない。
+OFFICIAL_NAME_FIX = {
+    '志摩整骨院':       '志摩接骨院',        # 施術所名そのものなので誤記不可
+    'ウエルシア薬局':   'ウエルシア仙台中山店',
+    '河北仙販 中山支店': '河北仙販中山店',
+    'cake NAO':         'Cake NAO',
+    '尚絅教会':         '日本パブテスト尚絅教会',
+    'サトー商会':       'サトー商会 荒巻店',
+    'みなとや':         'みなとや 精肉店',
+}
+# 地図の上に出す短い呼び名。正式名称が長いと隣の店の名前まで押し出して消してしまう
+# (2026-08-04: ウエルシア仙台中山店 に直したら、既定ズームで名前が出なくなった)。
+# 一覧・詳細・読み上げは正式名称のままにして、地図の文字だけ短くする。
+MAP_LABEL_SHORT = {
+    'ウエルシア仙台中山店': 'ウエルシア',
+    '日本パブテスト尚絅教会': '尚絅教会',
+}
+OFFICIAL_URL_FIX = {
+    # 2026-08-04 実測で 404。公式サイトマップにも無い (ページごと消えている)。
+    '志摩接骨院':       'https://www.nakayaman.com/post/%E5%BF%97%E6%91%A9%E6%95%B4%E9%AA%A8%E9%99%A2',
+    'ビバホーム荒巻店': '#',
+    # 4丁目には専用ページがあるのに、5丁目のページへ飛ばしていた。
+    'Double Egg4丁目': 'https://www.nakayaman.com/post/double-egg-4%E4%B8%81%E7%9B%AE',
+}
+
+
+def revert_official_fixes(shop_list):
+    """凍結ベース(前回の生成物)には公式表記が入っている。座標や対応表は
+    すべて内部の元の名前で引いているので、読み込んだ時点で内部名へ戻す。"""
+    back = {v: k for k, v in OFFICIAL_NAME_FIX.items()}
+    for sh in shop_list:
+        if sh['name'] in back:
+            sh['name'] = back[sh['name']]
+
+
+def apply_official_fixes(shop_list, label=None):
+    """公式表記へ寄せる。すでに直っているものは触らない。"""
+    renamed, relinked = [], []
+    for sh in shop_list:
+        new = OFFICIAL_NAME_FIX.get(sh['name'])
+        if new:
+            renamed.append('%s→%s' % (sh['name'], new))
+            sh['name'] = new
+        url = OFFICIAL_URL_FIX.get(sh['name'])
+        if url is not None and sh.get('url') != url:
+            relinked.append(sh['name'])
+            sh['url'] = url
+        short = MAP_LABEL_SHORT.get(sh['name'])
+        if short:
+            sh['short'] = short
+        else:
+            sh.pop('short', None)
+    if label and (renamed or relinked):
+        print('公式表記に合わせた (%s): 店名%d件 %s / リンク%d件 %s'
+              % (label, len(renamed), ' / '.join(renamed), len(relinked), ' / '.join(relinked)))
+    return renamed, relinked
+
+
 # 通常ビルドは、現在の本番mapdataを位置修正前の凍結ベースとして使う。
 # preview側で増えた道路・信号・meta・店舗付帯情報を本番へ混ぜないための境界。
 PRODUCTION_BASELINE = None
 if not ARGS.preview:
     with open(P('mapdata.json'), encoding='utf-8') as f:
         PRODUCTION_BASELINE = json.load(f)
+    revert_official_fixes(PRODUCTION_BASELINE.get('shops', []))
     _baseline_shop_count = len(PRODUCTION_BASELINE.get('shops', []))
     _baseline_road_count = len(PRODUCTION_BASELINE.get('roads', []))
     _baseline_signal_count = len(PRODUCTION_BASELINE.get('signals', []))
@@ -1726,6 +1788,9 @@ if not ARGS.preview:
 
 print('zones:', zones)
 
+# 出力の直前だけ公式表記に差し替える (内部の対応表は元の名前で引いているため)
+apply_official_fixes(shops, '出力')
+
 data = {'meta': meta, 'shops': shops, 'roads': roads, 'rivers': rivers,
         'parks': parks, 'waters': waters, 'sando': sando, 'busway': busway, 'exits': exits,
         'zones': zones, 'signals': signals}
@@ -1743,6 +1808,18 @@ for out_html in OUT_HTMLS:
     with open(out_html, 'w', encoding='utf-8') as f:
         f.write(rendered)
     print('HTML generated (escaped):', out_html)
+
+# ---------------- 自前フォントの詰め直し ----------------
+# 店名を1つ足しただけでその字がフォントに無い、という取りこぼしを防ぐため、
+# HTML を書いた直後に必ず作り直す (fonttools が無い環境では黙って飛ばす)。
+if not ARGS.preview:
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import make_fonts
+        print('自前フォント:')
+        make_fonts.build(list(OUT_HTMLS))
+    except Exception as _e:                      # フォントが作れなくても地図は出る
+        print('  フォントの作り直しに失敗 (端末のフォントで表示される):', _e)
 
 if ARGS.preview:
     for i, sh in enumerate(shops):

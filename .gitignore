@@ -7,3 +7,10 @@ tools/v2-build/_eyes/
 tools/v2-build/_shots/
 
 .handoff_receipts/
+
+# 元フォント (3本で10MB。make_fonts.py が配布元から取り直せる)
+tools/v2-build/_fontsrc/
+tools/v2-build/__pycache__/
+tools/v2-build/_gate_v15.json
+# @font-face は template.html が正本。生成物は控えなので置かない
+assets/fonts/fonts_face.css

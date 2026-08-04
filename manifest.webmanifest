@@ -1,0 +1,17 @@
+{
+  "name": "なかやま商店街マップ",
+  "short_name": "なかやまマップ",
+  "description": "なかやま商店街（仙台市青葉区）のお店を、実際の位置で見られるデジタルマップ。",
+  "lang": "ja",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#FBF4E2",
+  "theme_color": "#FBF4E2",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

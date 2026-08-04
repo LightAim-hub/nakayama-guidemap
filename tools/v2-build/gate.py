@@ -382,10 +382,10 @@ FILTER_VISIBLE_MIN = 6      # 絞り込んだとき1画面に見えるべき該�
 # 当たるべき店を名指しで書き、その店が結果に入っていることまで見る。
 SEARCH_WORDS = [
     ("パン",   "BAKERY&BAKE EndRoll"),
-    ("ケーキ", "cake NAO"),
+    ("ケーキ", "Cake NAO"),
     ("歯医者", "歯科"),
     ("床屋",   "とこや"),
-    ("薬",     "ウエルシア薬局"),
+    ("薬",     "ウエルシア仙台中山店"),
     ("花",     "フラワー中山"),
     ("銀行",   "七十七銀行中山支店"),
     ("郵便",   "中山郵便局"),
@@ -393,7 +393,7 @@ SEARCH_WORDS = [
     # 「カフェ」の正解に "cafe" を置いていたが、60店に cafe も喫茶も無い。
     # 存在しない文字列を正解にしていた検査側の誤り (2026-07-31 訂正)。
     # 座って飲食できる先を探して打つ言葉なので、食べる・飲む の店に当たれば正しい。
-    ("カフェ", "cake NAO"),
+    ("カフェ", "Cake NAO"),
 ]
 SEARCH_HITS_MAX = 14       # 1語で14件超が返るなら絞れていない (全部に当てる実装よけ)
 
@@ -1033,6 +1033,23 @@ if not A.no_browser:
                     // 横向きで一覧を開くと、検索欄とお店一覧ボタンはパネルの裏に隠れる。
                     // 隠れているものとの隙間を測ると幽霊の隣接を数えることになる
                     // (2026-07-31: これで3回、同じ場所を追いかけ回した)。
+                    // 2026-08-04: スクロールする入れ物からはみ出した部分は切り取られていて
+                    // 指は届かない。切り取り後の (=実際に触れる) 形で測る。
+                    // これを見ていなかったため、画面外に切れたボタンと下帯が
+                    // 「重なっている」と誤って出ていた。
+                    const clipRect = e => {
+                      let r = e.getBoundingClientRect();
+                      for (let n = e.parentElement; n && n !== document.body; n = n.parentElement) {
+                        const cs = getComputedStyle(n);
+                        if (cs.overflow === 'visible' && cs.overflowX === 'visible'
+                            && cs.overflowY === 'visible') continue;
+                        const c = n.getBoundingClientRect();
+                        const left = Math.max(r.left, c.left), right = Math.min(r.right, c.right);
+                        const top = Math.max(r.top, c.top), bottom = Math.min(r.bottom, c.bottom);
+                        r = {left, right, top, bottom, width:right-left, height:bottom-top};
+                      }
+                      return r;
+                    };
                     const els = [...document.querySelectorAll(
                         'button,a[href],input,[role="button"]')]
                       .filter(e => vis(e) && !e.closest('svg'))
@@ -1040,7 +1057,8 @@ if not A.no_browser:
                         const hit = document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);
                         return !!(hit && (hit === e || e.contains(hit))); })
                       .map(e => ({nm:(e.getAttribute('aria-label')||e.textContent||'')
-                                     .trim().slice(0,14), r:e.getBoundingClientRect()}));
+                                     .trim().slice(0,14), r:clipRect(e)}))
+                      .filter(o => o.r.width > 0.5 && o.r.height > 0.5);
                     for (let i=0;i<els.length;i++) for (let j=i+1;j<els.length;j++) {
                       const a=els[i].r, b=els[j].r;
                       const ox = Math.min(a.right,b.right)-Math.max(a.left,b.left);
