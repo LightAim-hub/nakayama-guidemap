@@ -278,6 +278,7 @@
   .detail-voice{ position:relative; margin:7px 0; padding:10px 12px 10px 28px; border-radius:10px;
     border-left:4px solid var(--voice); background:#edf6f3; font-size:.82rem; line-height:1.65; }
   .detail-voice::before{ content:"“"; position:absolute; left:10px; top:5px; color:var(--voice); font-size:1.2rem; font-weight:700; }
+  .detail-voice-source{ margin-top:10px; color:var(--ink-soft); font-size:.72rem; line-height:1.6; }
   .detail-link{ display:flex; align-items:center; justify-content:center; min-height:46px; margin-top:22px; padding:10px 16px;
     border:2px solid #a45e2b; border-radius:999px; color:#a45e2b; font-size:.82rem; font-weight:700; text-decoration:none; }
   .detail-actions{ display:grid; grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr)); gap:10px;
@@ -338,6 +339,29 @@
   body.debug #srcinfo{ display:block; }
   footer.credit{ padding:4px 10px 5px; font-size:12px; line-height:1.2; color:rgba(92,67,39,.72); background:var(--paper);
     display:flex; align-items:center; flex-wrap:wrap; gap:2px 8px; }
+  /* 2026-08-04: Windows のハイコントラスト表示にすると、★もカードの枠も
+     同じ色に塗り潰されて「押せるもの」が判別できなくなっていた。
+     形と枠が残るよう、系統色で描き直す。 */
+  @media (forced-colors: active){
+    .star{ stroke:CanvasText !important; stroke-width:1.4px; }
+    .hit.selected .star, .hit:focus-visible .star{ fill:Highlight !important; }
+    .shoplabel, .parkname, .rivername, .deco{ fill:CanvasText !important; }
+    .strip-row, .detail-card, .chooser, .empty-help{ border:1px solid CanvasText; }
+    .detail-action, .detail-link, .chip, .credit-summary{ border:1px solid ButtonText; }
+    .chip[aria-pressed="true"]{ background:Highlight; color:HighlightText; forced-color-adjust:none; }
+    :focus-visible{ outline:3px solid Highlight !important; outline-offset:2px; }
+  }
+  .strip-credit{ margin:22px 12px 8px; padding:14px 14px 16px; border-top:1.5px dashed rgba(122,92,59,.3);
+    color:var(--ink-soft); font-size:12px; line-height:1.75; }
+  .strip-credit-line{ margin-top:8px; }
+  .strip-credit-line:first-child{ margin-top:0; color:var(--ink); font-weight:700; }
+  .strip-credit-contact{ display:flex; align-items:center; justify-content:center; min-height:46px;
+    margin-top:4px; padding:8px 14px; border:1.5px solid rgba(122,92,59,.42); border-radius:999px;
+    background:#fffaf0; color:#8a4a14; font-size:14px; font-weight:700; text-decoration:none; }
+  .strip-credit a:focus-visible{ outline:3px solid var(--focus-ring); outline-offset:2px; }
+  .strip-credit-partner{ display:flex; align-items:center; flex-wrap:wrap; gap:6px; font-weight:700; }
+  .strip-credit-partner[hidden]{ display:none; }
+  .strip-credit-partner img{ display:block; width:auto; height:24px; max-width:120px; object-fit:contain; }
   .credit .asof{ color:var(--ink); font-weight:700; }
   .credit .sources{ font-size:12px; }
   .credit .partner{ margin-left:auto; display:flex; align-items:center; flex-wrap:wrap; gap:6px; color:var(--ink-soft); font-weight:700; }
@@ -694,6 +718,20 @@
     <p>通りからの距離と方向を添えています。</p>
     <div id="stripfar"></div>
   </section>
+  <!-- 2026-08-04: 協力先の表示が、地図を開いて ⓘ を押す2操作の先にしか無く、
+       スマホの最初の画面には出ていなかった。掲載内容の直しを頼む先も無かった。
+       一覧の末尾に、常に読める形で置く。 -->
+  <footer class="strip-credit" id="stripCredit">
+    <p class="strip-credit-line" id="stripCreditAsOf"></p>
+    <p class="strip-credit-line">地図データ © OpenStreetMap contributors（ODbL）／位置参照: 国土地理院 地名検索API／お店の情報: なかやま商店街振興組合・nakayaman.com</p>
+    <p class="strip-credit-line strip-credit-partner" id="stripCreditPartner" hidden>
+      <span>協力：</span><img id="stripCreditPartnerImage" alt=""><span>宮城大学 事業構想学群 宮﨑ゼミ</span>
+    </p>
+    <p class="strip-credit-line">掲載内容にまちがいがありましたら、下からお知らせください。</p>
+    <p class="strip-credit-line">
+      <a class="strip-credit-contact" href="https://www.nakayaman.com/contact" target="_blank" rel="noopener">なかやま商店街振興組合の問い合わせ窓口 ↗</a>
+    </p>
+  </footer>
 </main>
 
 <!-- 2026-08-04: 地図を開くと一覧側の <main> が inert になり、本文の目印が消えて
@@ -779,14 +817,19 @@
 <script>
 const GEO = __MAPDATA_JSON__;
 document.getElementById('infoAsOf').textContent = 'このマップの情報は' + GEO.meta.info_as_of + '時点の情報です。';
+document.getElementById('stripCreditAsOf').textContent =
+  'このマップの情報は' + GEO.meta.info_as_of + '時点のものです。';
 const partner = (GEO.meta.partner_logos || []).find(x => x.name === '宮城大学' && x.status === 'approved' && x.src);
 if (partner) {
-  const partnerWrap = document.getElementById('partnerLogo');
-  const partnerImage = document.getElementById('partnerLogoImage');
-  partnerImage.onload = () => { partnerWrap.hidden = false; };
-  partnerImage.onerror = () => { partnerWrap.hidden = true; };
-  partnerImage.alt = partner.alt || partner.name;
-  partnerImage.src = partner.src;
+  [['partnerLogo', 'partnerLogoImage'], ['stripCreditPartner', 'stripCreditPartnerImage']].forEach(pair => {
+    const partnerWrap = document.getElementById(pair[0]);
+    const partnerImage = document.getElementById(pair[1]);
+    if (!partnerWrap || !partnerImage) return;
+    partnerImage.onload = () => { partnerWrap.hidden = false; };
+    partnerImage.onerror = () => { partnerWrap.hidden = true; };
+    partnerImage.alt = partner.alt || partner.name;
+    partnerImage.src = partner.src;
+  });
 }
 const CATS = {
   medical:{ label:'健康・美容・医療', color:'var(--c-medical)', cc:'#a8875f', detailInk:'#765e42' },
@@ -1872,7 +1915,9 @@ function drawShops(){
     const hasVoices = (s.voices||[]).length > 0;
     const g = el('g', {class:'hit'+(idx===selectedIndex?' selected':''), tabindex:0, role:'button',
       'aria-pressed':idx===selectedIndex?'true':'false', 'data-i':idx,
-      'aria-label':s.name+(hasVoices?'、こどもの声あり':'')}, gShops);
+      // 2026-08-04: 種類が★の色だけで示されていて、色で見分けられない人には
+      // 何屋か分からなかった。読み上げにも種類を入れる。
+      'aria-label':s.name+'、'+CATS[s.cat].label+(hasVoices?'、こどもの声あり':'')}, gShops);
     el('circle', {cx:s.x, cy:s.y, r:s.padr || 22, class:'pad', 'data-padr':s.padr || 22}, g);  // タップ領域 (画面px下限は updateMapScaleStyles で保証)
     if (IS_DEBUG && s.tx !== undefined){
       // スプレッド表示された星の真の位置を可視化
@@ -2736,6 +2781,11 @@ function buildDetailCard(s){
     title.appendChild(detailText('span', '', 'こどもの声'));
     block.appendChild(title);
     voices.forEach(v => block.appendChild(detailText('p', 'detail-voice', v.text)));
+    // 2026-08-04: 誰の・いつの言葉か書いていなかった。「安い」のような
+    // 感じ方の言葉が、お店の側の説明に見えてしまう。出どころと時点を添える。
+    block.appendChild(detailText('p', 'detail-voice-source',
+      '地域のこどもたちから寄せられた声です（' + GEO.meta.info_as_of + '時点）。'
+      + '感じ方には個人差があります。'));
     card.appendChild(block);
   } else if (!s.note){
     card.appendChild(detailText('p', 'detail-empty', '地図上の位置と住所を確認できます。'));
