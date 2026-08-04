@@ -202,7 +202,14 @@ FILTER_VIEW_JS = """async () => {
     let vis=0;
     for (const r of rows){ const b=r.getBoundingClientRect();
       if (b.bottom>vb.top+2 && b.top<vb.bottom-2 && b.height>1) vis++; }
-    return {t:rows.length, v:vis}; };
+    const sv=document.getElementById('stripview');
+    const first=rows.length?rows[0].getBoundingClientRect():null;
+    return {t:rows.length, v:vis, scrollTop:Math.round(sv.scrollTop),
+            svTop:Math.round(vb.top), svH:Math.round(vb.height),
+            firstTop:first?Math.round(first.top):null,
+            rowH:first?Math.round(first.height):null,
+            helpH:(()=>{const e=document.getElementById('emptyHelp');
+              return e&&!e.hidden?Math.round(e.getBoundingClientRect().height):0;})()}; };
   const out = [];
   const vf = document.querySelector('.chip.voice-filter');
   if (vf) { vf.click(); await wait(700);
@@ -212,11 +219,11 @@ FILTER_VIEW_JS = """async () => {
   if (chips.length) { chips[0].click(); await wait(700);
     const s = seen();
     out.push({how:'「'+(chips[0].textContent||'').trim().slice(0,10)+'」で絞り込み',
-              total:s.t, visible:s.v});
+              total:s.t, visible:s.v, dbg:s});
     chips[0].click(); await wait(500); }
   const q = document.getElementById('q');
   if (q) { q.value='中山'; q.dispatchEvent(new Event('input',{bubbles:true})); await wait(800);
-    const s = seen(); out.push({how:'「中山」で検索', total:s.t, visible:s.v});
+    const s = seen(); out.push({how:'「中山」で検索', total:s.t, visible:s.v, dbg:s});
     q.value=''; q.dispatchEvent(new Event('input',{bubbles:true})); await wait(500);
     document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
     await wait(300); }
@@ -2054,8 +2061,9 @@ if REND:
             want = min(f["total"], FILTER_VISIBLE_MIN)
             if f["total"] and f["visible"] < want:
                 fails["N49"].append("%s で%d件のはずが、画面には%d件しか見えない "
-                                    "(最低%d件) [%s]"
-                                    % (f["how"], f["total"], f["visible"], want, dev))
+                                    "(最低%d件) [%s] %s"
+                                    % (f["how"], f["total"], f["visible"], want, dev,
+                                       json.dumps(f.get("dbg") or {}, ensure_ascii=False)))
 
         # N51 通りの帯の中で 道路名・信号 どうしが重なっていないか
         for sc in (u.get("stripDecor") or []):

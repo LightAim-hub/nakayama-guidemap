@@ -4,9 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>なかやま商店街マップ（実測版）</title>
+<meta name="description" content="なかやま商店街（仙台市青葉区）のお店を、実際の位置で見られるデジタルマップ。お店をタップすると紹介と公式ページに行けます。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="なかやま商店街マップ">
+<meta property="og:description" content="なかやま商店街（仙台市青葉区）のお店を、実際の位置で見られるデジタルマップ。">
+<meta property="og:url" content="https://lightaim-hub.github.io/nakayama-guidemap/">
+<meta property="og:image" content="https://lightaim-hub.github.io/nakayama-guidemap/assets/photos/sakanoue_1.jpg">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Yusei+Magic&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+<!-- 2026-08-04: 日本語Webフォントは字形が細かく分かれて87ファイル取りに行く。
+     この読み込みが描画を止めていて、遅い回線で最初の表示に7.2秒・完了32秒かかっていた
+     (フォントを止めると2.3秒/5.7秒)。描画を止めない読み込みに変え、使っていない太さ(500)も外した。
+     字が出るまでは端末の丸ゴシックで表示される (display=swap)。 -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Yusei+Magic&family=Zen+Maru+Gothic:wght@400;700&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yusei+Magic&family=Zen+Maru+Gothic:wght@400;700&display=swap"></noscript>
 <style>
   :root{
     --paper:#FBF4E2; --paper-deep:#F1E5C8; --ink:#5C4327; --ink-soft:#7A5C3B;
@@ -248,7 +261,9 @@
     color:var(--ink); font:inherit; font-size:.78rem; font-weight:700; cursor:pointer; }
   .detail-nav button:disabled{ opacity:.35; cursor:default; }
   .detail-count{ min-width:64px; color:var(--ink-soft); font-size:.76rem; font-weight:700; text-align:center; }
+  /* 候補が多い時に画面からはみ出して選べなくなるので、高さを制限してスクロールさせる */
   .chooser{ position:absolute; z-index:31; width:216px; max-width:80vw;
+    max-height:52dvh; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
     background:#fffaf0; border:2px solid #d8c4a0; border-radius:14px;
     box-shadow:0 12px 28px rgba(80,60,30,.34); padding:9px;
     opacity:0; pointer-events:none; transition:opacity .13s; transform:translate(-50%,calc(-100% - 15px)); }
@@ -384,6 +399,24 @@
   body{ --controls-h:164px; }
   #stripview{ flex:1 1 auto; min-height:0; margin-bottom:12px; overflow-y:auto; overflow-x:hidden;
     background:var(--paper); -webkit-overflow-scrolling:touch; overscroll-behavior-y:contain; }
+  /* 0件・1件の時に出す「次の一歩」。空白だけの画面にしない (2026-08-04) */
+  .empty-help{ margin:14px 10px 18px; padding:14px 14px 16px; border:2px dashed rgba(122,92,59,.35);
+    border-radius:16px; background:#fffaf0; }
+  .empty-help[hidden]{ display:none; }
+  .empty-help-title{ font-family:'Yusei Magic',sans-serif; font-size:15px; color:var(--ink); line-height:1.5; }
+  .empty-help-lead{ margin-top:8px; font-size:14px; color:var(--ink-soft); }
+  .empty-help-words{ display:flex; flex-wrap:wrap; gap:8px; margin-top:9px; }
+  .empty-help-word{ min-height:44px; padding:8px 14px; border:2px solid rgba(122,92,59,.4);
+    border-radius:999px; background:var(--paper); font:inherit; font-size:14px; font-weight:700;
+    color:var(--ink); cursor:pointer; }
+  .empty-help-word:active{ background:#f3e7cc; }
+  .empty-help-all{ display:block; width:100%; min-height:48px; margin-top:12px; border:2px solid var(--voice);
+    border-radius:12px; background:var(--paper); font:inherit; font-size:15px; font-weight:700;
+    color:var(--voice); cursor:pointer; }
+  /* 結果が0〜1件の時は、通りの背骨と方向の案内を出さない (見るものが無いのに枠だけ残る) */
+  body.few-results .strip-guide,
+  body.few-results .strip-road-label,
+  body.few-results .strip-signal{ display:none; }
   .strip-guide{ position:relative; z-index:8; display:grid;
     grid-template-columns:minmax(0,1fr) 68px minmax(0,1fr); align-items:center;
     min-height:44px; padding:5px 8px; background:rgba(251,244,226,.97);
@@ -448,7 +481,7 @@
   #stripfar .strip-row[data-side="west"]{ border-left-width:5px; }
   #stripfar .strip-row[data-side="east"]{ border-right-width:5px; }
   .strip-far-main{ display:flex; align-items:center; gap:6px; min-width:0; }
-  .strip-distance{ color:var(--ink-soft); font-size:14px; font-weight:500; }
+  .strip-distance{ color:var(--ink-soft); font-size:14px; font-weight:400; }
   .map-filter-badge, #mapback{ display:none; }
 
   #controls{ flex:0 0 var(--controls-h); height:var(--controls-h); z-index:30; display:grid;
@@ -756,7 +789,12 @@ document.addEventListener('keydown', e => {
 });
 
 const QS = new URLSearchParams(location.search);
-const IS_EDIT = QS.get('edit') === '1';
+// 2026-08-04: 位置を動かせる編集モードが、URLを知っていれば誰でも開ける状態だった
+// (客が★を90px動かせる / タップで詳細が出なくなる)。作業用の道具なので、
+// 手元 (file:// と localhost) でだけ有効にする。公開URLでは無効。
+const IS_LOCAL = location.protocol === 'file:' ||
+  /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+const IS_EDIT = QS.get('edit') === '1' && IS_LOCAL;
 const IS_DEBUG = QS.get('debug') === '1';
 if (IS_EDIT) document.body.classList.add('edit');
 if (IS_DEBUG) document.body.classList.add('debug');
@@ -897,6 +935,7 @@ const ROAD_WIDTHS = {
   minor: {fill:5,  casing:7,    floorPx:5},
 };
 const MIN_STAR_PX = 6, MAX_STAR_PX = 14, STAR_ROAD_RATIO = 2.0, MAX_WALK_STAR_M = 5.45;
+const TAP_MIN_PX = 45;   // 指で押せる最小 (Apple HIG / WCAG 2.5.5)。★の見た目でなく当たり判定の下限
 const LABEL_OWNER_RATIO = .72;
 const VOICE_BADGE_WIDTH_PX = 13, VOICE_BADGE_HEIGHT_PX = 11, VOICE_BADGE_GAP_PX = 3;
 const PRIORITY_SEARCH_STEP_LIMIT = 20000;
@@ -1649,6 +1688,15 @@ function updateMapScaleStyles(){
   const mainRoadPx = updateRoadWidths(scale);
   currentStarTargetPx = scale < 1.5 ? MAX_STAR_PX : Math.max(MIN_STAR_PX,
     Math.min(STAR_ROAD_RATIO * mainRoadPx, MAX_STAR_PX, MAX_WALK_STAR_M * scale));
+  // 2026-08-04: 押せる範囲(.pad)は地図の単位(m)で持っていたので、縮尺が下がると
+  // 指で押せない大きさになっていた (実測: 直径の中央値16.7px・全体表示では4.5px)。
+  // 指の基準は画面上の44px なので、画面px基準で最低半径を保証する。
+  // 隣と重なる分は「どのお店？」の選択窓が受け止める (chooser)。
+  const padMinMapUnits = (TAP_MIN_PX / 2) / scale;
+  document.querySelectorAll('.hit circle.pad').forEach(c => {
+    const own = +c.dataset.padr || 22;
+    c.setAttribute('r', Math.max(own, padMinMapUnits));
+  });
   const allEntries = [...document.querySelectorAll('.hit')].map(h => {
     const idx = +h.dataset.i, s = GEO.shops[idx], star = h.querySelector('.star');
     if (star) star.setAttribute('transform', 'scale('+(starSize(s) * (idx===selectedIndex?1.18:1))+')');
@@ -1699,7 +1747,7 @@ function drawShops(){
     const g = el('g', {class:'hit'+(idx===selectedIndex?' selected':''), tabindex:0, role:'button',
       'aria-pressed':idx===selectedIndex?'true':'false', 'data-i':idx,
       'aria-label':s.name+(hasVoices?'、こどもの声あり':'')}, gShops);
-    el('circle', {cx:s.x, cy:s.y, r:s.padr || 22, class:'pad'}, g);  // タップ領域 (隣の星と重ならない半径)
+    el('circle', {cx:s.x, cy:s.y, r:s.padr || 22, class:'pad', 'data-padr':s.padr || 22}, g);  // タップ領域 (画面px下限は updateMapScaleStyles で保証)
     if (IS_DEBUG && s.tx !== undefined){
       // スプレッド表示された星の真の位置を可視化
       el('path', {d:'M'+(s.tx-5)+','+(s.ty-5)+' L'+(s.tx+5)+','+(s.ty+5)+' M'+(s.tx-5)+','+(s.ty+5)+' L'+(s.tx+5)+','+(s.ty-5), stroke:'#d13030', 'stroke-width':1.6, fill:'none'}, g);
@@ -2135,11 +2183,93 @@ const SEARCH_ALIASES = {
   'いしゃ':['クリニック','医院','内科','外科'],
   'かふぇ':['食べる・飲む・食料'],
   '喫茶':['食べる・飲む・食料'],
-  'きっさ':['食べる・飲む・食料']
+  'きっさ':['食べる・飲む・食料'],
+  // 2026-08-04 実機検証で「店はあるのに引けない言葉」が7つ見つかったので足した
+  '美容':['vividhair'],
+  '美容室':['vividhair'],
+  '美容院':['vividhair'],
+  'びよういん':['vividhair'],
+  'へあさろん':['vividhair'],
+  'かっと':['vividhair','とこや','カットショップ nobu'],
+  '居酒屋':['ダイニングバー','お酒'],
+  'いざかや':['ダイニングバー','お酒'],
+  '飲み屋':['ダイニングバー','お酒'],
+  'ばー':['ダイニングバー','お酒'],
+  '花屋':['フラワー','生花'],
+  'はなや':['フラワー','生花'],
+  '整体':['整骨','接骨','鍼灸'],
+  'せいたい':['整骨','接骨','鍼灸'],
+  'まっさーじ':['整骨','接骨','鍼灸'],
+  '鍼':['鍼灸'],
+  '幼稚園':['tobinoko','こども園'],
+  'ようちえん':['tobinoko','こども園'],
+  '保育園':['tobinoko','こども園'],
+  'ほいくえん':['tobinoko','こども園'],
+  '保育所':['tobinoko','こども園'],
+  'こども園':['tobinoko','こども園'],
+  'welcia':['ウエルシア'],
+  '塾':['スクールie'],
+  'じゅく':['スクールie'],
+  '学習塾':['スクールie'],
+  '不動産':['不動産'],
+  'たばこ':['たけむらや'],
+  '写真':['写真','スタジオ']
 };
+// 別名がある言葉は、**別名だけ**で探す。
+// 2026-08-04: 打った言葉をそのまま足していたため、「美容」でカテゴリ名
+// 「健康・美容・医療」に当たって歯科・整骨院まで13件出ていた。
+// 2026-08-04: 0件の時に「見つかりません」の5文字だけが出て、画面の65%が空白のままだった。
+// 探している人に次の一歩を出す。1件だけの時も、下の空白に「ほかの探し方」を出す。
+const EMPTY_SUGGEST = ['ケーキ','パン','歯医者','薬局','公園','床屋'];
+function updateEmptyHelp(filtering, count){
+  const host = document.getElementById('strip');
+  if (!host) return;
+  let box = document.getElementById('emptyHelp');
+  const want = filtering && count <= 1;
+  if (!want){ if (box) box.hidden = true; document.body.classList.remove('few-results'); return; }
+  document.body.classList.add('few-results');
+  if (!box){
+    box = document.createElement('div');
+    box.id = 'emptyHelp'; box.className = 'empty-help';
+    host.parentNode.insertBefore(box, host.nextSibling);
+  }
+  box.hidden = false;
+  box.replaceChildren();
+  const head = document.createElement('p'); head.className = 'empty-help-title';
+  head.textContent = count === 0
+    ? (query ? '「'+query+'」に当てはまるお店は見つかりませんでした' : '当てはまるお店がありません')
+    : 'ほかの探し方';
+  box.appendChild(head);
+  const lead = document.createElement('p'); lead.className = 'empty-help-lead';
+  lead.textContent = count === 0 ? 'こんな言葉で探せます' : 'よく探されている言葉';
+  box.appendChild(lead);
+  const wrap = document.createElement('div'); wrap.className = 'empty-help-words';
+  EMPTY_SUGGEST.forEach(word => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'empty-help-word';
+    b.textContent = word;
+    b.addEventListener('click', () => {
+      const input = document.getElementById('q');
+      input.value = word; query = word;
+      applyFilter({fromSearch:true});
+      input.focus();
+    });
+    wrap.appendChild(b);
+  });
+  box.appendChild(wrap);
+  const all = document.createElement('button');
+  all.type = 'button'; all.className = 'empty-help-all'; all.textContent = 'お店一覧をぜんぶ見る';
+  all.addEventListener('click', () => {
+    const input = document.getElementById('q');
+    input.value = ''; query = '';
+    applyFilter({fromSearch:true});
+    setListOpen(true);
+  });
+  box.appendChild(all);
+}
 function expandedSearchTerms(value){
   const key=norm(value).trim();
-  return [key,...(SEARCH_ALIASES[key]||[])].map(norm);
+  const alias=SEARCH_ALIASES[key];
+  return (alias && alias.length ? alias : [key]).map(norm);
 }
 function searchText(s){
   return norm(s.name + ' ' + CATS[s.cat].label + ' ' + (s.addr||'') + ' ' + (s.note||'') + ' ' +
@@ -2151,9 +2281,19 @@ function matchesFilter(s){
   if (query && !expandedSearchTerms(query).some(term => searchText(s).includes(term))) return false;
   return true;
 }
+let lastFilterSignature = '';
 function applyFilter({fromSearch=false} = {}){
   const matched = [];
   const filtering = query.length > 0 || voiceOnly || activeCats.size > 0;
+  // 2026-08-04: 下までスクロールした状態で絞り込むと、該当が画面の上へ行ってしまい
+  // 「11件」と出ているのに2〜3件しか見えなかった (実測: scrollTop 1570 のまま)。
+  // 絞り込みの条件が変わった時だけ、通りの先頭に戻す。
+  const signature = query + '|' + (voiceOnly ? '1' : '') + '|' + [...activeCats].sort().join(',');
+  if (signature !== lastFilterSignature){
+    lastFilterSignature = signature;
+    const view = document.getElementById('stripview');
+    if (view && view.scrollTop > 0) view.scrollTop = 0;
+  }
   document.body.classList.toggle('map-filtering',filtering);
   document.querySelectorAll('.hit').forEach(h => {
     const s = GEO.shops[+h.dataset.i];
@@ -2179,6 +2319,7 @@ function applyFilter({fromSearch=false} = {}){
   const status = document.getElementById('searchstatus');
   status.textContent = filtering ? (matched.length ? matched.length+'件' : '見つかりません') : '';
   status.classList.toggle('empty', filtering && matched.length === 0);
+  updateEmptyHelp(filtering, matched.length);
   const mapFilterBadge = document.getElementById('mapFilterBadge');
   const filterParts = [];
   if (query) filterParts.push('「'+query+'」');
@@ -2237,9 +2378,22 @@ function placeBubble(box, px, py){
   const maxL = visL + viewport.clientWidth - halfW - 6;
   const cx = Math.max(minL, Math.min(maxL, px));
   box.style.setProperty('--arrow-dx', (px - cx) + 'px');
-  // 縦: 可視域基準で上に収まらなければ下側に出す
-  box.classList.toggle('below', (py - visT) < 250);
-  box.style.left = cx + 'px'; box.style.top = py + 'px';
+  // 縦: 可視域基準で上に収まらなければ下側に出す。
+  // 2026-08-04: 250px 固定で判定していたため、候補が9件あると窓の高さが
+  // それを超え、上に167px はみ出してスクロールもできず、上の3件が選べなかった。
+  // 実際の高さで判定し、それでも収まらない時は可視域の中へ押し込む。
+  const boxH = box.offsetHeight || 0;
+  const gap = 15;
+  const spaceAbove = (py - visT) - gap;
+  const spaceBelow = (visT + viewport.clientHeight) - py - gap;
+  const below = spaceAbove < boxH && spaceBelow > spaceAbove;
+  box.classList.toggle('below', below);
+  let top = py;
+  const wantTop = below ? py + gap : py - gap - boxH;      // 実際に描かれる上端
+  const minTop = visT + 6, maxTop = visT + viewport.clientHeight - boxH - 6;
+  if (wantTop < minTop) top += (minTop - wantTop);
+  else if (wantTop > maxTop) top -= (wantTop - maxTop);
+  box.style.left = cx + 'px'; box.style.top = top + 'px';
 }
 function focusShopOnMap(s, openDetail){
   const vb = svg.viewBox.baseVal;
@@ -2650,9 +2804,11 @@ function applyResponsiveMapView(){
 function updateZoomButtons(){
   const vb = svg.viewBox.baseVal;
   const max=maxViewBoxForAspect(vb.width/Math.max(.001,vb.height));
-  document.getElementById('zin').disabled = vb.width <= MIN_VIEWBOX.width + .01 &&
+  // 2026-08-04: 「かつ」で見ていたため、幅が下限に達しても高さが違うと
+  // ボタンが押せる見た目のまま何も起きない (死にボタン) になっていた。
+  document.getElementById('zin').disabled = vb.width <= MIN_VIEWBOX.width + .01 ||
     vb.height <= MIN_VIEWBOX.height + .01;
-  document.getElementById('zout').disabled = vb.width >= max.width - .01 && vb.height >= max.height - .01;
+  document.getElementById('zout').disabled = vb.width >= max.width - .01 || vb.height >= max.height - .01;
 }
 function zoomViewBoxAt(factor, clientX, clientY){
   const vb = svg.viewBox.baseVal;
@@ -2908,14 +3064,22 @@ let mousePan = null;
 viewport.addEventListener('pointerdown', e => {
   if (e.pointerType !== 'mouse' || e.button !== 0 ||
       e.target.closest('.chooser,button,input,a,.detail-panel')) return;
-  mousePan={pointerId:e.pointerId,x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,moved:false};
-  viewport.setPointerCapture(e.pointerId);
+  // 2026-08-04: ここで setPointerCapture すると、続く click の target が
+  // ★ではなく viewport(div) に付け替えられ、**PCのマウスで店を押しても
+  // 詳細が開かない**状態になっていた (実測: 実マウス0/11・合成clickでは開くので
+  // 検査をすり抜けていた)。掴むのは「実際に動かし始めた時」だけにする。
+  mousePan={pointerId:e.pointerId,x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,
+            moved:false,captured:false};
 });
 viewport.addEventListener('pointermove', e => {
   if (!mousePan || e.pointerId !== mousePan.pointerId) return;
   if (Math.hypot(e.clientX-mousePan.x,e.clientY-mousePan.y) > 10){
     mousePan.moved=true;
     suppressMapClickUntil=performance.now()+500;
+    if (!mousePan.captured){
+      mousePan.captured=true;
+      try { viewport.setPointerCapture(e.pointerId); } catch (err) {}
+    }
   }
   if (!mousePan.moved) return;
   e.preventDefault();
@@ -2928,7 +3092,7 @@ viewport.addEventListener('pointermove', e => {
 function endMousePan(e){
   if (!mousePan || e.pointerId !== mousePan.pointerId) return;
   if (mousePan.moved) suppressMapClickUntil=performance.now()+700;
-  if (viewport.hasPointerCapture(e.pointerId)) viewport.releasePointerCapture(e.pointerId);
+  if (mousePan.captured && viewport.hasPointerCapture(e.pointerId)) viewport.releasePointerCapture(e.pointerId);
   mousePan=null;
   viewport.classList.remove('is-panning');
 }
