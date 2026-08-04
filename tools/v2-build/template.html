@@ -281,6 +281,15 @@
   .detail-voice-source{ margin-top:10px; color:var(--ink-soft); font-size:.72rem; line-height:1.6; }
   .detail-link{ display:flex; align-items:center; justify-content:center; min-height:46px; margin-top:22px; padding:10px 16px;
     border:2px solid #a45e2b; border-radius:999px; color:#a45e2b; font-size:.82rem; font-weight:700; text-decoration:none; }
+  .detail-facts-wrap{ margin-top:14px; }
+  .detail-facts{ display:grid; grid-template-columns:auto minmax(0,1fr); gap:6px 12px;
+    padding:12px 14px; border:1.5px solid rgba(122,92,59,.28); border-radius:12px; background:#fffaf0; }
+  .detail-fact-label{ color:var(--ink-soft); font-size:14px; font-weight:700; white-space:nowrap; }
+  .detail-fact-value{ font-size:14px; line-height:1.65; }
+  .detail-fact-tel{ display:inline-flex; align-items:center; min-height:44px; padding:0 2px;
+    color:#8a4a14; font-size:1rem; font-weight:700; letter-spacing:.02em; }
+  .detail-fact-tel:focus-visible{ outline:3px solid var(--focus-ring); outline-offset:2px; }
+  .detail-facts-note{ margin-top:7px; color:var(--ink-soft); font-size:14px; line-height:1.6; }
   .detail-actions{ display:grid; grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr)); gap:10px;
     margin-top:12px; margin-bottom:14px; }
   .detail-action{ display:flex; align-items:center; justify-content:center; min-height:46px; padding:10px 12px;
@@ -644,6 +653,10 @@
   body.map-open footer.credit.expanded .credit-summary{ background:var(--paper-deep); }
   body.detail-open #controls, body.detail-open #stripview,
   body.chooser-open #controls, body.chooser-open #stripview{ pointer-events:none; }
+  /* 2026-08-04: 「お店一覧」を開いても、その裏の二列カードがそのまま押せた。
+     パネルの上端すぐ外にカードが来ると、「閉じる」と7pxしか離れず押し間違える。
+     開いている間は裏を触れないようにする (チューザー・詳細と同じ扱い)。 */
+  body.list-open #stripview{ pointer-events:none; }
 
   @media(max-width:759px) and (orientation:portrait){
     body{ --controls-h:216px; }
@@ -2743,6 +2756,8 @@ function buildDetailCard(s){
   }
   const photos = Array.isArray(s.photos) ? s.photos.filter(photo => photo && photo.src && photo.alt) : [];
   if (photos.length) card.appendChild(buildPhotoGallery(s, photos));
+  const facts = buildDetailFacts(s);
+  if (facts) card.appendChild(facts);
   card.appendChild(buildDetailActions(s));
   const statuses = detailText('div', 'detail-statuses');
   const voices = s.voices || [];
@@ -2798,6 +2813,35 @@ function buildDetailCard(s){
   }
 
   return card;
+}
+// 2026-08-04: 電話も営業時間も出していなかった。公式ページには書いてあるので取り込む。
+// 「開いてるかな」「電話してから行こうかな」は、現地に立った人が最初に思うこと。
+function buildDetailFacts(s){
+  const rows = [
+    ['電話',   s.tel,    'tel'],
+    ['営業時間', s.hours, null],
+    ['定休日',  s.closed, null]
+  ].filter(r => r[1]);
+  if (!rows.length) return null;
+  const box = detailText('dl', 'detail-facts');
+  rows.forEach(([label, value, kind]) => {
+    box.appendChild(detailText('dt', 'detail-fact-label', label));
+    const dd = detailText('dd', 'detail-fact-value');
+    if (kind === 'tel'){
+      const a = detailText('a', 'detail-fact-tel', value);
+      a.href = 'tel:' + value.replace(/[^0-9+]/g, '');
+      a.setAttribute('aria-label', s.name + 'に電話をかける ' + value);
+      dd.appendChild(a);
+    } else {
+      dd.textContent = value;
+    }
+    box.appendChild(dd);
+  });
+  const note = detailText('p', 'detail-facts-note',
+    'なかやま商店街振興組合の掲載情報より（' + GEO.meta.info_as_of + '時点）。変わっている場合があります。');
+  const wrap = detailText('div', 'detail-facts-wrap');
+  wrap.appendChild(box); wrap.appendChild(note);
+  return wrap;
 }
 // 2026-08-04: 現地で使う人が実際にやること = ①そこまで歩く ②誰かに送る。
 // 緯度経度は持っているのに経路アプリへ渡せず、店ごとのURLも無かった。
@@ -3376,6 +3420,9 @@ window.addEventListener('resize', () => {
 const listpanel = document.getElementById('listpanel');
 const listrows = document.getElementById('listrows');
 function setListOpen(open){
+  // 2026-08-04: 「どのお店か選ぶ」を出したまま「お店一覧」も開けてしまい、
+  // 2枚が重なって、どちらのボタンを押しているのか分からない状態になっていた。
+  if (open) hideChooser();
   listpanel.classList.toggle('show', open);
   listpanel.setAttribute('aria-hidden', open ? 'false' : 'true');
   listButton.setAttribute('aria-expanded', open ? 'true' : 'false');

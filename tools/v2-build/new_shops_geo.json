@@ -18,9 +18,9 @@
   "gsi_title": "宮城県仙台市青葉区中山五丁目１９番１号"
  },
  {
- "name": "デイサービス はるの風",
- "cat": "medical",
- "url": "https://www.nakayaman.com/post/%E3%83%87%E3%82%A4%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9%E3%81%AF%E3%82%8B%E3%81%AE%E9%A2%A8",
+  "name": "デイサービス はるの風",
+  "cat": "medical",
+  "url": "https://www.nakayaman.com/post/%E3%83%87%E3%82%A4%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9%E3%81%AF%E3%82%8B%E3%81%AE%E9%A2%A8",
   "address": "仙台市青葉区中山5-11-3",
   "lat": 38.292133,
   "lng": 140.842529,
@@ -28,9 +28,9 @@
   "coord_basis": "nakayaman.com掲載住所（中山5-11-3）と紙マップの描画位置"
  },
  {
- "name": "遊季ガーデン",
- "cat": "life",
- "url": "https://www.nakayaman.com/post/%E9%81%8A%E5%B8%8C%E3%82%AC%E3%83%BC%E3%83%87%E3%83%B3%E6%A0%AA%E5%BC%8F%E4%BC%9A%E7%A4%BE",
+  "name": "遊季ガーデン",
+  "cat": "life",
+  "url": "https://www.nakayaman.com/post/%E9%81%8A%E5%B8%8C%E3%82%AC%E3%83%BC%E3%83%87%E3%83%B3%E6%A0%AA%E5%BC%8F%E4%BC%9A%E7%A4%BE",
   "address": "仙台市青葉区中山5-11-3-B（2F）",
   "lat": 38.292133,
   "lng": 140.842529,
@@ -108,5 +108,23 @@
   "lat": 38.29512,
   "lng": 140.841537,
   "gsi_title": "宮城県仙台市青葉区中山六丁目１９番"
+ },
+ {
+  "name": "ネルソンコーヒー中山本店",
+  "cat": "food",
+  "url": "https://www.nakayaman.com/post/%E3%83%8D%E3%83%AB%E3%82%BD%E3%83%B3%E3%82%B3%E3%83%BC%E3%83%92%E3%83%BC%E4%B8%AD%E5%B1%B1%E6%9C%AC%E5%BA%97",
+  "address": "仙台市青葉区中山5-19-21",
+  "lat": 38.293465,
+  "lng": 140.839996,
+  "gsi_title": "宮城県仙台市青葉区中山五丁目１９番２１号"
+ },
+ {
+  "name": "整骨院リリーフ",
+  "cat": "medical",
+  "url": "https://www.nakayaman.com/post/%E6%95%B4%E9%AA%A8%E9%99%A2%E3%83%AA%E3%83%AA%E3%83%BC%E3%83%95",
+  "address": "仙台市青葉区中山6-11-3",
+  "lat": 38.294842,
+  "lng": 140.836639,
+  "gsi_title": "宮城県仙台市青葉区中山六丁目１１番３号"
  }
 ]

@@ -1078,7 +1078,10 @@ if not A.no_browser:
                       // 隙間0 = 一覧の行が接している普通の設計。行そのものが的なので
                       // 押し間違いにならない。危ないのは「少しだけ空いている」場合。
                       if (g >= .5 && g < 8)
-                        gaps.push({state, a:els[i].nm, b:els[j].nm, gap:+g.toFixed(1)});
+                        gaps.push({state, a:els[i].nm, b:els[j].nm, gap:+g.toFixed(1),
+                                   // どこにあったのか分からないと原因を追えない (2026-08-04)
+                                   ra:[Math.round(a.left),Math.round(a.top),Math.round(a.right),Math.round(a.bottom)],
+                                   rb:[Math.round(b.left),Math.round(b.top),Math.round(b.right),Math.round(b.bottom)]});
                     }
                   }
                   // ---- N34 絵文字をアイコン代わりに使っていないか ----
@@ -1859,8 +1862,10 @@ if REND:
                                 % (e["a"], e["b"], e.get("ox", 0), e.get("oy", 0),
                                    _w(e["where"])))
         else:
-            fails["N31"].append("「%s」と「%s」が %.1fpx しか離れていない (最小%.0f) [%s]"
-                                % (e["a"], e["b"], e["gap"], TAP_GAP_MIN_PX, _w(e["where"])))
+            # どこにあった2つなのかを出す。位置が無いと原因を追えない (2026-08-04)
+            fails["N31"].append("「%s」%s と「%s」%s が %.1fpx しか離れていない (最小%.0f) [%s]"
+                                % (e["a"], e.get("ra") or "", e["b"], e.get("rb") or "",
+                                   e["gap"], TAP_GAP_MIN_PX, _w(e["where"])))
     for k, e in sorted(_e.items()):
         fails["N34"].append("%s (%s) がアイコンに絵文字 %s を使っている [%s]"
                             % (e["sel"], e["txt"], e["ch"], _w(e["where"])))

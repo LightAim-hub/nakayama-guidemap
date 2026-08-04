@@ -31,9 +31,11 @@ else:
     OUT_HTMLS = [P('v2_index.html')]
     TEMPLATE_HTML = P('preview.template.html' if ARGS.preview else 'template.html')
 
-PRODUCTION_SHOP_COUNT = 61
+# 2026-08-04: 公式サイトに載っているのに地図に無かった2店 (ネルソンコーヒー中山本店・
+# 整骨院リリーフ) を追加して 61 → 63。過去の版から作り直せるよう、旧い数も許す。
+PRODUCTION_SHOP_COUNT = 63
 PRODUCTION_SIGNAL_COUNT = 11
-PRODUCTION_MIGRATION_SHOP_COUNTS = {60, PRODUCTION_SHOP_COUNT}
+PRODUCTION_MIGRATION_SHOP_COUNTS = {60, 61, PRODUCTION_SHOP_COUNT}
 PRODUCTION_MIGRATION_SIGNAL_COUNTS = {13, PRODUCTION_SIGNAL_COUNT}
 SIGNAL_MERGE_DISTANCE_M = 30.0
 SLOPE_TOP_NAME = '中山の坂の上'
@@ -57,6 +59,7 @@ OFFICIAL_NAME_FIX = {
 MAP_LABEL_SHORT = {
     'ウエルシア仙台中山店': 'ウエルシア',
     '日本パブテスト尚絅教会': '尚絅教会',
+    'ネルソンコーヒー中山本店': 'ネルソンコーヒー',
 }
 OFFICIAL_URL_FIX = {
     # 2026-08-04 実測で 404。公式サイトマップにも無い (ページごと消えている)。
@@ -998,7 +1001,17 @@ if not ARGS.preview:
     if SLOPE_TOP_NAME not in baseline_names:
         shops.append(json.loads(json.dumps(_task_i_fresh_by_name[SLOPE_TOP_NAME],
                                           ensure_ascii=False)))
-    if len(shops) != PRODUCTION_SHOP_COUNT:
+    # 2026-08-04: 入力側に足した店が、凍結ベースからの組み直しで落ちていた
+    # (中山の坂の上 だけを名指しで拾う書き方になっていた)。名指しをやめて、
+    # 凍結ベースに無い店はすべて拾う。--allow-shop-change を付けた時だけ通る。
+    _added_now = [n for n in sorted(generated_names - set(sh['name'] for sh in shops))]
+    if _added_now:
+        if not ARGS.allow_shop_change:
+            raise SystemExit('入力に新しい店がある: %s (--allow-shop-change が要る)' % _added_now)
+        for n in _added_now:
+            shops.append(json.loads(json.dumps(_task_i_fresh_by_name[n], ensure_ascii=False)))
+        print('地図に載せた新しい店: %s' % ' / '.join(_added_now))
+    if len(shops) != PRODUCTION_SHOP_COUNT and not ARGS.allow_shop_change:
         raise SystemExit('production shop guard failed after adding 中山の坂の上')
 
     # 住所の枝番表記だけが異なる同一施設は、ゲートと同じ住所由来グループへ正規化する。
@@ -1790,6 +1803,40 @@ print('zones:', zones)
 
 # 出力の直前だけ公式表記に差し替える (内部の対応表は元の名前で引いているため)
 apply_official_fixes(shops, '出力')
+
+# ---------------- 電話・営業時間・定休日 ----------------
+# 公式 nakayaman.com の各店ページに書かれているのに、地図側は0件だった。
+# 取り込み結果は official_details.json に凍結してあり、ビルドのたびに公式へ取りに行かない
+# (更新は tools/v2-build/scrape_official_details.py を手で回す)。
+_details_path = P('official_details.json')
+if os.path.exists(_details_path):
+    with open(_details_path, encoding='utf-8') as f:
+        _details = json.load(f).get('shops', {})
+    _filled = 0
+    _addr_mismatch = []
+    for sh in shops:
+        got = _details.get(sh['name'])
+        if not got:
+            continue
+        for key in ('tel', 'hours', 'closed'):
+            if got.get(key):
+                sh[key] = got[key]
+        if got.get('addr') and sh.get('addr'):
+            a = re.sub(r'[\s　]', '', got['addr'])
+            b = re.sub(r'[\s　]', '', sh['addr'])
+            if a != b:
+                _addr_mismatch.append('%s: 地図=%s / 公式=%s' % (sh['name'], sh['addr'], got['addr']))
+        _filled += 1
+    print('公式の掲載情報を入れた店: %d / %d' % (_filled, len(shops)))
+    print('  電話 %d件 / 営業時間 %d件 / 定休日 %d件'
+          % (sum('tel' in s for s in shops), sum('hours' in s for s in shops),
+             sum('closed' in s for s in shops)))
+    if _addr_mismatch:
+        print('  住所が公式と食い違う: %d件' % len(_addr_mismatch))
+        for row in _addr_mismatch:
+            print('    ' + row)
+else:
+    print('official_details.json が無いので電話・営業時間は入れない')
 
 data = {'meta': meta, 'shops': shops, 'roads': roads, 'rivers': rivers,
         'parks': parks, 'waters': waters, 'sando': sando, 'busway': busway, 'exits': exits,
