@@ -84,10 +84,14 @@
   .chip:active{ transform:scale(.94); }
   .chip .lbl{ color:var(--ink); }
   .chip .lbl{ word-break:keep-all; }
-  .chip .dot{ width:12px; height:12px; border-radius:50%; background:currentColor; border:1.5px solid rgba(92,67,39,.45); flex:0 0 auto; }
+    /* 2026-08-05: 種類の目印を丸から「種類ごとの形」に変えた。塗りと縁はSVG側が持つ */
+  /* 上の svg{width:100%} は地図本体のための指定。種類の目印は指定した大きさで出す
+     (これに巻き込まれて横向き画面で 258px に育ち、一覧が2件しか見えなくなっていた) */
+  .cat-icon{ flex:0 0 auto; display:block; overflow:visible; width:auto; height:auto; }
+  .chip .dot{ flex:0 0 auto; }
   .chip[aria-pressed="true"]{ background:#f3e7cc; background:color-mix(in srgb, currentColor 22%, #fffaf0); box-shadow:inset 0 0 0 1.5px currentColor; }
   .chip[aria-pressed="true"] .lbl{ color:var(--ink); }
-  .chip.c-medical{ color:var(--c-medical); } .chip.c-medical .dot{ background:#fffdf5; }
+  .chip.c-medical{ color:var(--c-medical); }
   .chip.c-life{ color:var(--c-life); }
   .chip.c-food{ color:var(--c-food); } .chip.c-edu{ color:var(--c-edu); } .chip.c-place{ color:var(--c-place); }
   .chip.voice-filter{ color:var(--voice); }
@@ -116,7 +120,7 @@
       min-width:0; max-width:calc((100% - 16px)/3); height:44px; min-height:44px;
       padding:2px 6px; gap:4px; justify-content:center; line-height:1.05; }
     .chip .lbl{ min-width:0; text-align:center; white-space:normal; }
-    .chip .dot{ width:10px; height:10px; }
+    .chip .dot{ width:13px; height:13px; }  /* 小さい画面では少しだけ小さく */
     .searchbar{ padding-bottom:2px; }
   }
   @media(max-width:480px){
@@ -204,7 +208,7 @@
     padding:24px 24px 18px; -webkit-overflow-scrolling:touch; }
   .detail-cat{ display:inline-flex; align-items:center; gap:7px; padding:5px 10px; border:1.5px solid currentColor;
     border-radius:999px; font-size:.72rem; font-weight:700; }
-  .detail-cat-dot{ width:10px; height:10px; border-radius:50%; background:currentColor; border:1px solid rgba(92,67,39,.35); }
+  .detail-cat .cat-icon{ margin-right:1px; }
   .detail-cat-label{ color:var(--detail-cat-ink); }
   .detail-card h2{ margin-top:13px; padding-right:6px; font-family:'Yusei Magic',sans-serif; font-size:1.42rem;
     line-height:1.35; letter-spacing:.01em; }
@@ -316,7 +320,7 @@
     color:var(--ink); cursor:pointer; text-align:left; }
   .chooser .copt:last-child{ margin-bottom:0; }
   .chooser .copt:active{ background:#f3e7cc; }
-  .chooser .cdot{ width:12px; height:12px; border-radius:50%; flex:0 0 auto; border:1.5px solid rgba(92,67,39,.4); }
+  .chooser .cdot{ flex:0 0 auto; }
 
   .map-compass{ display:none; }
   body.map-open .map-compass{ position:fixed; right:64px; bottom:calc(var(--map-controls-h) + 10px); z-index:26;
@@ -427,7 +431,7 @@
     border:0; border-bottom:1.5px dashed rgba(122,92,59,.25); background:transparent; padding:9px 10px;
     font:inherit; color:var(--ink); cursor:pointer; text-align:left; }
   .lrow:active{ background:#f3e7cc; }
-  .lrow .ldot{ width:13px; height:13px; border-radius:50%; flex:0 0 auto; border:1.5px solid rgba(92,67,39,.45); }
+  .lrow .ldot{ flex:0 0 auto; }
   .lrow .lname{ min-width:0; font-size:.9rem; font-weight:700; line-height:1.35; }
   .lrow .lvoice{ grid-column:3; grid-row:1; width:18px; height:13px; border-radius:5px; }
   .lrow .lvoice::before{ content:"···"; position:relative; top:-2px; font-size:8px; font-weight:700; }
@@ -529,8 +533,7 @@
   .strip-row:active{ transform:translateY(calc(-50% + 2px)); box-shadow:none; }
   .strip-row.glowing{ border-color:var(--voice); box-shadow:0 0 0 3px rgba(38,116,123,.2), 2px 4px 0 rgba(92,67,39,.26); }
   .strip-row:focus-visible{ outline:3px solid var(--focus-ring); outline-offset:2px; }
-  .strip-shop-dot{ flex:0 0 auto; width:11px; height:11px; border-radius:50%;
-    background:var(--cat-color); border:1.5px solid rgba(92,67,39,.42); }
+  .strip-shop-dot{ flex:0 0 auto; }
   .strip-shop-name{ min-width:0; max-height:2.5em; overflow:hidden;
     display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
     word-break:normal; overflow-wrap:normal; }
@@ -681,7 +684,7 @@
   @media(max-width:480px){
     .strip-guide{ grid-template-columns:minmax(0,1fr) 60px minmax(0,1fr); padding-inline:5px; }
     .strip-row{ width:calc(50% - 35px); gap:4px; padding:6px 4px; font-size:14px; }
-    .strip-shop-dot{ width:9px; height:9px; }
+    .strip-shop-dot{ width:13px; height:13px; }
     .strip-row[data-side="west"]{ right:calc(50% + 30px); }
     .strip-row[data-side="east"]{ left:calc(50% + 30px); }
     .strip-road{ width:46px; }
@@ -717,7 +720,7 @@
 <a class="skip-map" href="#listbtn">通り沿い表示をとばす</a>
 
 <header>
-  <h1>なかやま商店街マップ <small>実測デジタル版</small></h1>
+  <h1>なかやま商店街マップ <small>仙台市青葉区</small></h1>
   <span class="map-filter-badge" id="mapFilterBadge" role="status" aria-live="polite"></span>
   <button id="mapback" type="button" aria-controls="viewport">✕ 通り沿い<wbr>にもどる</button>
   <p>西側・東側を実際の南北位置に合わせて並べています。お店をタップすると詳細を確認でき、「地図で見る」で全体へ切り替えられます。</p>
@@ -751,7 +754,7 @@
      スクリーンリーダーの「本文へ飛ぶ」が効かなくなっていた。地図側にも目印を持たせる。 -->
 <div id="viewport" role="main" aria-hidden="true">
   <div id="mapwrap">
-    <svg id="map" xmlns="http://www.w3.org/2000/svg" aria-label="なかやま商店街 実測マップ"></svg>
+    <svg id="map" xmlns="http://www.w3.org/2000/svg" aria-label="なかやま商店街のマップ"></svg>
     <div class="chooser" id="chooser" role="dialog" aria-label="どのお店か選ぶ"></div>
   </div>
 </div>
@@ -991,9 +994,45 @@ function poly(pts){ return pts.map((p,i)=>(i?'L':'M')+p[0]+','+p[1]).join(''); }
 function polyClosed(pts){ return poly(pts)+'Z'; }
 
 /* ---------- 静的レイヤ (揺らぎはビルド時に座標へ焼き込み済・フィルタ不使用) ---------- */
+// 2026-08-05: 種類を★の色だけで示していたため、色で見分けにくい人には何屋か分からなかった
+// (実測: deutan で「健康・美容・医療」と「生活・日用・企業」が ΔE=9.4)。種類ごとに形を変える。
+// 形は 20x20 (-10..10) の枠に揃えてあるので、大きさ・当たり判定・名前の置き場の計算は変わらない。
+const CAT_ICONS = {
+  medical: 'M0,8.6 C-9.6,1.6 -10,-3.2 -10,-4.6 C-10,-8.4 -6.9,-10 -4.4,-10 C-1.8,-10 -0.4,-8.2 0,-7.2 C0.4,-8.2 1.8,-10 4.4,-10 C6.9,-10 10,-8.4 10,-4.6 C10,-3.2 9.6,1.6 0,8.6 Z',
+  food:    'M-0.1031,-9.8969 C1.5464,-9.8969 2.6804,-8.866 3.5052,-7.4227 L9.3814,3.1959 C10.5155,5.2577 10,7.4227 8.5567,8.4536 C7.6289,9.0722 6.4948,9.2784 5.2577,9.2784 L-5.2577,9.2784 C-6.4948,9.2784 -7.6289,9.0722 -8.5567,8.4536 C-10,7.4227 -10.5155,5.2577 -9.3814,3.1959 L-3.5052,-7.4227 C-2.6804,-8.866 -1.7526,-9.8969 -0.1031,-9.8969 Z',
+  life:    'M0,-10.2041 L10,-1.0204 L7.551,-1.0204 L7.551,8.3673 C7.551,9.3878 6.9388,9.898 6.0204,9.898 L-6.0204,9.898 C-6.9388,9.898 -7.551,9.3878 -7.551,8.3673 L-7.551,-1.0204 L-10,-1.0204 Z',
+  edu:     'M-10,-7.0103 C-6.3918,-8.866 -2.8866,-8.2474 0,-5.9794 C2.8866,-8.2474 6.3918,-8.866 10,-7.0103 L10,6.1856 C6.3918,4.7423 2.8866,5.3608 0,7.6289 C-2.8866,5.3608 -6.3918,4.7423 -10,6.1856 Z',
+  place:   'M0,-10.2041 C5.7143,-10.2041 10,-6.5306 10,-1.8367 C10,2.2449 6.7347,4.5918 3.1633,4.5918 L3.1633,8.5714 C3.1633,9.4898 2.551,10 1.6327,10 L-1.6327,10 C-2.551,10 -3.1633,9.4898 -3.1633,8.5714 L-3.1633,4.5918 C-6.7347,4.5918 -10,2.2449 -10,-1.8367 C-10,-6.5306 -5.7143,-10.2041 0,-10.2041 Z'
+};
+const CAT_ICON_NAMES = {
+  medical: 'ハート', food: 'おにぎり', life: 'おうち', edu: 'ひらいた本', place: 'き'
+};
+// 一覧やチップの目印は、地図の上と同じ塗りにする (別の色だと同じものだと分からない)
+const CAT_ICON_FILL = {
+  medical: '#fffdf5', life: '#5cae4a', food: '#eda03e', edu: '#5a95d6', place: '#46b3ae'
+};
+// 一覧・絞り込み・詳細の目印も地図と同じ形にする。同じ形が並んでいないと、
+// 地図の形が何を指しているのか覚えられない。
+function catIconEl(cat, px, fill){
+  const ns = 'http://www.w3.org/2000/svg';
+  const svgEl = document.createElementNS(ns, 'svg');
+  svgEl.setAttribute('viewBox', '-11.6 -11.6 23.2 23.2');
+  svgEl.setAttribute('width', px); svgEl.setAttribute('height', px);
+  svgEl.setAttribute('aria-hidden', 'true'); svgEl.setAttribute('focusable', 'false');
+  svgEl.classList.add('cat-icon');
+  const path = document.createElementNS(ns, 'path');
+  path.setAttribute('d', CAT_ICONS[cat] || CAT_ICONS.life);
+  path.setAttribute('fill', fill || CAT_ICON_FILL[cat] || 'currentColor');
+  path.setAttribute('stroke', '#5C4327');
+  path.setAttribute('stroke-width', '2.6');
+  path.setAttribute('stroke-linejoin', 'round');
+  path.setAttribute('paint-order', 'stroke fill');
+  svgEl.appendChild(path);
+  return svgEl;
+}
 const defs = el('defs', {}, svg);
-defs.innerHTML = `
-  <path id="starShape" d="M0,-10 L2.8,-3.3 L10,-3.1 L4.5,1.3 L6.4,8.2 L0,4.2 L-6.4,8.2 L-4.5,1.3 L-10,-3.1 L-2.8,-3.3 Z"/>`;
+defs.innerHTML = Object.entries(CAT_ICONS)
+  .map(([cat, d]) => '<path id="icon-' + cat + '" d="' + d + '"/>').join('');
 
 el('rect', {x:-PAD, y:-PAD, width:W+2*PAD, height:H+2*PAD, fill:'var(--paper)'}, svg);
 const gWater = el('g', {}, svg);
@@ -1939,7 +1978,7 @@ function drawShops(){
     }
     const marker = el('g', {class:'marker', transform:'translate('+s.x+','+s.y+')'}, g);
     el('circle', {cx:0, cy:0, r:16, class:'selected-ring'}, marker);
-    const st = el('use', {href:'#starShape', x:0, y:0, class:'star '+s.cat,
+    const st = el('use', {href:'#icon-'+s.cat, x:0, y:0, class:'star '+s.cat,
       transform:'scale('+(starSize(s) * (idx===selectedIndex?1.18:1))+')'}, marker);
     if (hasVoices){
       const vg=el('g',{class:'voice-badge','data-i':idx,transform:'translate('+s.x+','+s.y+')'},g);
@@ -1995,7 +2034,8 @@ filtersDiv.appendChild(voiceFilter);
 Object.keys(CATS).forEach(k => {
   const b = document.createElement('button');
   b.className = 'chip c-'+k; b.setAttribute('aria-pressed','false');
-  const dot = document.createElement('span'); dot.className = 'dot';
+  const dot = catIconEl(k, 15);
+  dot.classList.add('dot');
   const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = CATS[k].label;
   b.appendChild(dot); b.appendChild(lbl);
   b.addEventListener('click', () => {
@@ -2280,7 +2320,8 @@ function makeStripRow(entry, far){
   if (far){
     row.style.gridColumn=entry.side === 'west' ? '1' : '2';
     const main=stripChild('span','strip-far-main');
-    main.appendChild(stripChild('span','strip-shop-dot'));
+    const farIcon=catIconEl(entry.s.cat, 15); farIcon.classList.add('strip-shop-dot');
+    main.appendChild(farIcon);
     appendStripShopName(main,entry.s.name);
     if ((entry.s.voices||[]).length){
       const voice=stripChild('span','strip-voice','声');
@@ -2298,7 +2339,8 @@ function makeStripRow(entry, far){
   } else {
     row.style.top=stripIdealCenter(entry)+'px';
     stripRowNodes.set(entry.i,row);
-    row.appendChild(stripChild('span','strip-shop-dot'));
+    const rowIcon=catIconEl(entry.s.cat, 15); rowIcon.classList.add('strip-shop-dot');
+    row.appendChild(rowIcon);
     appendStripShopName(row,entry.s.name);
     if ((entry.s.voices||[]).length){
       const voice=stripChild('span','strip-voice','声');
@@ -2744,7 +2786,7 @@ function buildDetailCard(s){
   const cat = detailText('div', 'detail-cat');
   cat.style.color = CATS[s.cat].cc;
   cat.style.setProperty('--detail-cat-ink', CATS[s.cat].detailInk);
-  cat.appendChild(detailText('span', 'detail-cat-dot'));
+  cat.appendChild(catIconEl(s.cat, 14));
   cat.appendChild(detailText('span', 'detail-cat-label', CATS[s.cat].label));
   card.appendChild(cat);
   card.appendChild(detailText('h2', '', s.name));
@@ -2944,7 +2986,7 @@ function showChooser(list, s){
   const t = document.createElement('div'); t.className='ctitle'; t.textContent='どのお店？'; chooser.appendChild(t);
   list.forEach(o => {
     const b = document.createElement('button'); b.className='copt';
-    const d = document.createElement('span'); d.className='cdot'; d.style.background = CATS[o.cat].cc;
+    const d = catIconEl(o.cat, 16); d.classList.add('cdot');
     const nm = document.createElement('span'); nm.textContent = o.name;
     b.appendChild(d); b.appendChild(nm);
     b.addEventListener('click', ev => { ev.stopPropagation(); hideChooser(); pinned = o; showDetail(o, true); });
@@ -3442,7 +3484,7 @@ function renderList(memberIdx, title){
   visible.slice().sort((a,b)=>a.y-b.y).forEach(s => {
     const b = document.createElement('button'); b.className = 'lrow';
     b.tabIndex = listrows.children.length ? -1 : 0;
-    const d = document.createElement('span'); d.className='ldot'; d.style.background = CATS[s.cat].cc;
+    const d = catIconEl(s.cat, 17); d.classList.add('ldot');
     const nm = document.createElement('span'); nm.className='lname'; nm.textContent = s.name;
     const ad = document.createElement('span'); ad.className='laddr'; ad.textContent = (s.addr||'').replace('仙台市青葉区','').replace('仙台市泉区','泉区 ');
     b.setAttribute('aria-label', s.name + ((s.voices||[]).length ? '、こどもの声あり' : ''));
