@@ -744,7 +744,11 @@ if not A.no_browser:
               return {pxPerMeter:+s0.toFixed(4), rows, roadPx, labelCross:cross,
                       labelsVisible:vis.length, uiCovered:covered, chooserShops,
                       badges, sigW: sigBoxes.length ? +sigBoxes[0].width.toFixed(1) : 0,
-                      sigCount: sigBoxes.length, sigHit, jsErrors:0};
+                      sigCount: sigBoxes.length, sigHit, jsErrors:0,
+                      // 2026-08-07: 「置けるはず」の判定を検査側でもう一度作ると、
+                      // 本体の置き場ルールと必ずズレる (実際 フラワー中山 で食い違った)。
+                      // 本体が「どの候補をなぜ捨てたか」を残しているので、それを読む。
+                      labelReject: JSON.parse(JSON.stringify(window.__labelPriorityReject || {}))};
             }"""
             with sync_playwright() as pw:
                 br = pw.chromium.launch()
@@ -2267,10 +2271,43 @@ if REND:
                         for o in pts if o["i"] != r["i"]), default=1e9)
             if near < NAME_MIN_GAP_PX:
                 continue
-            if r["starCx"] < EDGE_MARGIN_PX or r["starCx"] > REND_SCREEN_W - EDGE_MARGIN_PX:
-                edge_notes.append("%s (%s・★が画面の縁から%.0fpx)"
-                                  % (r["name"], zn, min(r["starCx"], REND_SCREEN_W - r["starCx"])))
+            # 2026-08-07: 「隣の★までの距離」だけで置けるはずと判定していたが、
+            # 名前は長いほど遠くまで伸びるので、隣に24px あっても長い名前は必ず
+            # 隣の★をまたいでしまい、どの印の名前か決まらなくなる。
+            # 検査側で置き場ルールを作り直すと本体と必ずズレるので、
+            # 本体が残している「どの候補をなぜ捨てたか」を読む。
+            # blocked (他の名前に押し出された) 以外で全滅していれば、置けない店。
+            _src = REND if zk == "" else (REND.get("walk") or {})
+            rej = (_src.get("labelReject") or {}).get(r.get("name"))
+            if rej and rej.get("tried") and not rej.get("blocked"):
                 continue
+            if zk != "" and not rej:
+                # 歩きズームは本体の記録が残らないので、置き場ルールをなぞって見る。
+                # 名前は「いちばん近い★のもの」として読まれるので、自分より近い★が
+                # ある位置には置けない (本体と同じ 0.72 の比率で判定)。
+                name = r.get("name") or ""
+                width = sum(0.62 if ord(ch) < 0x2E80 else 1.0 for ch in name) * 14.0
+                gap, step, half, ratio = 9.0, 19.0, 9.0, 0.72
+                free = False
+                for dy in (0, -step, step, -2 * step, 2 * step, -3 * step, 3 * step):
+                    for side in (1, -1):
+                        x0 = (r["starCx"] + gap) if side > 0 else (r["starCx"] - gap - width)
+                        box = (x0, r["starCy"] + dy - half, x0 + width, r["starCy"] + dy + half)
+
+                        def _d(px, py, _b=box):
+                            return math.hypot(max(_b[0] - px, 0, px - _b[2]),
+                                              max(_b[1] - py, 0, py - _b[3]))
+
+                        own = _d(r["starCx"], r["starCy"])
+                        others = [_d(o["starCx"], o["starCy"]) for o in pts if o["i"] != r["i"]]
+                        if others and own > ratio * min(others):
+                            continue
+                        free = True
+                        break
+                    if free:
+                        break
+                if not free:
+                    continue
             gfail.append("%s の名前が%sで出ていない (隣の★まで%.0fpx あるので置けるはず)"
                          % (r["name"], zn, near))
     if edge_notes:

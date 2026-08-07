@@ -33,9 +33,9 @@ else:
 
 # 2026-08-04: 公式サイトに載っているのに地図に無かった2店 (ネルソンコーヒー中山本店・
 # 整骨院リリーフ) を追加して 61 → 63。過去の版から作り直せるよう、旧い数も許す。
-PRODUCTION_SHOP_COUNT = 63
+PRODUCTION_SHOP_COUNT = 60
 PRODUCTION_SIGNAL_COUNT = 11
-PRODUCTION_MIGRATION_SHOP_COUNTS = {60, 61, PRODUCTION_SHOP_COUNT}
+PRODUCTION_MIGRATION_SHOP_COUNTS = {60, 61, 63, PRODUCTION_SHOP_COUNT}
 PRODUCTION_MIGRATION_SIGNAL_COUNTS = {13, PRODUCTION_SIGNAL_COUNT}
 SIGNAL_MERGE_DISTANCE_M = 30.0
 SLOPE_TOP_NAME = '中山の坂の上'
@@ -49,7 +49,7 @@ OFFICIAL_NAME_FIX = {
     'ウエルシア薬局':   'ウエルシア仙台中山店',
     '河北仙販 中山支店': '河北仙販中山店',
     'cake NAO':         'Cake NAO',
-    '尚絅教会':         '日本パブテスト尚絅教会',
+    '尚絅教会':         '日本バプテスト尚絅教会',   # 公式サイトは「パブテスト」だが教会自身の表記は「バ」
     'サトー商会':       'サトー商会 荒巻店',
     'みなとや':         'みなとや 精肉店',
 }
@@ -58,8 +58,22 @@ OFFICIAL_NAME_FIX = {
 # 一覧・詳細・読み上げは正式名称のままにして、地図の文字だけ短くする。
 MAP_LABEL_SHORT = {
     'ウエルシア仙台中山店': 'ウエルシア',
-    '日本パブテスト尚絅教会': '尚絅教会',
-    'ネルソンコーヒー中山本店': 'ネルソンコーヒー',
+    '日本バプテスト尚絅教会': '尚絅教会',
+    # 2026-08-07: 名前が長いと、置く枠が隣の印まで届いてしまい「どの印の名前か」が
+    # 決まらず、結果として名前ごと出なくなる。地図の上だけ短い呼び名にする。
+    '佐藤次夫税理士事務所': '佐藤次夫税理士',
+    'カットショップ NOBU': 'カットNOBU',
+    'BAKERY&BAKE EndRoll': 'EndRoll',
+    'お菜とお酒アイリス': 'アイリス',
+    '河村内科外科クリニック': '河村内科外科',
+    '認定こども園 TOBINOKO': 'TOBINOKO',
+    '多夢多夢舎中山工房': '多夢多夢舎',
+    'デイサービス はるの風': 'はるの風',
+    'リハビリステーション中山': 'リハビリ中山',
+    'カーブス アクロスガーデン中山': 'カーブス中山',
+    'みなとや 精肉店': 'みなとや',        # 横向きで画面の右端から切れていた
+    'フラワー中山': 'フラワー',           # 隣の印が24pxしか離れておらず、6文字だと名前ごと消えていた
+    'ダイニングバー 祭': 'バー祭',        # 歩きズームで名前が置けず消えていた
 }
 OFFICIAL_URL_FIX = {
     # 2026-08-04 実測で 404。公式サイトマップにも無い (ページごと消えている)。
@@ -70,10 +84,41 @@ OFFICIAL_URL_FIX = {
 }
 
 
+# ---------------- 閉業した店 (2026-08-07 実測) ----------------
+# 掲載元の公式サイトは各店ページが2021年で止まっていて、閉業した店が残っていた。
+# 63店すべての営業状況を Google マップで1件ずつ確かめ、「閉業」と出た店を地図から外す。
+# データは消さずにここへ理由と日付を残す (再開したら1行消せば戻る)。
+CLOSED_SHOPS = {
+    'ビバホーム荒巻店':       '2026-08-07 Googleマップ「閉業」。公式サイトのページも404で消滅済み',
+    'ネルソンコーヒー中山本店': '2026-08-07 Googleマップ「閉業」(2回確認)。公式の掲載は2021年のまま',
+    '整骨院リリーフ':         '2026-08-07 Googleマップ「閉業」。公式の掲載は2021年のまま',
+}
+
+
+def drop_closed_shops(shop_list):
+    """閉業した店を地図から外す。何を外したかは必ず表示する。"""
+    kept, dropped = [], []
+    for sh in shop_list:
+        if sh['name'] in CLOSED_SHOPS:
+            dropped.append(sh['name'])
+        else:
+            kept.append(sh)
+    if dropped:
+        print('閉業のため地図から外した店: %d件' % len(dropped))
+        for name in dropped:
+            print('  %s — %s' % (name, CLOSED_SHOPS[name]))
+    missing = [n for n in CLOSED_SHOPS if n not in dropped]
+    if missing:
+        print('  ※ 閉業リストにあるが今の一覧に無い: %s' % missing)
+    return kept
+
+
 def revert_official_fixes(shop_list):
     """凍結ベース(前回の生成物)には公式表記が入っている。座標や対応表は
     すべて内部の元の名前で引いているので、読み込んだ時点で内部名へ戻す。"""
     back = {v: k for k, v in OFFICIAL_NAME_FIX.items()}
+    # 前に出力した版に入っている古い表記も内部名へ戻す (作り直しても壊れないように)
+    back['日本パブテスト尚絅教会'] = '尚絅教会'
     for sh in shop_list:
         if sh['name'] in back:
             sh['name'] = back[sh['name']]
@@ -109,6 +154,8 @@ if not ARGS.preview:
     with open(P('mapdata.json'), encoding='utf-8') as f:
         PRODUCTION_BASELINE = json.load(f)
     revert_official_fixes(PRODUCTION_BASELINE.get('shops', []))
+    PRODUCTION_BASELINE['shops'] = [sh for sh in PRODUCTION_BASELINE.get('shops', [])
+                                   if sh['name'] not in CLOSED_SHOPS]
     _baseline_shop_count = len(PRODUCTION_BASELINE.get('shops', []))
     _baseline_road_count = len(PRODUCTION_BASELINE.get('roads', []))
     _baseline_signal_count = len(PRODUCTION_BASELINE.get('signals', []))
@@ -949,6 +996,7 @@ zones = []
 if not ARGS.preview:
     # Task I は毎回、入力JSONから組み立てた座標を正本にする。前回の生成物を
     # 位置入力へ自己参照しないよう、生成直後の店舗を凍結しておく。
+    shops = drop_closed_shops(shops)
     _task_i_fresh_shops = json.loads(json.dumps(shops, ensure_ascii=False))
     generated_names = {sh['name'] for sh in shops}
     baseline_names = {sh['name'] for sh in PRODUCTION_BASELINE['shops']}
@@ -1803,6 +1851,7 @@ print('zones:', zones)
 
 # 出力の直前だけ公式表記に差し替える (内部の対応表は元の名前で引いているため)
 apply_official_fixes(shops, '出力')
+shops = drop_closed_shops(shops)
 
 # ---------------- 電話・営業時間・定休日 ----------------
 # 公式 nakayaman.com の各店ページに書かれているのに、地図側は0件だった。

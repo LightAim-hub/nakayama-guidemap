@@ -72,13 +72,16 @@
     font-size:.6rem; color:var(--ink-soft); letter-spacing:0;
     border:1.5px solid var(--ink-soft); border-radius:999px; padding:2px 9px; white-space:nowrap;
   }
-  header p{ font-size:14px; color:var(--ink-soft); margin-top:3px; }
+  header p{ font-size:max(14px, 0.875rem); color:var(--ink-soft); margin-top:3px; }
   .chip:focus-visible, .searchbar input:focus-visible{
     outline:3px solid var(--focus-ring); outline-offset:2px; }
 
   .filters{ display:flex; flex-wrap:wrap; gap:8px; padding:8px 12px 5px; background:var(--paper); z-index:20; }
   .chip{ border:2px solid currentColor; background:#fffaf0; color:var(--ink);
-    border-radius:999px; padding:6px 12px; font-size:14px; font-weight:700; cursor:pointer;
+    border-radius:999px; padding:6px 12px; font-weight:700; cursor:pointer;
+    /* 絞り込みは高さの決まった帯に入るので、18pxで頭打ちにする。
+       本文(店名・住所・詳細)は端末の文字設定にそのまま追従させている */
+    font-size:clamp(14px, .875rem, 18px);
     display:inline-flex; align-items:center; gap:6px; user-select:none; transition:transform .08s, background .15s;
     min-height:40px; }
   .chip:active{ transform:scale(.94); }
@@ -106,19 +109,20 @@
     background:#fffaf0; border-left:1.7px solid currentColor; border-bottom:1.7px solid currentColor; transform:skewY(-35deg); }
   .searchbar{ padding:0 12px 6px; background:var(--paper); z-index:20; display:flex; gap:6px; align-items:center; }
   .searchbar input{
-    flex:1; min-width:0; max-width:340px; font:inherit; font-size:16px; color:var(--ink);
+    flex:1; min-width:0; max-width:340px; font:inherit; font-size:max(16px, 1rem); color:var(--ink);
     min-height:44px; padding:8px 12px; border:2px solid rgba(122,92,59,.5); border-radius:999px; background:#fffaf0; outline:none;
   }
   .searchbar input:focus{ border-color:var(--accent); }
-  #searchstatus{ min-width:5.5em; font-size:14px; font-weight:700; color:var(--voice); white-space:nowrap; }
+  #searchstatus{ min-width:5.5em; font-size:max(14px, 0.875rem); font-weight:700; color:var(--voice); white-space:nowrap; }
   #searchstatus.empty{ color:#b3562e; }
   @media(max-width:759px){
     header{ padding:5px 12px 3px; }
     header p{ display:none; }
     .filters{ flex-wrap:wrap; overflow-x:visible; gap:8px; padding:1px 8px 8px; }
-    .chip{ flex:1 1 calc((100% - 16px)/3); width:calc((100% - 16px)/3);
-      min-width:0; max-width:calc((100% - 16px)/3); height:44px; min-height:44px;
-      padding:2px 6px; gap:4px; justify-content:center; line-height:1.05; }
+    /* 文字を大きくした端末では3つ並びをやめて折り返す (固定幅だと枠から溢れていた) */
+    .chip{ flex:1 1 calc((100% - 16px)/3);
+      min-width:min-content; max-width:100%; height:auto; min-height:44px;
+      padding:4px 6px; gap:4px; justify-content:center; line-height:1.15; }
     .chip .lbl{ min-width:0; text-align:center; white-space:normal; }
     .chip .dot{ width:13px; height:13px; }  /* 小さい画面では少しだけ小さく */
     .searchbar{ padding-bottom:2px; }
@@ -288,12 +292,12 @@
   .detail-facts-wrap{ margin-top:14px; }
   .detail-facts{ display:grid; grid-template-columns:auto minmax(0,1fr); gap:6px 12px;
     padding:12px 14px; border:1.5px solid rgba(122,92,59,.28); border-radius:12px; background:#fffaf0; }
-  .detail-fact-label{ color:var(--ink-soft); font-size:14px; font-weight:700; white-space:nowrap; }
-  .detail-fact-value{ font-size:14px; line-height:1.65; }
+  .detail-fact-label{ color:var(--ink-soft); font-size:max(14px, 0.875rem); font-weight:700; white-space:nowrap; }
+  .detail-fact-value{ font-size:max(14px, 0.875rem); line-height:1.65; }
   .detail-fact-tel{ display:inline-flex; align-items:center; min-height:44px; padding:0 2px;
     color:#8a4a14; font-size:1rem; font-weight:700; letter-spacing:.02em; }
   .detail-fact-tel:focus-visible{ outline:3px solid var(--focus-ring); outline-offset:2px; }
-  .detail-facts-note{ margin-top:7px; color:var(--ink-soft); font-size:14px; line-height:1.6; }
+  .detail-facts-note{ margin-top:7px; color:var(--ink-soft); font-size:max(14px, 0.875rem); line-height:1.6; }
   .detail-actions{ display:grid; grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr)); gap:10px;
     margin-top:12px; margin-bottom:14px; }
   .detail-action{ display:flex; align-items:center; justify-content:center; min-height:46px; padding:10px 12px;
@@ -327,6 +331,15 @@
     display:block; width:36px; height:36px; pointer-events:none; }
   body.map-open.list-open .map-compass, body.detail-open .map-compass{ display:none; }
   .map-compass svg{ width:36px; height:36px; }
+  .map-scale{ display:none; }
+  body.map-open .map-scale{ position:fixed; left:8px; bottom:calc(var(--map-controls-h) + 12px); z-index:26;
+    display:flex; flex-direction:column; align-items:flex-start; gap:2px; pointer-events:none; }
+  body.map-open.list-open .map-scale, body.detail-open .map-scale,
+  body.chooser-open .map-scale{ display:none; }
+  .map-scale-bar{ display:block; height:8px; border:1.5px solid var(--ink-soft); border-top:0;
+    background:rgba(255,250,240,.6); }
+  .map-scale-label{ color:var(--ink); font-size:12px; font-weight:700; line-height:1.1;
+    padding:0 2px; background:rgba(255,250,240,.86); border-radius:4px; }
   .compass-face{ fill:#fffaf0; stroke:#d8c4a0; stroke-width:2; }
   .compass-north{ fill:#b3562e; }
   .compass-south{ fill:#c9b28c; }
@@ -432,7 +445,7 @@
     font:inherit; color:var(--ink); cursor:pointer; text-align:left; }
   .lrow:active{ background:#f3e7cc; }
   .lrow .ldot{ flex:0 0 auto; }
-  .lrow .lname{ min-width:0; font-size:.9rem; font-weight:700; line-height:1.35; }
+  .lrow .lname{ min-width:0; font-size:max(14px, .9rem); font-weight:700; line-height:1.35; }
   .lrow .lvoice{ grid-column:3; grid-row:1; width:18px; height:13px; border-radius:5px; }
   .lrow .lvoice::before{ content:"···"; position:relative; top:-2px; font-size:8px; font-weight:700; }
   .lrow .laddr{ grid-column:2 / 4; font-size:.7rem; line-height:1.4; color:var(--ink-soft); text-align:left; }
@@ -473,7 +486,7 @@
   .detail-count,
   .chooser .ctitle,
   .chooser .copt,
-  .lrow .laddr{ font-size:14px; }
+  .lrow .laddr{ font-size:max(14px, 0.875rem); }
   /* Task AE: 一本道の実座標を主役にした二列表示 */
   body{ --controls-h:164px; }
   #stripview{ flex:1 1 auto; min-height:0; margin-bottom:12px; overflow-y:auto; overflow-x:hidden;
@@ -483,7 +496,7 @@
     border-radius:16px; background:#fffaf0; }
   .empty-help[hidden]{ display:none; }
   .empty-help-title{ font-family:'Yusei Magic',sans-serif; font-size:15px; color:var(--ink); line-height:1.5; }
-  .empty-help-lead{ margin-top:8px; font-size:14px; color:var(--ink-soft); }
+  .empty-help-lead{ margin-top:8px; font-size:max(14px, 0.875rem); color:var(--ink-soft); }
   .empty-help-words{ display:flex; flex-wrap:wrap; gap:8px; margin-top:9px; }
   .empty-help-word{ min-height:44px; padding:8px 14px; border:2px solid rgba(122,92,59,.4);
     border-radius:999px; background:var(--paper); font:inherit; font-size:14px; font-weight:700;
@@ -521,7 +534,7 @@
     min-height:44px; display:flex; align-items:center; gap:6px; padding:7px 9px;
     border:2px solid color-mix(in srgb, var(--cat-color) 58%, var(--ink-soft)); border-radius:20px;
     background:#fffaf0; color:var(--ink); box-shadow:2px 4px 0 rgba(92,67,39,.26), 0 6px 12px rgba(92,67,39,.09);
-    font:inherit; font-size:14px; font-weight:700; line-height:1.25; cursor:pointer;
+    font:inherit; font-size:max(14px, .875rem); font-weight:700; line-height:1.25; cursor:pointer;
     transform:translateY(-50%); }
   .strip-row[data-side="west"]{ right:calc(50% + 34px); flex-direction:row-reverse; text-align:right; }
   .strip-row[data-side="east"]{ left:calc(50% + 34px); text-align:left; }
@@ -550,7 +563,7 @@
   .far-section{ max-width:780px; margin:0 auto; padding:20px 10px 28px; }
   .far-section[hidden]{ display:none; }
   .far-section h2{ font-family:'Yusei Magic',sans-serif; font-size:1.05rem; }
-  .far-section > p{ margin:5px 0 12px; color:var(--ink-soft); font-size:14px; line-height:1.5; }
+  .far-section > p{ margin:5px 0 12px; color:var(--ink-soft); font-size:max(14px, 0.875rem); line-height:1.5; }
   #stripfar{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 10px; align-items:stretch; }
   #stripfar .strip-row{ position:relative; left:auto; right:auto; top:auto !important; width:auto;
     min-width:0; transform:none; flex-direction:column; align-items:flex-start; justify-content:center;
@@ -559,7 +572,7 @@
   #stripfar .strip-row[data-side="west"]{ border-left-width:5px; }
   #stripfar .strip-row[data-side="east"]{ border-right-width:5px; }
   .strip-far-main{ display:flex; align-items:center; gap:6px; min-width:0; }
-  .strip-distance{ color:var(--ink-soft); font-size:14px; font-weight:400; }
+  .strip-distance{ color:var(--ink-soft); font-size:max(14px, 0.875rem); font-weight:400; }
   .map-filter-badge, #mapback{ display:none; }
 
   #controls{ flex:0 0 var(--controls-h); height:var(--controls-h); z-index:30; display:grid;
@@ -683,7 +696,7 @@
   }
   @media(max-width:480px){
     .strip-guide{ grid-template-columns:minmax(0,1fr) 60px minmax(0,1fr); padding-inline:5px; }
-    .strip-row{ width:calc(50% - 35px); gap:4px; padding:6px 4px; font-size:14px; }
+    .strip-row{ width:calc(50% - 35px); gap:4px; padding:6px 4px; font-size:max(14px, .875rem); }
     .strip-shop-dot{ width:13px; height:13px; }
     .strip-row[data-side="west"]{ right:calc(50% + 30px); }
     .strip-row[data-side="east"]{ left:calc(50% + 30px); }
@@ -781,6 +794,13 @@
     <text x="22" y="15" class="compass-label">北</text>
   </svg>
 </div>
+<!-- 2026-08-07: 「歩いて5分か30分か」が読めなかった。距離の目安を出す。
+     地図の面の上に置くと店名の置き場を奪う (方位記号で名前を2件つぶした実績) ので、
+     下端の帯に寄せる。 -->
+<div class="map-scale" id="mapScale" aria-hidden="true">
+  <span class="map-scale-bar"></span>
+  <span class="map-scale-label" id="mapScaleLabel"></span>
+</div>
 <div class="map-float-tools" aria-label="地図の操作">
   <button id="locatebtn" class="map-tool-button" type="button" aria-label="現在地" aria-controls="map"
     aria-describedby="locationStatus" title="現在地を表示（押した時だけ位置を使います）">
@@ -865,6 +885,21 @@ const W = GEO.meta.W, H = GEO.meta.H, PAD = 115;
 const svg = document.getElementById('map');
 const FULL_VIEWBOX = {x:0, y:0, width:W, height:H};
 const INITIAL_VIEWBOX = {x:362, y:677, width:424, height:646};
+// 2026-08-07: 最初の表示は「決め打ちの範囲を画面に収める」方式だったため、
+// 画面の形と大きさで縮尺が変わっていた (縦0.92 / 小型0.84 / 横0.45 px/m)。
+// 縮尺が下がると印が密集し、名前を置く余白が消える。実測で、地図を開いた最初の画面で
+// 名前が読めていたのは 縦58% / 小型52% / 横向き8% しかなかった。
+// 端末や向きによらず同じ縮尺で開くようにする。1.30 はボス判断 (2026-08-07)。
+// 実測: 1画面の店 36→27件・名前が出ていない印 15→7件 (読める名前の数は 21→20 でほぼ同じ)。
+const DEFAULT_MAP_SCALE = 1.45;   // px/m
+const INITIAL_CENTER = {x:INITIAL_VIEWBOX.x + INITIAL_VIEWBOX.width / 2,
+                        y:INITIAL_VIEWBOX.y + INITIAL_VIEWBOX.height / 2};
+function initialViewBoxAtScale(scale){
+  const vw = viewport.clientWidth, vh = viewport.clientHeight;
+  if (!(vw > 0 && vh > 0 && scale > 0)) return {...INITIAL_VIEWBOX};
+  const width = vw / scale, height = vh / scale;
+  return {x:INITIAL_CENTER.x - width / 2, y:INITIAL_CENTER.y - height / 2, width, height};
+}
 let mapViewMode = 'initial';
 svg.setAttribute('viewBox', [INITIAL_VIEWBOX.x, INITIAL_VIEWBOX.y,
   INITIAL_VIEWBOX.width, INITIAL_VIEWBOX.height].join(' '));
@@ -1149,6 +1184,11 @@ function busXAtY(y){
 function distToBus(s){ return Math.abs(s.x - busXAtY(s.y)); }
 
 const FS = 12, LABEL_GAP_PX = 2, LABEL_COLLISION_PAD_PX = 2;
+// 店名を縦にずらす時の1段。行の高さ(文字14-16px)ぶんだけ動かすので、
+// 半端な位置に散らばらず、並びが揃って見える (2026-08-07 ボス指示)。
+const LABEL_ROW_STEP_PX = 19;
+// 近い方(9px)に置けない時だけ使う、もう1段外の距離。2つしか使わないので並びは揃う。
+const LABEL_FAR_COLUMN_PX = 28;
 const ROAD_WIDTHS = {
   main:  {fill:13, casing:18,   floorPx:12},
   major: {fill:12, casing:17,   floorPx:11},
@@ -1327,7 +1367,10 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     visibleEntries.forEach(hideLabel);
     stats.visibleEntries=visibleEntries.length;
     document.body.dataset.labelLayoutVisible=String(visibleEntries.length);
-    const keepOut = ['.map-float-tools', '#locationStatus', '#editbar', '#srcinfo']
+    // 2026-08-07: 方位記号と距離の目盛りが避ける対象に入っておらず、
+    //           店名がその上に重なって読めなくなっていた (目視で発見)。
+    const keepOut = ['.map-float-tools', '#locationStatus', '#editbar', '#srcinfo',
+                     '.map-compass', '.map-scale']
       .map(q => document.querySelector(q))
       .filter(e => e && getComputedStyle(e).position === 'fixed'
         && getComputedStyle(e).display !== 'none')
@@ -1657,7 +1700,15 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       evictedEntries=[...initiallyPlacedPriorityOne].filter(entry => !entry.s.labelVisible);
     }
     document.body.dataset.labelLayoutSteps = String(prioritySteps);
-    window.__labelPriorityReject = Object.fromEntries(priorityReject);
+    // 2026-08-07: 却下の記録は優先配置に入った店の分しか残っていなかったため、
+    // 検査側から「なぜ名前が出ていないのか」が分からず、検査が自前の推定を持つ
+    // ことになり本体とズレていた。名前が出なかった店は全部ここに残す。
+    const rejectOut = Object.fromEntries(priorityReject);
+    entries.forEach(entry => {
+      if (entry.s.labelVisible) return;
+      if (!rejectOut[entry.s.name]) rejectOut[entry.s.name] = {unplaced:1, tried:1, blocked:0};
+    });
+    window.__labelPriorityReject = rejectOut;
     const evictedNames=evictedEntries.map(entry => entry.s.name).sort((a,b) => a.localeCompare(b,'ja'));
     document.body.dataset.evictedLabelCount = String(evictedNames.length);
     document.body.dataset.evictedLabels = JSON.stringify(evictedNames);
@@ -1777,19 +1828,29 @@ function labelsCollide(a, b){
     a.top < b.bottom + LABEL_COLLISION_PAD_PX &&
     a.bottom + LABEL_COLLISION_PAD_PX > b.top;
 }
+// 2026-08-07 ボス指示: 「マークと店名の位置関係のルールを統一して、パッと見たときに
+// バラバラになっていないようにしたい」。
+// 以前は 横17段 × 縦37段 = 629通りの置き場から空いている所を探していたため、
+// 印のすぐ横に出る店と、33px も離れて出る店が混在していた (実測: 9.0px 〜 33.0px)。
+// これからは「印の中心から横に決まったpx・縦は印と同じ高さ」の一点だけ。
+// 変わるのは左右どちらに出すかだけで、その店が通りのどちら側にいるかで決める。
 function labelCandidates(s){
   const preferred = preferredLabelSide(s);
-  const baseGap = starTargetPx(s) / 2 + LABEL_GAP_PX;
-  const gaps = [0,2,4,6,8,10,12,16,20,24,30,36,44,52,64,80,96]
-    .map(v => baseGap + v);
-  const dySteps = [0,-2,2,-4,4,-6,6,-8,8,-10,10,-12,12,-16,16,-20,20,
-    -24,24,-28,28,-32,32,-40,40,-48,48,-56,56,-64,64,-72,72,-80,80,-96,96];
-  const candidates = [];
-  [preferred].forEach(side => gaps.forEach(gapPx =>
-    dySteps.forEach(dyPx => candidates.push({side, gapPx, dyPx}))));
-  return candidates.sort((a,b) =>
-    Math.hypot(a.gapPx,a.dyPx)-Math.hypot(b.gapPx,b.dyPx) ||
-    a.dyPx-b.dyPx);
+  const gapPx = starTargetPx(s) / 2 + LABEL_GAP_PX;   // 印の中心から名前の端まで (常に同じ)
+  // 縦は「印と同じ高さ」が基本。真横が埋まっている時だけ、行の高さ1つぶん単位でずらす。
+  // 半端な位置には置かないので、並びは揃って見える。
+  // 横も基本は1つの距離だけ。ただし歩きズームでは道路の塗りが太くなり、
+  // 近い方だと名前が道に乗ってしまう店がある。その時だけ「もう1段外」を使う。
+  // 距離は2つに決め打ちなので、並びは2列に揃って見える (半端には散らばらない)。
+  const gaps = [gapPx, gapPx + LABEL_FAR_COLUMN_PX];
+  const step = LABEL_ROW_STEP_PX;
+  const dySteps = [0, -step, step, -step*2, step*2, -step*3, step*3];
+  const out = [];
+  gaps.forEach(g => dySteps.forEach(dyPx => {
+    out.push({side:preferred, gapPx:g, dyPx});
+    out.push({side:-preferred, gapPx:g, dyPx});
+  }));
+  return out;
 }
 function rectDistance(rect, x, y){
   return Math.hypot(Math.max(rect.left-x, 0, x-rect.right),
@@ -1900,11 +1961,24 @@ function layoutVoiceBadges(scale, entries, starCenters, labelKeepOut){
   });
   return placed;
 }
+// 地図の1mが画面の何pxかは分かっているので、40〜110pxに収まるキリのいい距離を選んで出す。
+const SCALE_STEPS = [20, 50, 100, 200, 300, 500, 1000];
+function updateMapScaleBar(scale){
+  const bar = document.querySelector('.map-scale-bar');
+  const label = document.getElementById('mapScaleLabel');
+  if (!bar || !label) return;
+  const meters = SCALE_STEPS.find(m => m * scale >= 40 && m * scale <= 110)
+    || SCALE_STEPS.reduce((best, m) =>
+         Math.abs(m * scale - 70) < Math.abs(best * scale - 70) ? m : best, SCALE_STEPS[0]);
+  bar.style.width = Math.round(meters * scale) + 'px';
+  label.textContent = meters >= 1000 ? (meters / 1000) + 'km' : meters + 'm';
+}
 function updateMapScaleStyles(){
   const matrix = svg.getScreenCTM();
   const scale = matrix ? Math.hypot(matrix.a, matrix.b) : 0;
   if (!(scale > 0)) return;
   currentMapScale = scale;
+  updateMapScaleBar(scale);
   updateCurrentLocationStyle(scale);
   const mainRoadPx = updateRoadWidths(scale);
   currentStarTargetPx = scale < 1.5 ? MAX_STAR_PX : Math.max(MIN_STAR_PX,
@@ -3121,7 +3195,7 @@ function applyResponsiveMapView(){
   if (!document.body.classList.contains('map-open')) return;
   const aspect=mapFrameAspect();
   let next;
-  if (mapViewMode==='initial') next=fitBoxToAspect(INITIAL_VIEWBOX,aspect);
+  if (mapViewMode==='initial') next=initialViewBoxAtScale(DEFAULT_MAP_SCALE);
   else if (mapViewMode==='whole') next=fitBoxToAspect(COMMERCIAL_VIEWBOX,aspect);
   else {
     const vb=svg.viewBox.baseVal;
