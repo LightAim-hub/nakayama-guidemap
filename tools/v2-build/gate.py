@@ -154,6 +154,10 @@ MAP_FRAME_JS = """() => {
     const r = t.getBoundingClientRect();
     const s = (t.textContent||'').trim();
     if (!s || r.width<1) continue;
+    // 2026-08-08: 文字幅を測るためだけの見えない text (opacity .001) を
+    // 「隠れた店名」と数えて偽陽性を出した。目に映らないものは判定しない。
+    const cs = getComputedStyle(t);
+    if (+cs.opacity <= .05 || cs.visibility === 'hidden') continue;
     if (r.bottom <= top || r.top >= bot) continue;        // 帯に全くかからない = 見えていない
     if (r.right <= v.x || r.x >= v.right) continue;
     let why = null;

@@ -9,6 +9,13 @@ preview出力: リポジトリ直下の preview.html (本番2ファイルは非�
 import argparse, json, math, os, re, sys, unicodedata
 from collections import Counter, defaultdict
 
+# 日本語 Windows のコンソール (cp932) だと途中経過の記号で落ちるので、出力を UTF-8 に固定する
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding='utf-8')
+    except (AttributeError, ValueError):
+        pass
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 def P(name):
     return os.path.join(HERE, name)

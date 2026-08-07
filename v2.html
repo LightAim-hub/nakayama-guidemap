@@ -37,6 +37,11 @@
 <style>
   @font-face{font-family:'Yusei Magic';font-style:normal;font-weight:400;font-display:swap;
     src:url('assets/fonts/yusei-magic-400.woff2') format('woff2');}
+  /* Yusei Magic は 400 しか無い。700 を指定するとブラウザが太らせた偽ボールドになり、
+     画数の多い字が黒い塊になる (2026-08-08 実測: 地図の「藤倉設備工業」「中山鍼灸接骨院」が読めない)。
+     700 にも同じ字形を割り当てて、太らせる処理を止める。 */
+  @font-face{font-family:'Yusei Magic';font-style:normal;font-weight:700;font-display:swap;
+    src:url('assets/fonts/yusei-magic-400.woff2') format('woff2');}
   @font-face{font-family:'Zen Maru Gothic';font-style:normal;font-weight:400;font-display:swap;
     src:url('assets/fonts/zen-maru-gothic-400.woff2') format('woff2');}
   @font-face{font-family:'Zen Maru Gothic';font-style:normal;font-weight:700;font-display:swap;
@@ -889,11 +894,15 @@ const INITIAL_VIEWBOX = {x:362, y:677, width:424, height:646};
 // 画面の形と大きさで縮尺が変わっていた (縦0.92 / 小型0.84 / 横0.45 px/m)。
 // 縮尺が下がると印が密集し、名前を置く余白が消える。実測で、地図を開いた最初の画面で
 // 名前が読めていたのは 縦58% / 小型52% / 横向き8% しかなかった。
-// 端末や向きによらず同じ縮尺で開くようにする。1.30 はボス判断 (2026-08-07)。
-// 実測: 1画面の店 36→27件・名前が出ていない印 15→7件 (読める名前の数は 21→20 でほぼ同じ)。
+// 端末や向きによらず同じ縮尺で開くようにする。1.45 はボス判断 (2026-08-07)。
 const DEFAULT_MAP_SCALE = 1.45;   // px/m
-const INITIAL_CENTER = {x:INITIAL_VIEWBOX.x + INITIAL_VIEWBOX.width / 2,
-                        y:INITIAL_VIEWBOX.y + INITIAL_VIEWBOX.height / 2};
+// 開いた時の真ん中。x は元の範囲の中心のまま。y は元は 1000 だったが、縮尺を固定したことで
+// 見える範囲が狭くなり、画面の下半分が店の無い道路だけになっていた (2026-08-08 実測)。
+// 実測 (縦390x844 / 小型360x640 / 横844x390 の順に「読める名前の数」):
+//   y=1000 (元) 13 /  8 / 6      y=950  16 / 10 / 7
+//   y=900  (今) 17 / 13 / 7      y=850  17 / 14 / 7
+// y=900 は3つとも元より増える。850 以下は縦の「名前の出ない印」が増えるので採らない。
+const INITIAL_CENTER = {x:INITIAL_VIEWBOX.x + INITIAL_VIEWBOX.width / 2, y:900};
 function initialViewBoxAtScale(scale){
   const vw = viewport.clientWidth, vh = viewport.clientHeight;
   if (!(vw > 0 && vh > 0 && scale > 0)) return {...INITIAL_VIEWBOX};
