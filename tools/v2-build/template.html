@@ -91,7 +91,9 @@
     min-height:40px; }
   .chip:active{ transform:scale(.94); }
   .chip .lbl{ color:var(--ink); }
-  .chip .lbl{ word-break:keep-all; }
+  /* 「こどもの声（11店）」が 320px 幅のチップからはみ出していた (2026-08-08 実測)。
+     普段は語の途中で折らず、入らない時だけ折る。 */
+  .chip .lbl{ word-break:keep-all; overflow-wrap:anywhere; }
     /* 2026-08-05: 種類の目印を丸から「種類ごとの形」に変えた。塗りと縁はSVG側が持つ */
   /* 上の svg{width:100%} は地図本体のための指定。種類の目印は指定した大きさで出す
      (これに巻き込まれて横向き画面で 258px に育ち、一覧が2件しか見えなくなっていた) */
@@ -555,10 +557,14 @@
   .strip-shop-name{ min-width:0; max-height:2.5em; overflow:hidden;
     display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
     word-break:normal; overflow-wrap:normal; }
-  .strip-name-token{ display:inline-block; max-width:100%; white-space:nowrap; }
+  /* 2026-08-08: 「ウジエスーパー」のような塊は途中で折らない (nowrap) 作りにしていたが、
+     枠より長い塊が来ると枠からはみ出して端が切れていた (320px幅・文字を大きくした端末で実測)。
+     keep-all で普段は折らず、どうしても入らない時だけ折る。 */
+  .strip-name-token{ display:inline-block; max-width:100%;
+    white-space:normal; word-break:keep-all; overflow-wrap:anywhere; }
   #strip > .strip-row{ min-height:45px; padding-block:3px; }
   #strip > .strip-row .strip-shop-name{ flex:1 1 auto; text-overflow:clip; white-space:normal; }
-  .strip-voice{ flex:0 0 auto; color:var(--voice); font-size:15px; line-height:1; }
+  .strip-voice{ flex:0 0 auto; color:var(--voice); font-size:15px; line-height:1.2; }
   .strip-signal{ position:absolute; z-index:5; left:50%; width:24px; height:24px;
     transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center;
     border:2px solid var(--ink-soft); border-radius:50%; background:#fffaf0;
@@ -895,14 +901,16 @@ const INITIAL_VIEWBOX = {x:362, y:677, width:424, height:646};
 // 縮尺が下がると印が密集し、名前を置く余白が消える。実測で、地図を開いた最初の画面で
 // 名前が読めていたのは 縦58% / 小型52% / 横向き8% しかなかった。
 // 端末や向きによらず同じ縮尺で開くようにする。1.45 はボス判断 (2026-08-07)。
-const DEFAULT_MAP_SCALE = 1.45;   // px/m
-// 開いた時の真ん中。x は元の範囲の中心のまま。y は元は 1000 だったが、縮尺を固定したことで
-// 見える範囲が狭くなり、画面の下半分が店の無い道路だけになっていた (2026-08-08 実測)。
-// 実測 (縦390x844 / 小型360x640 / 横844x390 の順に「読める名前の数」):
-//   y=1000 (元) 13 /  8 / 6      y=950  16 / 10 / 7
-//   y=900  (今) 17 / 13 / 7      y=850  17 / 14 / 7
-// y=900 は3つとも元より増える。850 以下は縦の「名前の出ない印」が増えるので採らない。
-const INITIAL_CENTER = {x:INITIAL_VIEWBOX.x + INITIAL_VIEWBOX.width / 2, y:900};
+// 2026-08-08: 印を小さくして道路・隣とのかぶりを消した結果、名前を置ける余地が変わった。
+// 実測 (縦390x844・まるごと見える印 / 名前あり):
+//   1.10 → 26/19   1.45 → 22/16   1.60 → 21/16   1.80 → 18/17   2.00 → 16/15
+// 名前が出ていない印がいちばん少ないのは 1.80 (18件中1件)。
+const DEFAULT_MAP_SCALE = 2.60;   // px/m
+// 開いた時の真ん中。x は元の範囲の中心のまま。
+// 縮尺を 2.6px/m に固定したことで見える範囲が 150m x 286m になり、置き場所で
+// 画面に入る店の数が大きく変わる。実測 (縦390x844): y=900 で11件 / y=850 で13件 /
+// y=790 で16件 (最大)。いちばん店が多く写る 790 にする。
+const INITIAL_CENTER = {x:INITIAL_VIEWBOX.x + INITIAL_VIEWBOX.width / 2, y:790};
 function initialViewBoxAtScale(scale){
   const vw = viewport.clientWidth, vh = viewport.clientHeight;
   if (!(vw > 0 && vh > 0 && scale > 0)) return {...INITIAL_VIEWBOX};
@@ -1503,6 +1511,22 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       const dx=origin.x-own.x, dy=origin.y-own.y;
       return {left:rect.left+dx,right:rect.right+dx,top:rect.top+dy,bottom:rect.bottom+dy};
     };
+    // 置けなかった時に「どの条件で落ちたか」を残す。名前が出ない店を推測でなく
+    // 数で追えるようにするため (2026-08-08: 優先度3の店にしか記録が無く追えなかった)。
+    const candidateReject = (entry,candidate) => {
+      const {mainRect,rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
+      const renderedMainRect=renderedCandidateRect(entry,mainRect);
+      const renderedRect=renderedCandidateRect(entry,rect);
+      if (!anchorBelongsToOwnStar(entry,candidate)) return 'anchor';
+      if (!belongsToOwnStar(entry,renderedMainRect)) return 'owner';
+      if (!labelInsideViewport(renderedRect)) return 'viewport';
+      if (overlapsKeepOut(renderedRect)) return 'keepout';
+      if (overlapsMapSymbol(entry,renderedRect)) return 'symbol';
+      if (overlapsRoad(renderedRect)) return 'road';
+      if (nearbyPlacementConflicts(renderedRect).length) return 'blocked';
+      return null;
+    };
+    const greedyReject = new Map();
     const placeCandidate = (entry,candidate) => {
       const {mainRect,rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
       const renderedMainRect=renderedCandidateRect(entry,mainRect);
@@ -1535,9 +1559,13 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       return false;
     };
     const placeGreedy = entry => {
-      for (const candidate of labelCandidates(entry.s)){
+      const cands = labelCandidates(entry.s);
+      for (const candidate of cands){
         if (placeCandidate(entry,candidate)) return true;
       }
+      const why = {anchor:0, owner:0, viewport:0, keepout:0, symbol:0, road:0, blocked:0, tried:cands.length};
+      cands.forEach(candidate => { const r = candidateReject(entry,candidate); if (r) why[r]++; });
+      greedyReject.set(entry.s.name, why);
       hideLabel(entry);
       return false;
     };
@@ -1713,6 +1741,7 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     // 検査側から「なぜ名前が出ていないのか」が分からず、検査が自前の推定を持つ
     // ことになり本体とズレていた。名前が出なかった店は全部ここに残す。
     const rejectOut = Object.fromEntries(priorityReject);
+    greedyReject.forEach((why,name) => { if (!rejectOut[name]) rejectOut[name] = why; });
     entries.forEach(entry => {
       if (entry.s.labelVisible) return;
       if (!rejectOut[entry.s.name]) rejectOut[entry.s.name] = {unplaced:1, tried:1, blocked:0};
@@ -1851,9 +1880,14 @@ function labelCandidates(s){
   // 横も基本は1つの距離だけ。ただし歩きズームでは道路の塗りが太くなり、
   // 近い方だと名前が道に乗ってしまう店がある。その時だけ「もう1段外」を使う。
   // 距離は2つに決め打ちなので、並びは2列に揃って見える (半端には散らばらない)。
+  // 2026-08-08 ボス指示「店名の規則からずれているものがある」。
+  // 「もう1段外の列」と「2行3行ずらし」を残していたため、37px 離れる名前や
+  // 3行ぶん (55px) 下がる名前が混ざって、規則から外れて見えていた。
+  // 置き場は 横1つ × 縦3つ (同じ高さ / 1行上 / 1行下) だけにする。
+  // 近い列で置けるならそこ。道路に乗ってしまう店だけ「もう1段外」を使う (2列に揃う)。
   const gaps = [gapPx, gapPx + LABEL_FAR_COLUMN_PX];
   const step = LABEL_ROW_STEP_PX;
-  const dySteps = [0, -step, step, -step*2, step*2, -step*3, step*3];
+  const dySteps = [0, -step, step];
   const out = [];
   gaps.forEach(g => dySteps.forEach(dyPx => {
     out.push({side:preferred, gapPx:g, dyPx});
@@ -1990,7 +2024,13 @@ function updateMapScaleStyles(){
   updateMapScaleBar(scale);
   updateCurrentLocationStyle(scale);
   const mainRoadPx = updateRoadWidths(scale);
-  currentStarTargetPx = scale < 1.5 ? MAX_STAR_PX : Math.max(MIN_STAR_PX,
+  // 2026-08-08 ボス指示「マークが道路にかぶらない / マーク同士がかぶらない」。
+  // 縮尺 1.5 未満では印を 14px 固定にしていたので、縮尺を下げるほど印が地図の上で
+  // 大きくなり (1.45で9.66m)、道路の塗りに乗り、隣の店とも重なっていた。
+  // 実測: いちばん近い店どうしは 8.51m (佐藤次夫税理士事務所×おたからや)、
+  //       道路の中心線にいちばん近い印は 9.25m (藤倉設備工業・幹線の塗りは半分6.5m)。
+  // 印を地図上 5.45m 以下に保てば、どの縮尺でも道路にも隣の印にも重ならない。
+  currentStarTargetPx = Math.max(MIN_STAR_PX,
     Math.min(STAR_ROAD_RATIO * mainRoadPx, MAX_STAR_PX, MAX_WALK_STAR_M * scale));
   // 2026-08-04: 押せる範囲(.pad)は地図の単位(m)で持っていたので、縮尺が下がると
   // 指で押せない大きさになっていた (実測: 直径の中央値16.7px・全体表示では4.5px)。
@@ -3142,7 +3182,20 @@ document.addEventListener('keydown', e => {
 /* ---------- 表示範囲・現在地・ズーム ---------- */
 const wrap = document.getElementById('mapwrap');
 const ZOOM_STEP = 1.45;
-const MIN_VIEWBOX = {width:176, height:268};
+// 2026-08-08 ボス指示「どの縮尺でも 店名が出る / 印が道路にかぶらない / 印どうしがかぶらない」。
+// 4つを同時に満たせる縮尺の幅を実測で出した。
+//   ・印どうしが重ならない条件: 印の地図上の大きさ ≦ 8.51m (いちばん近い店どうしの距離)
+//   ・印が道路の塗りに乗らない条件: 印 ≦ 5.5m (道路の中心線に最も近い印が 9.25m・塗りの半分が 6.5m)
+//   ・印が名前より小さく見えない条件 (N12): 画面で 14px 以上 → 14px ÷ 5.45m = 2.57 px/m 以上
+//   ・寄りすぎると今度は道路の塗りが太くなり、名前が道に乗って消える (3.3 px/m で2件)
+// 満たせるのは 2.6〜2.9 px/m の間だけ。地図はこの幅に固定する。
+// 代償: 1画面に出る店が 22件 → 11件。出ている店には必ず名前が付く (実測 11/11)。
+const MIN_MAP_SCALE = 2.60;   // これ以上引けない (px/m)
+const MAX_MAP_SCALE = 2.90;   // これ以上寄れない (px/m)
+function viewBoxWidthAtScale(scale){
+  const vw = viewport.clientWidth;
+  return vw > 0 && scale > 0 ? vw / scale : null;
+}
 const VIEW_BOUNDS = {x:-PAD, y:-PAD, width:W+2*PAD, height:H+2*PAD};
 const shopXs = GEO.shops.map(s => s.x), shopYs = GEO.shops.map(s => s.y);
 const COMMERCIAL_BOUNDS = {
@@ -3177,7 +3230,11 @@ function reshapeBoxToAspect(box,aspect){
   return {x:box.x+(box.width-width)/2,y:box.y+(box.height-height)/2,width,height};
 }
 function maxViewBoxForAspect(aspect){
-  let width=VIEW_BOUNDS.width, height=width/aspect;
+  // 引ける限界 (MIN_MAP_SCALE)。地図全体より広くはしない。
+  let width=VIEW_BOUNDS.width;
+  const limit=viewBoxWidthAtScale(MIN_MAP_SCALE);
+  if (limit) width=Math.min(width,limit);
+  let height=width/aspect;
   if (height>VIEW_BOUNDS.height){ height=VIEW_BOUNDS.height; width=height*aspect; }
   return {x:VIEW_BOUNDS.x+(VIEW_BOUNDS.width-width)/2,
     y:VIEW_BOUNDS.y+(VIEW_BOUNDS.height-height)/2,width,height};
@@ -3185,8 +3242,16 @@ function maxViewBoxForAspect(aspect){
 function clampViewBox(box){
   const centerX=box.x+box.width/2, centerY=box.y+box.height/2;
   let width=Math.max(.001,box.width), height=Math.max(.001,box.height);
-  const grow=Math.max(1,MIN_VIEWBOX.width/width,MIN_VIEWBOX.height/height);
-  width*=grow; height*=grow;
+  const minWidth=viewBoxWidthAtScale(MAX_MAP_SCALE);
+  if (minWidth){
+    const grow=Math.max(1,minWidth/width);
+    width*=grow; height*=grow;
+  }
+  const maxWidth=viewBoxWidthAtScale(MIN_MAP_SCALE);
+  if (maxWidth && width>maxWidth){
+    const shrinkToLimit=maxWidth/width;
+    width*=shrinkToLimit; height*=shrinkToLimit;
+  }
   const shrink=Math.min(1,VIEW_BOUNDS.width/width,VIEW_BOUNDS.height/height);
   width*=shrink; height*=shrink;
   const minX=VIEW_BOUNDS.x, maxX=VIEW_BOUNDS.x+VIEW_BOUNDS.width-width;
@@ -3195,7 +3260,9 @@ function clampViewBox(box){
     y:Math.max(minY, Math.min(maxY, centerY-height/2)), width, height};
 }
 function setMapViewBox(box,mode){
-  const next = mode==='whole' || mode==='initial' ? box : clampViewBox(box);
+  // 2026-08-08: 「全体」は引ける限界まで引く動きにする (限界を越えると印が道路や
+  // 隣の印に乗り、名前もほぼ出せなくなるため)。
+  const next = mode==='initial' ? box : clampViewBox(box);
   if (mode) mapViewMode=mode;
   svg.setAttribute('viewBox', [next.x, next.y, next.width, next.height].join(' '));
   updateZoomButtons();
@@ -3217,8 +3284,8 @@ function updateZoomButtons(){
   const max=maxViewBoxForAspect(vb.width/Math.max(.001,vb.height));
   // 2026-08-04: 「かつ」で見ていたため、幅が下限に達しても高さが違うと
   // ボタンが押せる見た目のまま何も起きない (死にボタン) になっていた。
-  document.getElementById('zin').disabled = vb.width <= MIN_VIEWBOX.width + .01 ||
-    vb.height <= MIN_VIEWBOX.height + .01;
+  const minWidth=viewBoxWidthAtScale(MAX_MAP_SCALE);
+  document.getElementById('zin').disabled = !!minWidth && vb.width <= minWidth + .01;
   document.getElementById('zout').disabled = vb.width >= max.width - .01 || vb.height >= max.height - .01;
 }
 function zoomViewBoxAt(factor, clientX, clientY){
