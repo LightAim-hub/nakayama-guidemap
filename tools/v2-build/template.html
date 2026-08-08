@@ -3525,12 +3525,17 @@ function clampViewBox(box){
   }
   const max=maxViewBoxForAspect(width/height);
   if (width>=max.width-.01 || height>=max.height-.01) return max;
-  const shrink=Math.min(1,VIEW_BOUNDS.width/width,VIEW_BOUNDS.height/height);
+  // 2026-08-08 実測: ここで地図の外枠(VIEW_BOUNDS)まで縮めていたため、横向きの画面では
+  // 街の縦1592mを収める前に頭打ちになり、引き切っても全体が見えなかった (844x390 で 1521x523)。
+  // 横向きは左右に余白が出るが、引けない方が害が大きい。上限は maxViewBoxForAspect に任せる。
+  const shrink=Math.min(1,max.width/width,max.height/height);
   width*=shrink; height*=shrink;
-  const minX=VIEW_BOUNDS.x, maxX=VIEW_BOUNDS.x+VIEW_BOUNDS.width-width;
-  const minY=VIEW_BOUNDS.y, maxY=VIEW_BOUNDS.y+VIEW_BOUNDS.height-height;
-  return {x:Math.max(minX, Math.min(maxX, centerX-width/2)),
-    y:Math.max(minY, Math.min(maxY, centerY-height/2)), width, height};
+  // 枠より広くなった向きは、端に寄せずに真ん中へ置く
+  const place=(boundStart,boundSize,size,center) => size>=boundSize
+    ? boundStart+(boundSize-size)/2
+    : Math.max(boundStart, Math.min(boundStart+boundSize-size, center-size/2));
+  return {x:place(VIEW_BOUNDS.x,VIEW_BOUNDS.width,width,centerX),
+    y:place(VIEW_BOUNDS.y,VIEW_BOUNDS.height,height,centerY), width, height};
 }
 function setMapViewBox(box,mode){
   // 「全体」は COMMERCIAL_VIEWBOX を収めた値そのものを使う。clamp を通すと狭い端末で
