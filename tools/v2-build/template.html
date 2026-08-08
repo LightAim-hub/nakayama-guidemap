@@ -3342,8 +3342,22 @@ gShops.addEventListener('click', e => {
   }
   const ownRadius = starTargetPx() / 2;   // 印の見た目の半径
   const tie = ranked.filter(o => o.d - ranked[0].d < TAP_AMBIGUOUS_PX);
-  // 印そのものを押していたら、その店。狙いが読めない境目だけ「どのお店？」を出す。
-  if (ranked[0].d <= ownRadius || tie.length < 2){
+  // ① 印そのものを押していたら、その印の店。
+  //    (他店の名前がその印の上に重なっていることがあるので、名前より印を先に見る)
+  if (ranked[0].d <= ownRadius){
+    lastFocusHit = ranked[0].hit;
+    pinned = ranked[0].shop;
+    showDetail(ranked[0].shop, false);
+    return;
+  }
+  // ② 印から離れた所 = 店名の文字や声のふきだしを押したなら、その名前の店。
+  //    2026-08-08 実測: ここを「いちばん近い印」で決めていた時は、幅118pxの名前の端を押すと
+  //    隣の店が開いていた (12件中6件。「Double Egg5丁目」の名前を押すと おたからや)。
+  if (!e.target.closest('circle.pad')){
+    lastFocusHit = h; pinned = tapped; showDetail(tapped, false); return;
+  }
+  // ③ 押せる範囲の中の、何も描いていない所。狙いが読めない境目だけ「どのお店？」を出す。
+  if (tie.length < 2){
     lastFocusHit = ranked[0].hit;
     pinned = ranked[0].shop;
     showDetail(ranked[0].shop, false);
