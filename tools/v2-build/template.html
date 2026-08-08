@@ -1524,6 +1524,47 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       return null;
     };
     const greedyReject = new Map();
+    // 2026-08-08: 名前が出ない5件のうち4件が「記録なし」だった (置き場を探す所ではなく
+    // placeConstrainedGroup で諦めていて、そこに記録が無かった)。
+    // どの条件で落ちたかに加えて「誰に邪魔されたか」も残す。理由が分かれば直し方が決まる。
+    const constrainedReject = new Map();
+    // ふさいでいる相手に「別の空き場所」があるか。無ければ席を譲ってもらっても
+    // 名前が1つ入れ替わるだけなので、その候補は実質「置けない」と数える。
+    const blockerCanMove = (blocker,takenRect) =>
+      staticCandidateOptions(blocker.entry).some(other =>
+        !labelsCollide(other.rect,takenRect) &&
+        !nearbyPlacementConflicts(other.rect).filter(item => item !== blocker).length);
+    const recordConstrainedReject = entry => {
+      const cands = labelCandidates(entry.s);
+      const why = {anchor:0, owner:0, viewport:0, keepout:0, symbol:0, road:0, blocked:0,
+                   blockedstuck:0, tried:cands.length, by:[]};
+      const note = name => { if (name && why.by.indexOf(name) < 0) why.by.push(name); };
+      cands.forEach(candidate => {
+        const reason = candidateReject(entry,candidate);
+        if (!reason) return;
+        why[reason]++;
+        if (reason !== 'blocked') return;
+        const {rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
+        const rendered=renderedCandidateRect(entry,rect);
+        const blockers=nearbyPlacementConflicts(rendered);
+        const movable=blockers.filter(other => blockerCanMove(other,rendered));
+        if (!movable.length){ why.blocked--; why.blockedstuck++; }
+        blockers.forEach(other =>
+          note(other.entry.s.name + (movable.indexOf(other) < 0 ? '(動けない)' : '')));
+      });
+      if (why.anchor || why.owner){
+        // 名前の置き場を取り合っている相手 = いちばん近い印
+        const own = starCenters.get(entry.idx);
+        let best = null, bestD = Infinity;
+        if (own) for (const [idx,point] of starCenters){
+          if (idx === entry.idx) continue;
+          const d = Math.hypot(point.x-own.x, point.y-own.y);
+          if (d < bestD){ bestD = d; best = idx; }
+        }
+        if (best !== null) note(GEO.shops[best].name + '(' + bestD.toFixed(0) + 'px)');
+      }
+      constrainedReject.set(entry.s.name, why);
+    };
     const placeCandidate = (entry,candidate) => {
       const {mainRect,rect}=cachedCandidateRects(entry,candidate,scale,starCenters);
       const renderedMainRect=renderedCandidateRect(entry,mainRect);
@@ -1612,6 +1653,42 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
         entry.s.labelLeader=false;
         addPlacement(entry,bestOption.rect);
       }
+    };
+    // 2026-08-08: 置ける場所が1つしか無い店が、先に置いた別の店の名前に席を取られて
+    // 名前を失っていた (実測: お菜とお酒アイリス。空きが1つで、そこは Double Egg5丁目 が使用中)。
+    // 最後にもう一度だけ「相手に別の空き場所があるなら、そちらへ動いてもらう」を試す。
+    // 動かせる先も同じ置き場ルールを通ったものだけなので、規則からはずれない。
+    const retryBlocked = () => {
+      visibleEntries.filter(entry => !entry.s.labelVisible).forEach(entry => {
+        for (const option of staticCandidateOptions(entry)){
+          const blockers = nearbyPlacementConflicts(option.rect);
+          if (!blockers.length){
+            setLabelPosition(entry,option.candidate,scale);
+            entry.s.labelVisible=true; entry.s.labelLeader=false;
+            addPlacement(entry,option.rect);
+            return;
+          }
+          if (blockers.length !== 1) continue;
+          const blocker = blockers[0];
+          placed = placed.filter(item => item !== blocker);
+          rebuildPlacementIndexes();
+          const alt = staticCandidateOptions(blocker.entry).find(other =>
+            !labelsCollide(other.rect,option.rect) && !nearbyPlacementConflicts(other.rect).length);
+          if (!alt){
+            placed.push(blocker);
+            rebuildPlacementIndexes();
+            continue;
+          }
+          setLabelPosition(blocker.entry,alt.candidate,scale);
+          blocker.rect = alt.rect;
+          placed.push(blocker);
+          setLabelPosition(entry,option.candidate,scale);
+          entry.s.labelVisible=true; entry.s.labelLeader=false;
+          placed.push({entry,rect:option.rect});
+          rebuildPlacementIndexes();
+          return;
+        }
+      });
     };
     const lowerPriorityEntries = visibleEntries.filter(entry => labelPriority(entry.s) < 3)
       .sort((a,b) => labelPriority(b.s)-labelPriority(a.s) ||
@@ -1721,7 +1798,6 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
         placed=placed.filter(item => !actualEvicted.has(item.entry));
         rebuildPlacementIndexes();
       }
-      evictedEntries=[...initiallyPlacedPriorityOne].filter(entry => !entry.s.labelVisible);
     } else {
       document.body.dataset.labelLayout = priorityAborted ? 'greedy-step-limit' : 'greedy-no-solution';
       visibleEntries.forEach(hideLabel);
@@ -1731,16 +1807,24 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       placeConstrainedGroup(priorityEntries);
       placeConstrainedGroup(priorityTwoEntries);
       placeConstrainedGroup(priorityOneEntries);
-      evictedEntries=[...initiallyPlacedPriorityOne].filter(entry => !entry.s.labelVisible);
     }
+    retryBlocked();
+    // 全部置き終わってから、まだ名前が出ていない店の理由を残す (途中で残すと、
+    // あとから救えた分が古い理由のまま残ってしまう)
+    visibleEntries.filter(entry => !entry.s.labelVisible).forEach(recordConstrainedReject);
+    evictedEntries=[...initiallyPlacedPriorityOne].filter(entry => !entry.s.labelVisible);
     document.body.dataset.labelLayoutSteps = String(prioritySteps);
     // 2026-08-07: 却下の記録は優先配置に入った店の分しか残っていなかったため、
     // 検査側から「なぜ名前が出ていないのか」が分からず、検査が自前の推定を持つ
     // ことになり本体とズレていた。名前が出なかった店は全部ここに残す。
     const rejectOut = Object.fromEntries(priorityReject);
     greedyReject.forEach((why,name) => { if (!rejectOut[name]) rejectOut[name] = why; });
+    // 最後に取った記録がいちばん正しい (置き終わったあとの状態で数えている)
+    constrainedReject.forEach((why,name) => { rejectOut[name] = why; });
     entries.forEach(entry => {
-      if (entry.s.labelVisible) return;
+      // 名前が出た店の却下記録は残さない (retryBlocked で救えた分が古いまま残ると、
+      // 検査側が「出ていないのに理由がある」と読んでしまう)
+      if (entry.s.labelVisible){ delete rejectOut[entry.s.name]; return; }
       if (!rejectOut[entry.s.name]) rejectOut[entry.s.name] = {unplaced:1, tried:1, blocked:0};
     });
     window.__labelPriorityReject = rejectOut;
@@ -2019,7 +2103,7 @@ function updateMapScaleBar(scale){
 // 通りに沿って動かすと「どの店の隣か」が変わってしまうので、縦(通り沿い)には一切動かさない。
 // 動かすのは描画の時だけで、店の実座標 (x,y) は触らない。
 const MARK_MIN_GAP_PX = 3;      // 印と印の間に最低これだけ空ける (画面px)
-const MARK_SHIFT_MAX_M = 22;    // 実際の位置からずらしてよい上限 (m)
+const MARK_SHIFT_MAX_M = 18;    // 実際の位置からずらしてよい上限 (m)
 let markShift = new Map();      // idx -> {dx, dy} 地図の単位
 function spreadMarks(scale, entries){
   markShift = new Map();
@@ -3199,11 +3283,26 @@ function hideChooser(){
   chooser.classList.remove('show');
   document.body.classList.remove('chooser-open');
 }
-function nearby(s){
-  const matrix = svg.getScreenCTM();
-  const pxPerMeter = matrix ? Math.hypot(matrix.a, matrix.b) : currentMapScale;
-  const radiusMeters = 20 / Math.max(.001, pxPerMeter);
-  return GEO.shops.filter(o => Math.hypot(o.x-s.x, o.y-s.y) < radiusMeters);
+// 2026-08-08 ボス指示「密集してるところは5店舗ぐらい候補が出て押しやすくしてるっていうのも
+// あるやろうけど、それよりはちゃんと見やすく押しやすく独立してあるボタンがある方がいい」。
+// これまでは「実座標で20px以内に他店がいたら必ず選択窓」だったので、spreadMarks で
+// 印を押し分けても窓が出続けていた (押し分けた意味が無かった)。
+// これからは押した所を基準に、目に見えている印のうち いちばん近いものを開く。
+// 印そのものを押した時は必ずその店。ちょうど境目を押した時だけ窓を出す。
+const TAP_AMBIGUOUS_PX = 10;   // 1番目と2番目の差がこれ未満なら「どっちを狙ったか分からない」
+function shopsByTapDistance(px, py){
+  const out = [];
+  gShops.querySelectorAll('.hit').forEach(h => {
+    const star = h.querySelector('.star');
+    const rect = star && star.getBoundingClientRect();
+    if (!rect || !(rect.width > 0)) return;
+    const shop = GEO.shops[+h.dataset.i];
+    if (!shop || !matchesFilter(shop)) return;
+    out.push({shop, hit:h,
+      d: Math.hypot(px-(rect.left+rect.width/2), py-(rect.top+rect.height/2))});
+  });
+  out.sort((a,b) => a.d-b.d || a.shop.name.localeCompare(b.shop.name,'ja'));
+  return out;
 }
 function showChooser(list, s){
   chooser.innerHTML = '';
@@ -3217,7 +3316,9 @@ function showChooser(list, s){
     b.addEventListener('click', ev => { ev.stopPropagation(); hideChooser(); pinned = o; showDetail(o, true); });
     chooser.appendChild(b);
   });
-  const [px, py] = svgToWrap(s.x, s.y);
+  // 押し分けで動かした分を足す (足さないと窓だけ元の位置に出る)
+  const shift = markShift.get(GEO.shops.indexOf(s)) || {dx:0, dy:0};
+  const [px, py] = svgToWrap(s.x+shift.dx, s.y+shift.dy);
   placeBubble(chooser, px, py);
   chooser.classList.add('show');
   document.body.classList.add('chooser-open');
@@ -3230,10 +3331,26 @@ gShops.addEventListener('click', e => {
     e.preventDefault(); e.stopPropagation(); return;
   }
   e.stopPropagation();
-  lastFocusHit = h;
-  const s = GEO.shops[+h.dataset.i];
-  const nb = nearby(s).filter(o => matchesFilter(o));
-  if (nb.length > 1){ showChooser(nb, s); } else { pinned = s; showDetail(s, false); }
+  const tapped = GEO.shops[+h.dataset.i];
+  // キーボードで押した時 (Enter/Space) の click は座標を持たないので、押された印をそのまま開く。
+  if (e.detail === 0 || (!e.clientX && !e.clientY)){
+    lastFocusHit = h; pinned = tapped; showDetail(tapped, false); return;
+  }
+  const ranked = shopsByTapDistance(e.clientX, e.clientY);
+  if (!ranked.length){
+    lastFocusHit = h; pinned = tapped; showDetail(tapped, false); return;
+  }
+  const ownRadius = starTargetPx() / 2;   // 印の見た目の半径
+  const tie = ranked.filter(o => o.d - ranked[0].d < TAP_AMBIGUOUS_PX);
+  // 印そのものを押していたら、その店。狙いが読めない境目だけ「どのお店？」を出す。
+  if (ranked[0].d <= ownRadius || tie.length < 2){
+    lastFocusHit = ranked[0].hit;
+    pinned = ranked[0].shop;
+    showDetail(ranked[0].shop, false);
+    return;
+  }
+  lastFocusHit = ranked[0].hit;
+  showChooser(tie.map(o => o.shop), ranked[0].shop);
 });
 gShops.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
