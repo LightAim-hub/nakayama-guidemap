@@ -901,16 +901,10 @@ const INITIAL_VIEWBOX = {x:362, y:677, width:424, height:646};
 // 縮尺が下がると印が密集し、名前を置く余白が消える。実測で、地図を開いた最初の画面で
 // 名前が読めていたのは 縦58% / 小型52% / 横向き8% しかなかった。
 // 端末や向きによらず同じ縮尺で開くようにする。1.45 はボス判断 (2026-08-07)。
-// 2026-08-08: 印を小さくして道路・隣とのかぶりを消した結果、名前を置ける余地が変わった。
-// 実測 (縦390x844・まるごと見える印 / 名前あり):
-//   1.10 → 26/19   1.45 → 22/16   1.60 → 21/16   1.80 → 18/17   2.00 → 16/15
-// 名前が出ていない印がいちばん少ないのは 1.80 (18件中1件)。
-const DEFAULT_MAP_SCALE = 2.60;   // px/m
+const DEFAULT_MAP_SCALE = 1.45;   // px/m (ボス判断 2026-08-07)
 // 開いた時の真ん中。x は元の範囲の中心のまま。
-// 縮尺を 2.6px/m に固定したことで見える範囲が 150m x 286m になり、置き場所で
-// 画面に入る店の数が大きく変わる。実測 (縦390x844): y=900 で11件 / y=850 で13件 /
-// y=790 で16件 (最大)。いちばん店が多く写る 790 にする。
-const INITIAL_CENTER = {x:INITIAL_VIEWBOX.x + INITIAL_VIEWBOX.width / 2, y:790};
+// 元は 1000 だったが画面の下半分が店の無い道路だけになっていたので 900 へ (2026-08-08 実測)。
+const INITIAL_CENTER = {x:INITIAL_VIEWBOX.x + INITIAL_VIEWBOX.width / 2, y:900};
 function initialViewBoxAtScale(scale){
   const vw = viewport.clientWidth, vh = viewport.clientHeight;
   if (!(vw > 0 && vh > 0 && scale > 0)) return {...INITIAL_VIEWBOX};
@@ -1432,9 +1426,12 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     const alignOwnershipToRenderedOrigin=scale >= 1.5;
     const screenOrigins=new Map(visibleEntries.map(entry => {
       const s=entry.s, fallback=starCenters.get(entry.idx);
+      // 押し分けで動かした分を足す (足さないと名前だけ元の位置に置かれる)
+      const shift=markShift.get(entry.idx) || {dx:0, dy:0};
+      const x=s.x+shift.dx, y=s.y+shift.dy;
       return [entry.idx, alignOwnershipToRenderedOrigin && screenMatrix ? {
-        x:screenMatrix.a*s.x+screenMatrix.c*s.y+screenMatrix.e,
-        y:screenMatrix.b*s.x+screenMatrix.d*s.y+screenMatrix.f,
+        x:screenMatrix.a*x+screenMatrix.c*y+screenMatrix.e,
+        y:screenMatrix.b*x+screenMatrix.d*y+screenMatrix.f,
       } : fallback];
     }));
     const overlapsKeepOut = rect => {
@@ -2016,6 +2013,114 @@ function updateMapScaleBar(scale){
   bar.style.width = Math.round(meters * scale) + 'px';
   label.textContent = meters >= 1000 ? (meters / 1000) + 'km' : meters + 'm';
 }
+// 2026-08-08 ボス指示「密集してるとやっぱり見にくいし押しにくいし、それだけで離脱の理由になる。
+// 店の数は減らさなくていい」。印を小さくしたり縮尺を絞ったりして密集を避けるのではなく、
+// 重なる印を押し分ける。動かす向きは「通りに直交する向き = 建物の奥へ」だけ。
+// 通りに沿って動かすと「どの店の隣か」が変わってしまうので、縦(通り沿い)には一切動かさない。
+// 動かすのは描画の時だけで、店の実座標 (x,y) は触らない。
+const MARK_MIN_GAP_PX = 3;      // 印と印の間に最低これだけ空ける (画面px)
+const MARK_SHIFT_MAX_M = 22;    // 実際の位置からずらしてよい上限 (m)
+let markShift = new Map();      // idx -> {dx, dy} 地図の単位
+function spreadMarks(scale, entries){
+  markShift = new Map();
+  if (!(scale > 0) || !entries || !entries.length) return markShift;
+  // 印は縁取り(2.5)のぶん見た目が 15% ほど大きい。実際に見える大きさで測る。
+  const markPx = starTargetPx() * 1.15;
+  const needM = (markPx + MARK_MIN_GAP_PX) / scale;
+  // 道路の塗りに乗らないための、通りの中心線からの最低距離
+  const roadHalfM = Math.max(13, 12 / scale) / 2;
+  const clearM = roadHalfM + markPx / scale / 2;
+  const pts = entries.map(entry => {
+    const bus = busXAtY(entry.s.y);
+    return {idx:entry.idx, s:entry.s, x:entry.s.x, y:entry.s.y, bus,
+            out:entry.s.x >= bus ? 1 : -1};
+  }).sort((a,b) => a.y - b.y || a.idx - b.idx);   // 同じ入力なら同じ結果になるように
+  // 動かせる範囲: 実位置から MARK_SHIFT_MAX_M 以内 / 通りを渡らない
+  const clampPt = (pt, x) => {
+    const lo = pt.s.x - MARK_SHIFT_MAX_M, hi = pt.s.x + MARK_SHIFT_MAX_M;
+    let next = Math.max(lo, Math.min(hi, x));
+    if (pt.out > 0) next = Math.max(next, pt.bus + 1);
+    else            next = Math.min(next, pt.bus - 1);
+    const changed = Math.abs(next - pt.x) > .001;
+    pt.x = next;
+    return changed;
+  };
+  // まず道路の塗りから出す (通りに直交する向き = 建物の奥へ)。
+  // 通りは1本ではないので、実際に近い道の中心線すべてから離す。
+  const segDist = (px,py,x1,y1,x2,y2) => {
+    const dx=x2-x1, dy=y2-y1, len2=dx*dx+dy*dy;
+    if (!len2) return {d:Math.hypot(px-x1,py-y1), qx:x1, qy:y1};
+    const t=Math.max(0,Math.min(1,((px-x1)*dx+(py-y1)*dy)/len2));
+    const qx=x1+t*dx, qy=y1+t*dy;
+    return {d:Math.hypot(px-qx,py-qy), qx, qy};
+  };
+  const roadBands = [];
+  (GEO.roads||[]).forEach(r => {
+    const cls = r.guide_spine ? 'main' : r.cls;
+    const w = ROAD_WIDTHS[cls];
+    if (!w) return;
+    const fillM = Math.max(w.fill, w.floorPx / scale);
+    const half = fillM / 2 + markPx / scale / 2;
+    for (let i = 1; i < r.pts.length; i++)
+      roadBands.push({x1:r.pts[i-1][0], y1:r.pts[i-1][1], x2:r.pts[i][0], y2:r.pts[i][1], half});
+  });
+  for (let pass = 0; pass < 6; pass++){
+    let pushed = false;
+    pts.forEach(pt => {
+      roadBands.forEach(b => {
+        const hit = segDist(pt.x, pt.y, b.x1, b.y1, b.x2, b.y2);
+        if (hit.d >= b.half) return;
+        const ex = pt.x - hit.qx;
+        // 横方向にしか動かせないので、道がほぼ横向きの時はあきらめる
+        if (Math.abs(ex) < .3) return;
+        const want = Math.sqrt(Math.max(0, b.half * b.half - (pt.y - hit.qy) * (pt.y - hit.qy)));
+        const need = want - Math.abs(ex);
+        if (need > .01 && clampPt(pt, pt.x + (ex > 0 ? 1 : -1) * need)) pushed = true;
+      });
+    });
+    if (!pushed) break;
+  }
+  for (let iter = 0; iter < 60; iter++){
+    let moved = false;
+    for (let i = 0; i < pts.length; i++){
+      for (let j = i + 1; j < pts.length; j++){
+        const a = pts[i], b = pts[j];
+        const dy = b.y - a.y;
+        if (Math.abs(dy) >= needM) continue;
+        const dx = b.x - a.x;
+        if (Math.hypot(dx, dy) >= needM) continue;
+        // 横だけで needM を作る
+        const wantX = Math.sqrt(Math.max(0, needM * needM - dy * dy));
+        const delta = wantX - Math.abs(dx);
+        if (!(delta > .01)) continue;
+        // 通りから遠い方を、さらに奥へ動かす (道路に寄せない)。
+        // 奥へ動かしても離れない並びの時だけ、半分ずつ左右に開く。
+        const outer = Math.abs(a.x - a.bus) >= Math.abs(b.x - b.bus) ? a : b;
+        const inner = outer === a ? b : a;
+        const dir = outer.x >= inner.x ? 1 : -1;
+        if (dir * outer.out < 0){
+          const sign = dx >= 0 ? 1 : -1;
+          clampPt(a, a.x - sign * delta / 2);
+          clampPt(b, b.x + sign * delta / 2);
+        } else {
+          clampPt(outer, outer.x + dir * delta);
+        }
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  pts.forEach(pt => {
+    const dx = pt.x - pt.s.x;
+    if (Math.abs(dx) > .01) markShift.set(pt.idx, {dx, dy:0});
+  });
+  document.querySelectorAll('g.hit').forEach(h => {
+    const shift = markShift.get(+h.dataset.i);
+    if (shift) h.setAttribute('transform', 'translate(' + shift.dx.toFixed(3) + ',0)');
+    else h.removeAttribute('transform');
+  });
+  return markShift;
+}
 function updateMapScaleStyles(){
   const matrix = svg.getScreenCTM();
   const scale = matrix ? Math.hypot(matrix.a, matrix.b) : 0;
@@ -2024,13 +2129,9 @@ function updateMapScaleStyles(){
   updateMapScaleBar(scale);
   updateCurrentLocationStyle(scale);
   const mainRoadPx = updateRoadWidths(scale);
-  // 2026-08-08 ボス指示「マークが道路にかぶらない / マーク同士がかぶらない」。
-  // 縮尺 1.5 未満では印を 14px 固定にしていたので、縮尺を下げるほど印が地図の上で
-  // 大きくなり (1.45で9.66m)、道路の塗りに乗り、隣の店とも重なっていた。
-  // 実測: いちばん近い店どうしは 8.51m (佐藤次夫税理士事務所×おたからや)、
-  //       道路の中心線にいちばん近い印は 9.25m (藤倉設備工業・幹線の塗りは半分6.5m)。
-  // 印を地図上 5.45m 以下に保てば、どの縮尺でも道路にも隣の印にも重ならない。
-  currentStarTargetPx = Math.max(MIN_STAR_PX,
+  // 印は画面上 14px を保つ (小さくすると見えず・押しにくく・名前より小さく見える)。
+  // 重なりは印を小さくして避けるのではなく、spreadMarks で押し分けて解く。
+  currentStarTargetPx = scale < 1.5 ? MAX_STAR_PX : Math.max(MIN_STAR_PX,
     Math.min(STAR_ROAD_RATIO * mainRoadPx, MAX_STAR_PX, MAX_WALK_STAR_M * scale));
   // 2026-08-04: 押せる範囲(.pad)は地図の単位(m)で持っていたので、縮尺が下がると
   // 指で押せない大きさになっていた (実測: 直径の中央値16.7px・全体表示では4.5px)。
@@ -2047,6 +2148,7 @@ function updateMapScaleStyles(){
     return {idx, s, star, badge:h.querySelector('g.voice-badge'),
       main:h.querySelector('text[data-main-label="1"]'), distance:h.querySelector('text.distance-label')};
   }).filter(entry => entry.main);
+  spreadMarks(scale, allEntries);
   const allStarCenters = new Map(allEntries.map(entry => {
     const rect = entry.star && entry.star.getBoundingClientRect();
     return [entry.idx, rect ? {x:rect.left+rect.width/2, y:rect.top+rect.height/2} : null];
@@ -3182,16 +3284,10 @@ document.addEventListener('keydown', e => {
 /* ---------- 表示範囲・現在地・ズーム ---------- */
 const wrap = document.getElementById('mapwrap');
 const ZOOM_STEP = 1.45;
-// 2026-08-08 ボス指示「どの縮尺でも 店名が出る / 印が道路にかぶらない / 印どうしがかぶらない」。
-// 4つを同時に満たせる縮尺の幅を実測で出した。
-//   ・印どうしが重ならない条件: 印の地図上の大きさ ≦ 8.51m (いちばん近い店どうしの距離)
-//   ・印が道路の塗りに乗らない条件: 印 ≦ 5.5m (道路の中心線に最も近い印が 9.25m・塗りの半分が 6.5m)
-//   ・印が名前より小さく見えない条件 (N12): 画面で 14px 以上 → 14px ÷ 5.45m = 2.57 px/m 以上
-//   ・寄りすぎると今度は道路の塗りが太くなり、名前が道に乗って消える (3.3 px/m で2件)
-// 満たせるのは 2.6〜2.9 px/m の間だけ。地図はこの幅に固定する。
-// 代償: 1画面に出る店が 22件 → 11件。出ている店には必ず名前が付く (実測 11/11)。
-const MIN_MAP_SCALE = 2.60;   // これ以上引けない (px/m)
-const MAX_MAP_SCALE = 2.90;   // これ以上寄れない (px/m)
+// 2026-08-08 ボス指示「店の数は減らすな。密集して見にくい・押しにくいのが問題」。
+// 縮尺を絞って密集を避ける案は取り下げ、重なる印を押し分けて解く (spreadMarks)。
+const MIN_MAP_SCALE = 1.40;   // これ以上引けない (px/m)
+const MAX_MAP_SCALE = 3.00;   // これ以上寄れない (px/m)
 function viewBoxWidthAtScale(scale){
   const vw = viewport.clientWidth;
   return vw > 0 && scale > 0 ? vw / scale : null;
