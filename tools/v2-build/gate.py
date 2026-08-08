@@ -711,6 +711,8 @@ if not A.no_browser:
                 const st = h.querySelector('.star');
                 if (!st) return null;
                 const b = st.getBoundingClientRect();
+                // 大きさ0 = 出ていない印。中心が (0,0) になり、押した所の判定が壊れる
+                if (!(b.width > 0)) return null;
                 return {n: GEO.shops[+h.dataset.i].name,
                         cx: b.left + b.width / 2, cy: b.top + b.height / 2, b: b};
               }).filter(Boolean);
@@ -828,6 +830,51 @@ if not A.no_browser:
                     w = w * got / WALK_PX_PER_M
                 REND["walk"] = pg.evaluate(JS, WALK_PX_PER_M)
                 REND["walkPxPerMeter"] = round(got, 4)
+
+                # ---- N55 引いた時も印が重ならないか ----
+                # 印は指で押せるよう画面14px固定なので、引くと地図の上では大きくなり
+                # (0.35px/m で 14px = 40m)、8.5m しか離れていない店は必ず重なる。
+                # 重なる印は「この辺に◯店」の丸にまとめて解いている。
+                # 数え落としが無いこと (丸の中の数 + 単独の印 = 全店) も一緒に見る。
+                CLUSTERJS = r"""() => {
+                  const vp = document.getElementById('viewport').getBoundingClientRect();
+                  const inVp = r => r.left>=vp.left-.5 && r.right<=vp.right+.5
+                                 && r.top>=vp.top-.5 && r.bottom<=vp.bottom+.5;
+                  const marks = [];
+                  document.querySelectorAll('g.hit').forEach(h => {
+                    const st = h.querySelector('.star'); if (!st) return;
+                    const b = st.getBoundingClientRect(); if (!(b.width > 0)) return;
+                    marks.push({n: GEO.shops[+h.dataset.i].name, b, inv: inVp(b)});
+                  });
+                  const over = [];
+                  const vis = marks.filter(m => m.inv);
+                  for (let i=0;i<vis.length;i++) for (let j=i+1;j<vis.length;j++){
+                    const a=vis[i].b, b=vis[j].b;
+                    if (Math.min(a.right,b.right)-Math.max(a.left,b.left) > .5 &&
+                        Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top) > .5)
+                      over.push(vis[i].n + '×' + vis[j].n);
+                  }
+                  const cl = [...document.querySelectorAll('g.cluster')].map(g => {
+                    const b = g.getBoundingClientRect();
+                    const t = g.querySelector('text');
+                    return {n: +(t ? t.textContent : 0), w:+b.width.toFixed(1),
+                            h:+b.height.toFixed(1), label:g.getAttribute('aria-label')||''};
+                  });
+                  const svgEl = document.getElementById('map');
+                  const m = svgEl.getScreenCTM();
+                  return {scale:+Math.hypot(m.a,m.b).toFixed(3), over,
+                          marks: marks.length, clusters: cl,
+                          covered: marks.length + cl.reduce((a,c)=>a+c.n,0),
+                          total: GEO.shops.length};
+                }"""
+                pg.evaluate("""async () => {
+                  for (let i=0;i<18;i++){
+                    const b=document.getElementById('zout');
+                    if (!b || b.disabled) break;
+                    b.click(); await new Promise(r=>setTimeout(r,140));
+                  }}""")
+                pg.wait_for_timeout(700)
+                REND["zoomout"] = pg.evaluate(CLUSTERJS)
 
                 # ---- UI/UX の実測 (N20-N24)。画面幅を変えて操作部だけ見る ----
                 UIJS = """() => {
@@ -1508,7 +1555,7 @@ fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "
                          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27",
                          "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39",
                          "N40", "N41", "N42", "N43", "N44",
-                         "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54")}
+                         "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54", "N55")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -2254,6 +2301,26 @@ if REND:
             fails["N54"].append("%s: 規則から外れた店名 %d件 (%s)"
                                 % (_zn, len(_sb), "、".join(_sb[:4])))
 
+    # N55 引き切った画面でも印が重ならない / 数え落としが無い
+    _zo = REND.get("zoomout") or {}
+    if not _zo:
+        fails["N55"].append("引き切った画面を測れていない")
+    else:
+        if _zo.get("over"):
+            fails["N55"].append("引き切り %.2fpx/m で印どうしが重なる %d組 (%s)"
+                                % (_zo.get("scale", 0), len(_zo["over"]),
+                                   "、".join(_zo["over"][:4])))
+        if _zo.get("covered") != _zo.get("total"):
+            fails["N55"].append("引き切りで数えられる店が %d件 (全%d件)。"
+                                "まとめの丸に入れ損ねた店がある"
+                                % (_zo.get("covered", 0), _zo.get("total", 0)))
+        for c in (_zo.get("clusters") or []):
+            if c["w"] < TAP_MIN_PX or c["h"] < TAP_MIN_PX:
+                fails["N55"].append("まとめの丸が %.0fx%.0fpx (最小%.0f)"
+                                    % (c["w"], c["h"], TAP_MIN_PX))
+            if not c["label"]:
+                fails["N55"].append("まとめの丸に読み上げ名が無い")
+
     # N53 検査が対象を作れていること。状態を作れずに黙って飛ばすと、
     # その画面は総なめから消えたまま PASS になる。
     for u in REND.get("ui") or []:
@@ -2319,12 +2386,13 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N51": "通りの中の道路名・信号が重なっていない",
        "N52": "地図が枠を埋めている (下に空白が残らない)",
        "N53": "検査が対象を作れている (状態が黙って抜けていない)",
-       "N54": "店名が印に対して決まった置き場に出ている"}
+       "N54": "店名が印に対して決まった置き場に出ている",
+       "N55": "引き切っても印が重ならない (まとめの丸で解く)"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
               "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43", "N44",
-              "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54"):
+              "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54", "N55"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:

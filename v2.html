@@ -186,6 +186,13 @@
   .shoplabel{ font-family:'Yusei Magic',sans-serif; fill:var(--ink); font-weight:700;
     paint-order:stroke; stroke:var(--paper); stroke-width:7px; stroke-linejoin:round; }
   .shoplabel.b{ font-weight:700; }
+  /* 引いた時に重なる印をまとめた丸 (2026-08-09) */
+  .cluster{ cursor:pointer; }
+  .cluster-dot{ fill:#fffaf0; stroke:var(--ink); stroke-width:2px; vector-effect:non-scaling-stroke; }
+  .cluster-count{ fill:var(--ink); font-family:'Zen Maru Gothic',sans-serif; font-weight:700;
+    paint-order:stroke; stroke:#fffaf0; stroke-width:3px; vector-effect:non-scaling-stroke;
+    pointer-events:none; }
+  .cluster:focus-visible .cluster-dot{ stroke:var(--accent); stroke-width:4px; }
   .shoplabel.detail{ opacity:1; }
   .hit.selected .shoplabel{ fill:#9a4f28; stroke:#fffaf0; stroke-width:9px; }
   .parkname{ font-family:'Yusei Magic',sans-serif; fill:#6d8a3c;
@@ -1114,6 +1121,12 @@ const gWater = el('g', {}, svg);
 const gRoads = el('g', {}, svg);
 const gNames = el('g', {}, svg);
 const gShops = el('g', {}, svg);
+// 2026-08-09: 引いた時に重なる印を「この辺に◯店」の1つにまとめる層。
+// 印は指で押せるように画面14px固定なので、引くと地図の上では大きくなり
+// (0.35px/m で 14px = 40m)、8.5m しか離れていない店どうしは必ず重なる。
+// ボス「マーク同士がかぶらないように」と 組合担当者「マイナスで全体を見たい」を
+// 両立させる唯一の形 (地図アプリの定石)。
+const gClusters = el('g', {class:'clusters'}, svg);
 const gDeco  = el('g', {}, svg);
 const gCurrent = el('g', {class:'current-location', 'aria-label':'現在地', visibility:'hidden'}, svg);
 
@@ -2204,6 +2217,99 @@ function updateMapScaleBar(scale){
 const MARK_MIN_GAP_PX = 3;      // 印と印の間に最低これだけ空ける (画面px)
 const MARK_SHIFT_MAX_M = 18;    // 実際の位置からずらしてよい上限 (m)
 let markShift = new Map();      // idx -> {dx, dy} 地図の単位
+// 印が重なる時だけ、その集まりを1つの丸にまとめる。
+// 押し分け (spreadMarks) を通したあとの画面上の距離で判断するので、
+// 既定の縮尺のように散らし切れている所では 1件もまとまらない = 今までどおり。
+const CLUSTER_MIN_TAP_PX = 44;
+let clusterGroups = [];
+function computeMarkClusters(entries){
+  // 「重なるかどうか」は中心の距離ではなく、実際の見た目の四角で判断する。
+  // 距離で測ると、斜めに並んだ印が「離れている」と出るのに絵では重なる
+  // (2026-08-09 実測: 中山郵便局×中山歯科 が距離では通り、絵では重なっていた)。
+  // 本当に重なっている時だけまとめる。少しでも隙間があるならまとめない
+  // (隙間1pxまで拾っていたら、既定の縮尺で Double Egg5丁目 まで飲み込んでいた)。
+  const CLUSTER_OVERLAP_PX = 0.5;
+  // 画面に映っている印だけをまとめの対象にする。画面の外で重なっていても
+  // 誰にも見えないのに、まとめると その店が消えてしまう
+  // (2026-08-09 実測: 既定の縮尺で画面外の Double Egg5丁目 が消え、
+  //  こどもの声のラベルまで無くなった)。
+  const vpRect = viewport.getBoundingClientRect();
+  const margin = starTargetPx() * 2;
+  const onScreen = r => r.right >= vpRect.left-margin && r.left <= vpRect.right+margin
+                     && r.bottom >= vpRect.top-margin && r.top <= vpRect.bottom+margin;
+  const pts = entries.map(entry => {
+    const rect = entry.star && entry.star.getBoundingClientRect();
+    if (!rect || !(rect.width > 0) || !onScreen(rect)) return null;
+    return {entry, rect, x:rect.left+rect.width/2, y:rect.top+rect.height/2};
+  }).filter(Boolean);
+  // 同じ入力なら同じ結果になるように並べてから、重なるものを繋いでいく
+  pts.sort((a,b) => a.y-b.y || a.x-b.x || a.entry.idx-b.entry.idx);
+  const parent = pts.map((_,i) => i);
+  const find = i => { while (parent[i] !== i){ parent[i]=parent[parent[i]]; i=parent[i]; } return i; };
+  const hits = (a,b) =>
+    Math.min(a.right,b.right)-Math.max(a.left,b.left) > CLUSTER_OVERLAP_PX &&
+    Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top) > CLUSTER_OVERLAP_PX;
+  for (let i=0;i<pts.length;i++) for (let j=i+1;j<pts.length;j++){
+    if (!hits(pts[i].rect, pts[j].rect)) continue;
+    const a=find(i), b=find(j); if (a!==b) parent[a]=b;
+  }
+  const byRoot = new Map();
+  pts.forEach((p,i) => {
+    const r=find(i);
+    if (!byRoot.has(r)) byRoot.set(r, []);
+    byRoot.get(r).push(p);
+  });
+  return [...byRoot.values()].filter(g => g.length > 1)
+    .map(g => ({members:g.map(p => p.entry),
+                x:g.reduce((a,p)=>a+p.x,0)/g.length,
+                y:g.reduce((a,p)=>a+p.y,0)/g.length}));
+}
+function renderMarkClusters(groups, scale){
+  gClusters.innerHTML = '';
+  clusterGroups = groups;
+  if (!groups.length) return;
+  const matrix = svg.getScreenCTM();
+  if (!matrix) return;
+  const inv = matrix.inverse();
+  const rPx = Math.max(CLUSTER_MIN_TAP_PX/2, starTargetPx()*0.85);
+  groups.forEach((group, gi) => {
+    const point = svg.createSVGPoint();
+    point.x = group.x; point.y = group.y;
+    const c = point.matrixTransform(inv);
+    group.cx = c.x; group.cy = c.y;
+    const g = el('g', {class:'cluster', tabindex:'0', role:'button',
+      'data-c':String(gi),
+      'aria-label':'この辺りに'+group.members.length+'店。押すと拡大します'}, gClusters);
+    el('circle', {cx:c.x, cy:c.y, r:rPx/scale, class:'cluster-dot'}, g);
+    const t = el('text', {x:c.x, y:c.y, class:'cluster-count',
+      'text-anchor':'middle', 'dominant-baseline':'middle',
+      'font-size':Math.max(14, rPx*0.8)/scale}, g);
+    t.textContent = String(group.members.length);
+  });
+}
+function zoomToCluster(group){
+  if (!group || !group.members.length) return;
+  const xs = group.members.map(e => e.s.x), ys = group.members.map(e => e.s.y);
+  const vb = svg.viewBox.baseVal;
+  const spanX = Math.max(...xs)-Math.min(...xs), spanY = Math.max(...ys)-Math.min(...ys);
+  // まとまりの中身が離れて見える所まで寄る。1手で必ず変わるよう、最低でも半分にする。
+  const want = Math.max(spanX*3+40, (spanY*3+40)*vb.width/Math.max(1,vb.height), 60);
+  const width = Math.min(vb.width/2, want);
+  const height = width*vb.height/vb.width;
+  const cx = (Math.min(...xs)+Math.max(...xs))/2, cy = (Math.min(...ys)+Math.max(...ys))/2;
+  setMapViewBox({x:cx-width/2, y:cy-height/2, width, height});
+}
+gClusters.addEventListener('click', e => {
+  const g = e.target.closest('g.cluster'); if (!g) return;
+  e.stopPropagation();
+  zoomToCluster(clusterGroups[+g.dataset.c]);
+});
+gClusters.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const g = e.target.closest('g.cluster'); if (!g) return;
+  e.preventDefault();
+  zoomToCluster(clusterGroups[+g.dataset.c]);
+});
 function spreadMarks(scale, entries){
   markShift = new Map();
   if (!(scale > 0) || !entries || !entries.length) return markShift;
@@ -2332,12 +2438,31 @@ function updateMapScaleStyles(){
       main:h.querySelector('text[data-main-label="1"]'), distance:h.querySelector('text.distance-label')};
   }).filter(entry => entry.main);
   spreadMarks(scale, allEntries);
+  // まとめは毎回まっさらから決め直す。前の縮尺で隠した印が隠れたままにならないように
+  // (隠れていると大きさが0になり、二度と数え直せなくなる)。
+  allEntries.forEach(entry => {
+    const hit = entry.star && entry.star.closest('.hit');
+    if (hit && hit.style.display) hit.style.display = '';
+  });
   const allStarCenters = new Map(allEntries.map(entry => {
     const rect = entry.star && entry.star.getBoundingClientRect();
     return [entry.idx, rect ? {x:rect.left+rect.width/2, y:rect.top+rect.height/2} : null];
   }).filter(([, point]) => point));
   const filtering=document.body.classList.contains('map-filtering');
-  const entries=filtering ? allEntries.filter(entry=>matchesFilter(entry.s)) : allEntries;
+  const shown=filtering ? allEntries.filter(entry=>matchesFilter(entry.s)) : allEntries;
+  // 重なる印は1つの丸にまとめる。まとめた店は印も名前も出さず、丸の中の数に含める。
+  // 絞り込み中は、絞り込んだ結果だけで数える。
+  const groups=computeMarkClusters(shown);
+  const inCluster=new Set();
+  groups.forEach(group => group.members.forEach(entry => inCluster.add(entry.idx)));
+  allEntries.forEach(entry => {
+    const hit=entry.star && entry.star.closest('.hit');
+    if (!hit) return;
+    if (inCluster.has(entry.idx)) hit.style.display='none';
+    else if (hit.style.display) hit.style.display='';
+  });
+  renderMarkClusters(groups, scale);
+  const entries=shown.filter(entry => !inCluster.has(entry.idx));
   const activeIndexes=new Set(entries.map(entry=>entry.idx));
   allEntries.filter(entry=>!activeIndexes.has(entry.idx)).forEach(hideLabel);
   const starCenters = new Map(entries.map(entry => [entry.idx,allStarCenters.get(entry.idx)])
