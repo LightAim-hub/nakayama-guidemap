@@ -739,6 +739,37 @@ if not A.no_browser:
                 for (const t of vis) if (ovl(g, t.getBoundingClientRect()))
                   sigHit.push({n: t.textContent.trim(), kind: 'ラベル'});
               }
+              // N54 店名と印の位置関係。2026-08-09 ボス「特に店名と文字とアイコンの
+              // 位置関係ね。それ毎回言われるのウザいし俺の責任になるから」。
+              // 規則は実装の定数から取る (検査側で書き直すと必ずズレる)。
+              //   横 = 印の中心から starTargetPx/2 + LABEL_GAP_PX、
+              //        道に乗る時だけ +LABEL_FAR_COLUMN_PX の2列目
+              //   縦 = 印と同じ高さ、埋まっている時だけ LABEL_ROW_STEP_PX 単位で1行上下
+              // 距離の但し書き (.distance-label) は店名の2行目なので対象外。
+              let slotBad = null, slotErr = null, slotChecked = 0;
+              try {
+                const gapOK = [starTargetPx()/2 + LABEL_GAP_PX];
+                gapOK.push(gapOK[0] + LABEL_FAR_COLUMN_PX);
+                const dyOK = [0, -LABEL_ROW_STEP_PX, LABEL_ROW_STEP_PX];
+                slotBad = [];
+                for (const t of document.querySelectorAll('text.shoplabel[data-main-label]')){
+                  if (getComputedStyle(t).display === 'none') continue;
+                  if (t.classList.contains('distance-label')) continue;
+                  const r = t.getBoundingClientRect(); if (!(r.width > 1)) continue;
+                  const h = t.closest('g.hit'); if (!h) continue;
+                  const st = h.querySelector('.star'); if (!st) continue;
+                  const sb = st.getBoundingClientRect(); if (!(sb.width > 0)) continue;
+                  const cx = sb.left + sb.width/2, cy = sb.top + sb.height/2;
+                  const nm = GEO.shops[+h.dataset.i].name;
+                  const gap = (r.left + r.width/2 >= cx) ? r.left - cx : cx - r.right;
+                  const dy = (r.top + r.height/2) - cy;
+                  slotChecked++;
+                  const gd = Math.min(...gapOK.map(g => Math.abs(gap-g)));
+                  const dd = Math.min(...dyOK.map(d => Math.abs(dy-d)));
+                  if (gd > 2.0) slotBad.push(nm + ' 横' + gap.toFixed(1) + 'px');
+                  else if (dd > 3.0) slotBad.push(nm + ' 縦' + dy.toFixed(1) + 'px');
+                }
+              } catch (e) { slotErr = String((e && e.message) || e); }
               // 印を押した時に その店が開くか。2026-08-08 に押し分けの判定を
               // nearby() (実座標で20m以内なら必ず選択窓) から
               // shopsByTapDistance() (押した所からの画面距離) へ変えた。
@@ -764,6 +795,7 @@ if not A.no_browser:
               return {pxPerMeter:+s0.toFixed(4), rows, roadPx, labelCross:cross,
                       labelsVisible:vis.length, uiCovered:covered,
                       tapSelf, tapErr, tapChecked: starList.length,
+                      slotBad, slotErr, slotChecked,
                       badges, sigW: sigBoxes.length ? +sigBoxes[0].width.toFixed(1) : 0,
                       sigCount: sigBoxes.length, sigHit, jsErrors:0,
                       // 2026-08-07: 「置けるはず」の判定を検査側でもう一度作ると、
@@ -1476,7 +1508,7 @@ fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "
                          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27",
                          "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39",
                          "N40", "N41", "N42", "N43", "N44",
-                         "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53")}
+                         "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -2205,6 +2237,23 @@ if REND:
                                 % (_zn, len(_ts),
                                    "、".join("%s→%s" % (x["n"], x["got"]) for x in _ts[:4])))
 
+    # N54 店名の置き場が規則どおりか (ボスが毎回指摘している所)
+    for _zn, _z in (("既定ズーム", REND), ("歩きズーム", REND.get("walk") or {})):
+        if not _z:
+            continue
+        if _z.get("slotErr"):
+            fails["N54"].append("%s で置き場を測れなかった: %s "
+                                "(置き場の規則を変えたら gate も直すこと)" % (_zn, _z["slotErr"]))
+            continue
+        _sb = _z.get("slotBad")
+        if _sb is None:
+            fails["N54"].append("%s で置き場の測定そのものが行われていない" % _zn)
+        elif not _z.get("slotChecked"):
+            fails["N54"].append("%s で店名が1件も出ていない (測る対象が無い)" % _zn)
+        elif _sb:
+            fails["N54"].append("%s: 規則から外れた店名 %d件 (%s)"
+                                % (_zn, len(_sb), "、".join(_sb[:4])))
+
     # N53 検査が対象を作れていること。状態を作れずに黙って飛ばすと、
     # その画面は総なめから消えたまま PASS になる。
     for u in REND.get("ui") or []:
@@ -2269,12 +2318,13 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N50": "探しそうな言葉で店が引ける",
        "N51": "通りの中の道路名・信号が重なっていない",
        "N52": "地図が枠を埋めている (下に空白が残らない)",
-       "N53": "検査が対象を作れている (状態が黙って抜けていない)"}
+       "N53": "検査が対象を作れている (状態が黙って抜けていない)",
+       "N54": "店名が印に対して決まった置き場に出ている"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
               "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43", "N44",
-              "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53"):
+              "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:

@@ -1311,11 +1311,13 @@ function cachedCandidateRects(entry,candidate,scale,starCenters){
   const own=starCenters.get(entry.idx), side=candidate.side;
   const anchorX=own.x+side*candidate.gapPx, anchorY=own.y+candidate.dyPx;
   const fontPx=labelTargetPx(entry.s);
-  const mainKey=labelMetricGeneration+':'+entry.idx+':main';
+  // 2行に折り返した時は形が変わるので、測り直した値を別に持つ (混ざると幅を誤る)
+  const wrapTag=entry.wrapped ? ':w' : '';
+  const mainKey=labelMetricGeneration+':'+entry.idx+':main'+wrapTag;
   const distanceKey=labelMetricGeneration+':'+entry.idx+':distance';
   let main=labelMetricCache.get(mainKey), distance=entry.distance&&labelMetricCache.get(distanceKey);
   if (!labelMeasureContext) labelMeasureContext=document.createElement('canvas').getContext('2d');
-  const measure=(node,key,size) => {
+  const measure=(node,key,size,lines) => {
     const style=getComputedStyle(node);
     if (!labelMeasureProbe){
       labelMeasureProbe=el('text',{'aria-hidden':'true','text-anchor':'start',
@@ -1323,7 +1325,9 @@ function cachedCandidateRects(entry,candidate,scale,starCenters){
       labelMeasureProbe.style.pointerEvents='none';
     }
     const viewBox=svg.viewBox.baseVal, x=viewBox.x+viewBox.width/2, y=viewBox.y+viewBox.height/2;
-    labelMeasureProbe.textContent=node.textContent;
+    if (lines && lines.length > 1) writeLabelLines(labelMeasureProbe, lines, x, y,
+                                                   size*LABEL_LINE_GAP_EM/scale);
+    else labelMeasureProbe.textContent=node.textContent;
     labelMeasureProbe.setAttribute('x',x); labelMeasureProbe.setAttribute('y',y);
     labelMeasureProbe.setAttribute('font-size',size/scale);
     labelMeasureProbe.style.fontFamily=style.fontFamily;
@@ -1348,7 +1352,7 @@ function cachedCandidateRects(entry,candidate,scale,starCenters){
     return metric;
   };
   if (!main || (entry.distance && !distance)){
-    if (!main) main=measure(entry.main,mainKey,fontPx);
+    if (!main) main=measure(entry.main,mainKey,fontPx,labelLinesFor(entry));
     if (entry.distance && !distance) distance=measure(entry.distance,distanceKey,10);
   } else if (activeLabelLayoutStats) {
     activeLabelLayoutStats.metricCacheHits+=entry.distance ? 2 : 1;
@@ -1373,6 +1377,53 @@ if (document.fonts && document.fonts.ready){
     labelMetricGeneration++;
     labelMetricCache.clear();
     if (document.body.classList.contains('map-open')) scheduleMapScaleStyles();
+  });
+}
+// 2026-08-09 ボス判断「正しい名前」= 地図でも正式名称のまま出す。
+// 名前が出ない店の却下理由を実測すると、長い帯がどこかに必ず当たっていた
+// (カーブス アクロスガーデン中山: 画面に入らない7件 / 七十七銀行中山支店: 道路6件)。
+// 名前を縮めるのは中身を変えることなので取らない。1行で置けなかった店だけ、
+// 同じ名前を2行に折り返してもう一度置く。幅がおよそ半分になる。
+// 規則 = 「地図の名前は最大2行。1行で置ける店は1行、置けない店だけ2行」。
+const LABEL_LINE_GAP_EM = 1.02;   // 2行にした時の行間 (em)
+function splitLabelText(text){
+  const t = String(text || '').trim();
+  if ([...t].length < 4) return null;
+  const chars = [...t];
+  // 切れ目の候補: 空白 > 字種の変わり目 > 中央。どこで切っても同じ結果になるよう
+  // 「長い方の行がいちばん短くなる」切れ目を選ぶ (同点なら中央に近い方)。
+  const kind = c => /\s/.test(c) ? 'sp'
+    : /[぀-ゟ]/.test(c) ? 'hira'
+    : /[゠-ヿー]/.test(c) ? 'kata'
+    : /[一-鿿]/.test(c) ? 'kanji'
+    : /[0-9]/.test(c) ? 'num' : 'latin';
+  const mid = chars.length / 2;
+  let best = null;
+  for (let i = 1; i < chars.length; i++){
+    const isSpace = kind(chars[i-1]) === 'sp' || kind(chars[i]) === 'sp';
+    const isBoundary = kind(chars[i-1]) !== kind(chars[i]);
+    if (!isSpace && !isBoundary) continue;
+    const longest = Math.max(i, chars.length - i);
+    const score = [longest, Math.abs(i - mid), isSpace ? 0 : 1];
+    if (!best || score[0] < best.score[0] ||
+        (score[0] === best.score[0] && score[2] < best.score[2]) ||
+        (score[0] === best.score[0] && score[2] === best.score[2] && score[1] < best.score[1]))
+      best = {i, score};
+  }
+  const cut = best ? best.i : Math.ceil(chars.length / 2);
+  const a = chars.slice(0, cut).join('').trim(), b = chars.slice(cut).join('').trim();
+  if (!a || !b) return null;
+  return [a, b];
+}
+function labelLinesFor(entry){
+  return entry.wrapped ? (entry.wrapLines || null) : null;
+}
+function writeLabelLines(node, lines, x, y, lineHeight){
+  node.textContent = '';
+  const top = y - lineHeight * (lines.length - 1) / 2;
+  lines.forEach((line, i) => {
+    const span = el('tspan', {x:x, y:top + lineHeight * i}, node);
+    span.textContent = line;
   });
 }
 function preferredLabelSide(s){
@@ -1404,6 +1455,9 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     // previous map-unit offset scales that offset with the map and also omits it from
     // the collision grid, producing overlong/crossing leaders at a different zoom.
     const visibleEntries=entries;
+    // 折り返しは毎回まっさらから決め直す。前の縮尺で2行にした店が、寄って場所が
+    // 空いても2行のまま残らないように。
+    visibleEntries.forEach(entry => { entry.wrapped=false; entry.wrapLines=null; });
     visibleEntries.forEach(hideLabel);
     stats.visibleEntries=visibleEntries.length;
     document.body.dataset.labelLayoutVisible=String(visibleEntries.length);
@@ -1838,6 +1892,19 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       placeConstrainedGroup(priorityOneEntries);
     }
     retryBlocked();
+    // 2026-08-09: ここまでで名前が出なかった店だけ、同じ名前を2行にして置き直す。
+    // 既に置けている店には一切触らない (addPlacement で足すだけ・追い出しをしない)
+    // ので、1行で出ていた名前が消えたり動いたりすることはない。
+    visibleEntries.forEach(entry => {
+      if (entry.s.labelVisible || entry.wrapped) return;
+      const lines = splitLabelText(entry.s.short || entry.s.name);
+      if (!lines) return;
+      entry.wrapped = true; entry.wrapLines = lines;
+      if (!placeGreedy(entry)){
+        entry.wrapped = false; entry.wrapLines = null;
+        hideLabel(entry);
+      }
+    });
     // 全部置き終わってから、まだ名前が出ていない店の理由を残す (途中で残すと、
     // あとから救えた分が古い理由のまま残ってしまう)
     visibleEntries.filter(entry => !entry.s.labelVisible).forEach(recordConstrainedReject);
@@ -1933,6 +2000,9 @@ function setLabelPosition(entry, candidate, scale){
   s.labelLeader = false;
   main.setAttribute('x', s.lx);
   main.setAttribute('y', s.ly);
+  const lines = labelLinesFor(entry);
+  if (lines) writeLabelLines(main, lines, s.lx, s.ly, fontPx*LABEL_LINE_GAP_EM/scale);
+  else if (main.firstElementChild) main.textContent = s.short || s.name;
   if (main.getAttribute('text-anchor') !== s.anchor) main.setAttribute('text-anchor', s.anchor);
   if (entry.labelScale !== scale){
     main.setAttribute('font-size', fontMap);
