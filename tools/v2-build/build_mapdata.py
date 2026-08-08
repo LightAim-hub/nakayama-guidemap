@@ -377,18 +377,32 @@ for a in new_geo.values():
 
 # 同一住所で個別ピンが確認できなかった組だけ、紙マップの上下順を座標へ焼き込む。
 # Task K では出典を表す src と分離操作を切り離し、後段で元の出典へ戻す。
+_APPROX_PAIR_HALF_GAPS = {
+    # 2026-08-08 組合担当者あみさん確認: スクールIEと佐藤次夫税理士事務所は
+    # 同じ建物なので、表示上の2点も15m以内に収まる間隔にする。
+    ('スクールIE 仙台中山校', '佐藤次夫税理士事務所'): (3.0, 4.5),
+}
+
 def set_approx_pair(upper_name, lower_name):
     upper = next(s for s in shops if s['name'] == upper_name)
     lower = next(s for s in shops if s['name'] == lower_name)
     ux, uy = project(upper['lat'], upper['lng'])
     lx, ly = project(lower['lat'], lower['lng'])
     cx, cy = (ux + lx) / 2, (uy + ly) / 2
-    for sh, dx, dy in ((upper, -6.0, -11.0), (lower, 6.0, 11.0)):
+    half_dx, half_dy = _APPROX_PAIR_HALF_GAPS.get(
+        (upper_name, lower_name), (6.0, 11.0))
+    for sh, dx, dy in ((upper, -half_dx, -half_dy), (lower, half_dx, half_dy)):
         sh['lat'], sh['lng'] = unproject(cx + dx, cy + dy)
         sh['src'] = 'approx'
 
 set_approx_pair('BAKERY&BAKE EndRoll', 'cake NAO')
-set_approx_pair('佐藤次夫税理士事務所', 'Double Egg5丁目')
+# 2026-08-08 組合担当者あみさんの確認で、佐藤次夫税理士事務所は中山5-19-17の
+# スクールIEと同じ建物。スクールIEのGSI住所座標を共通中心にして近接2点化する。
+_school_ie = next(s for s in shops if s['name'] == 'スクールIE 仙台中山校')
+_sato_tax = next(s for s in shops if s['name'] == '佐藤次夫税理士事務所')
+_sato_tax['addr'] = '仙台市青葉区中山5-19-17'
+_sato_tax['lat'], _sato_tax['lng'] = _school_ie['lat'], _school_ie['lng']
+set_approx_pair('スクールIE 仙台中山校', '佐藤次夫税理士事務所')
 # 振興組合掲載の荒巻本沢1-17-4由来の共通中心へ戻し、紙マップ順で近接2点化。
 for _name in ('サトー商会', 'みなとや'):
     _shop = next(s for s in shops if s['name'] == _name)
@@ -396,16 +410,20 @@ for _name in ('サトー商会', 'みなとや'):
     _shop['lat'], _shop['lng'] = 38.289295, 140.85054
 set_approx_pair('サトー商会', 'みなとや')
 
-# 振興組合掲載の中山5-11-3由来の共通中心へ戻し、紙マップ順ではるの風を上にする。
+# 振興組合掲載の中山5-11-3由来の共通中心へ戻す。2026-08-08 組合担当者
+# あみさんの確認で遊季ガーデンが上、デイサービス はるの風が下になるよう近接2点化。
 for _name in ('デイサービス はるの風', '遊季ガーデン'):
     _shop = next(s for s in shops if s['name'] == _name)
     _shop['lat'], _shop['lng'] = 38.292133, 140.842529
-set_approx_pair('デイサービス はるの風', '遊季ガーデン')
+set_approx_pair('遊季ガーデン', 'デイサービス はるの風')
 set_approx_pair('中杜建設', 'ん daccha とこや')
 
 # Task K-1: 分離のために動かした事実で src (座標出典) を上書きしない。
+# 2026-08-08 組合担当者あみさん確認の同居訂正で新たに動かすスクールIEも、
+# 佐藤次夫税理士事務所と同様に元のGSI住所出典へ戻す。
 _TASK_K_SPREAD_NAMES = {
-    'BAKERY&BAKE EndRoll', 'cake NAO', 'Double Egg5丁目', '佐藤次夫税理士事務所',
+    'BAKERY&BAKE EndRoll', 'cake NAO', 'Double Egg5丁目',
+    'スクールIE 仙台中山校', '佐藤次夫税理士事務所',
     'ん daccha とこや', '中杜建設', 'サトー商会', 'みなとや',
     'デイサービス はるの風', '遊季ガーデン',
 }
@@ -1441,13 +1459,16 @@ if not ARGS.preview:
         '中杜建設': (24.8, 0.1),
         '花祭壇': (-15.0, 5.2),
         'ダイニングバー 祭': (1.2, -1.1),
-        '佐藤次夫税理士事務所': (2.9, -7.1),
+        # 2026-08-08 組合担当者あみさんの同居確認により、旧5-19-5前提の値は使わず
+        # スクールIEと同じ建物の候補へ後段ソルバで配置する。
         'おたからや': (3.4, -1.4),
         'Double Egg5丁目': (1.8, 3.2),
         'お菜とお酒アイリス': (0.1, 0.2),
         '藤倉設備工業': (-3.3, 0.8),
-        'デイサービス はるの風': (6.5, 0.2),
-        '遊季ガーデン': (-1.5, 0.2),
+        # 2026-08-08 組合担当者あみさん確認の上下訂正。従来の道路安全域内2点を
+        # 店名ごと交換するため、ペア順反転に合わせて旧dxも入れ替える。
+        'デイサービス はるの風': (-1.5, 0.2),
+        '遊季ガーデン': (6.5, 0.2),
         '梅原表具店': (5.1, -1.0),
         'BAKERY&BAKE EndRoll': (2.0, -3.9),
         'cake NAO': (1.5, -1.9),

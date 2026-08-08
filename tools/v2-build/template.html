@@ -91,9 +91,11 @@
     min-height:40px; }
   .chip:active{ transform:scale(.94); }
   .chip .lbl{ color:var(--ink); }
-  /* 「こどもの声（11店）」が 320px 幅のチップからはみ出していた (2026-08-08 実測)。
-     普段は語の途中で折らず、入らない時だけ折る。 */
-  .chip .lbl{ word-break:keep-all; overflow-wrap:anywhere; }
+  /* 「こどもの声（11店）」は 320px 幅でも枠内に収める。ただし anywhere は最小幅を
+     1文字まで潰し、キーボード表示時にチップ同士を重ねたため break-word にする。
+     縦に余裕がある時は折り返し、低い画面だけチップ帯を横へ送る。2026-08-08
+     商店街担当者（あみさん）の「検索したら大変なことに」という指摘。 */
+  .chip .lbl{ word-break:keep-all; overflow-wrap:break-word; }
     /* 2026-08-05: 種類の目印を丸から「種類ごとの形」に変えた。塗りと縁はSVG側が持つ */
   /* 上の svg{width:100%} は地図本体のための指定。種類の目印は指定した大きさで出す
      (これに巻き込まれて横向き画面で 258px に育ち、一覧が2件しか見えなくなっていた) */
@@ -590,7 +592,9 @@
     grid-template-columns:minmax(0,1fr); grid-template-rows:44px 44px 44px;
     gap:8px; padding:8px 10px; background:var(--paper); border-top:2px dashed rgba(92,67,39,.35);
     box-shadow:0 -8px 22px rgba(92,67,39,.1); }
-  #controls .filters{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px;
+  /* 1つあたり90pxを下回らせない。0まで縮められると、文字が縦1列に積まれて枠から溢れる
+     (2026-08-08 商店街担当者（あみさん）の「検索したら大変なことに」の正体)。 */
+  #controls .filters{ display:grid; grid-template-columns:repeat(6,minmax(90px,1fr)); gap:8px;
     height:44px; padding:0; overflow:visible; }
   #controls .chip{ width:100%; min-width:0; max-width:none; height:44px; min-height:44px;
     padding:3px 6px; justify-content:center; line-height:1.05; }
@@ -689,14 +693,22 @@
     body{ --controls-h:216px; }
     header{ flex:0 0 44px; height:44px; overflow:hidden; }
     #controls{ grid-template-rows:96px 44px 44px; }
-    #controls .filters{ grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:44px 44px; height:96px; }
+    #controls .filters{ grid-template-columns:repeat(3,minmax(90px,1fr));
+      grid-template-rows:44px 44px; height:96px; }
   }
   /* 2026-08-04: 背の低い端末では固定UIが画面の40〜48%を占め、61件中4〜5件しか
      見えなかった。検索欄は「さがす」ボタンの中にしまい、通りの方向案内も省く。
      指の基準44pxは崩さない。(この規則は上のportrait規則より後に置くこと) */
   @media(max-width:759px) and (orientation:portrait) and (max-height:720px){
     body{ --controls-h:164px; }
-    #controls{ grid-template-rows:96px 44px; }
+    #controls{ flex:0 0 var(--controls-h); min-height:var(--controls-h); height:var(--controls-h);
+      grid-template-rows:96px 44px; }
+    /* 横スクロールにすると、画面の外に出たチップが「無いもの」になってしまう
+       (検査 N22 も落ちる)。3つ×2段のまま、1つあたり90pxを下回らないようにする。
+       2026-08-08 商店街担当者（あみさん）の「検索したら大変なことに」への対応。 */
+    #controls .filters{ display:grid; grid-template-columns:repeat(3,minmax(90px,1fr));
+      grid-template-rows:44px 44px; height:96px; min-height:96px; padding:0; overflow:visible; }
+    #controls .chip{ width:100%; min-width:0; max-width:none; height:44px; min-height:44px; }
     #controls .searchbar{ display:none; }
     body.search-open{ --controls-h:216px; }
     body.search-open #controls{ grid-template-rows:96px 44px 44px; }
@@ -715,6 +727,9 @@
     #stripfar{ grid-template-columns:1fr; }
     #stripfar .strip-row{ grid-column:1 !important; grid-row:auto !important; min-height:52px; }
   }
+  /* 横向きはチップ6つを1段に並べる。1つあたり90pxを下回らないようにするだけで、
+     横スクロールにはしない (画面の外に出たチップは無いのと同じになるため)。
+     2026-08-08 商店街担当者（あみさん）の「検索したら大変なことに」への対応。 */
   @media(orientation:landscape) and (max-height:480px){
     body{ --controls-h:108px; }
     header{ flex:0 0 38px; height:38px; padding:5px 12px 3px; overflow:hidden; }
@@ -723,7 +738,7 @@
     #controls{ grid-template-columns:minmax(0,1fr) 260px; grid-template-rows:44px 44px;
       gap:8px; padding:6px 8px; }
     #controls .filters{ grid-column:1 / 3; grid-row:1;
-      grid-template-columns:minmax(112px,1.15fr) repeat(5,minmax(0,1fr)); }
+      grid-template-columns:minmax(112px,1.15fr) repeat(5,minmax(90px,1fr)); }
     #controls .searchbar{ grid-column:1; grid-row:2; }
     #controls .control-actions{ grid-column:2; grid-row:2; }
     #controls .chip{ font-size:14px; }
@@ -732,6 +747,18 @@
     body.map-open.debug #srcinfo{ bottom:calc(var(--map-controls-h) + 58px); }
     body.map-open .map-float-tools{ display:grid; grid-template-columns:44px 44px; grid-template-rows:44px 44px; gap:8px; }
     body.map-open .map-float-tools .zoomctl{ display:contents; }
+  }
+  /* スマホでキーボードが出ると、画面が「横長で低い」形になる (390x360 など)。
+     この幅では6つを1行に並べられないので、段を増やして折り返す。横スクロールにはしない
+     (画面の外に出たチップは無いのと同じになる)。2026-08-08 商店街担当者（あみさん）の
+     「検索したら大変なことに」の再現条件。 */
+  @media(orientation:landscape) and (max-height:480px) and (max-width:600px){
+    #controls{ flex:0 0 auto; height:auto; grid-template-rows:auto 44px; }
+    #controls .filters{ grid-template-columns:repeat(3,minmax(90px,1fr));
+      grid-auto-rows:44px; height:auto; }
+    /* 320px横幅では右列260pxを確保できない。検索欄と2ボタンを半分ずつにする。 */
+    #controls{ grid-template-columns:minmax(0,1fr) minmax(136px,1fr); }
+    #controls #searchstatus{ min-width:0; }
   }
   @media(prefers-reduced-motion:reduce){
     .chip, #chooser, .detail-panel{ transition:none; }
@@ -2690,9 +2717,17 @@ function buildStrip(){
   layoutStripRows();
 }
 buildStrip();
-window.addEventListener('resize',scheduleStripLayout);
+const searchField = document.getElementById('q');
+const SEARCH_PLACEHOLDER_LONG = searchField.placeholder;
+function updateSearchPlaceholder(){
+  // 低い画面では例文が入力欄を28pxはみ出したため短くする。aria-label は説明を保ち、
+  // 高さ44px・文字16pxも変えない。2026-08-08 商店街担当者（あみさん）の指摘。
+  searchField.placeholder = innerHeight<=480 || innerWidth<=360 ? 'お店検索' : SEARCH_PLACEHOLDER_LONG;
+}
+updateSearchPlaceholder();
+window.addEventListener('resize',()=>{ scheduleStripLayout(); updateSearchPlaceholder(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(scheduleStripLayout);
-document.getElementById('q').addEventListener('input', e => {
+searchField.addEventListener('input', e => {
   query = e.target.value.trim().toLowerCase();
   hideDetail();
   applyFilter({fromSearch:true});
@@ -3417,7 +3452,7 @@ const wrap = document.getElementById('mapwrap');
 const ZOOM_STEP = 1.45;
 // 2026-08-08 ボス指示「店の数は減らすな。密集して見にくい・押しにくいのが問題」。
 // 縮尺を絞って密集を避ける案は取り下げ、重なる印を押し分けて解く (spreadMarks)。
-const MIN_MAP_SCALE = 1.40;   // これ以上引けない (px/m)
+const MIN_MAP_SCALE_PREF = 1.40; // 印と店名を読みやすく保つ、好ましい下限 (px/m)
 const MAX_MAP_SCALE = 3.00;   // これ以上寄れない (px/m)
 function viewBoxWidthAtScale(scale){
   const vw = viewport.clientWidth;
@@ -3434,6 +3469,18 @@ const COMMERCIAL_VIEWBOX = {
   width:COMMERCIAL_BOUNDS.maxX-COMMERCIAL_BOUNDS.minX+30,
   height:COMMERCIAL_BOUNDS.maxY-COMMERCIAL_BOUNDS.minY+30
 };
+function wholeFitScale(){
+  const vw=viewport.clientWidth, vh=viewport.clientHeight;
+  if (!(vw>0 && vh>0 && COMMERCIAL_VIEWBOX.width>0 && COMMERCIAL_VIEWBOX.height>0))
+    return MIN_MAP_SCALE_PREF;
+  return Math.min(vw/COMMERCIAL_VIEWBOX.width,vh/COMMERCIAL_VIEWBOX.height);
+}
+function minMapScale(){
+  // 1.40より引くと印が重なり名前も出にくい。それでも街全体を一目で見るのが商店街
+  // マップの一番の役目で、そこを塞ぐ方が害が大きい。2026-08-08 商店街担当者からの指摘。
+  // 画面サイズが変わるたびに #viewport の実寸から計算し直し、全体が入る方を優先する。
+  return Math.min(MIN_MAP_SCALE_PREF,wholeFitScale());
+}
 function mapFrameAspect(){
   const width=viewport.clientWidth, height=viewport.clientHeight;
   return width>0 && height>0 ? width/height : INITIAL_VIEWBOX.width/INITIAL_VIEWBOX.height;
@@ -3457,9 +3504,11 @@ function reshapeBoxToAspect(box,aspect){
   return {x:box.x+(box.width-width)/2,y:box.y+(box.height-height)/2,width,height};
 }
 function maxViewBoxForAspect(aspect){
-  // 引ける限界 (MIN_MAP_SCALE)。地図全体より広くはしない。
+  // 狭い画面では寸法だけでなく位置も「全体」と同じにする。縮尺だけ下限へ達しても
+  // 端が切れては「−で全体を見る」役目を果たさないため (2026-08-08 あみさん指摘)。
+  if (wholeFitScale()<=MIN_MAP_SCALE_PREF) return fitBoxToAspect(COMMERCIAL_VIEWBOX,aspect);
   let width=VIEW_BOUNDS.width;
-  const limit=viewBoxWidthAtScale(MIN_MAP_SCALE);
+  const limit=viewBoxWidthAtScale(minMapScale());
   if (limit) width=Math.min(width,limit);
   let height=width/aspect;
   if (height>VIEW_BOUNDS.height){ height=VIEW_BOUNDS.height; width=height*aspect; }
@@ -3474,11 +3523,8 @@ function clampViewBox(box){
     const grow=Math.max(1,minWidth/width);
     width*=grow; height*=grow;
   }
-  const maxWidth=viewBoxWidthAtScale(MIN_MAP_SCALE);
-  if (maxWidth && width>maxWidth){
-    const shrinkToLimit=maxWidth/width;
-    width*=shrinkToLimit; height*=shrinkToLimit;
-  }
+  const max=maxViewBoxForAspect(width/height);
+  if (width>=max.width-.01 || height>=max.height-.01) return max;
   const shrink=Math.min(1,VIEW_BOUNDS.width/width,VIEW_BOUNDS.height/height);
   width*=shrink; height*=shrink;
   const minX=VIEW_BOUNDS.x, maxX=VIEW_BOUNDS.x+VIEW_BOUNDS.width-width;
@@ -3487,9 +3533,10 @@ function clampViewBox(box){
     y:Math.max(minY, Math.min(maxY, centerY-height/2)), width, height};
 }
 function setMapViewBox(box,mode){
-  // 2026-08-08: 「全体」は引ける限界まで引く動きにする (限界を越えると印が道路や
-  // 隣の印に乗り、名前もほぼ出せなくなるため)。
-  const next = mode==='initial' ? box : clampViewBox(box);
+  // 「全体」は COMMERCIAL_VIEWBOX を収めた値そのものを使う。clamp を通すと狭い端末で
+  // 端が切れるため。2026-08-08 商店街担当者（あみさん）の「マイナスを押すと大変な
+  // ことに」という指摘。
+  const next = mode==='initial' || mode==='whole' ? box : clampViewBox(box);
   if (mode) mapViewMode=mode;
   svg.setAttribute('viewBox', [next.x, next.y, next.width, next.height].join(' '));
   updateZoomButtons();
