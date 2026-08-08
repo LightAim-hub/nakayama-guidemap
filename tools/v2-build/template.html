@@ -2423,6 +2423,11 @@ const stripRowHeights = new Map();
 const stripSignalNodes = [];
 const stripRoadLabelNodes = [];
 let stripLayoutFrame = 0;
+// 2026-08-08: 端末の文字サイズ変更は window.resize を伴わず、配置済みの行だけが伸びて重なった。
+// 高さを固定せず各行の実寸変化から既存の stripPackColumn を再実行する。packer は y 順を保つため
+// 北→南の並びを変えず、押し出した行の rowBottom に合わせて #strip だけを伸ばせる。
+const stripRowResizeObserver = window.ResizeObserver
+  ? new ResizeObserver(scheduleStripLayout) : null;
 function stripIdealCenter(entry){
   return STRIP_TOP_PAD+(entry.y-stripYMin)*STRIP_PX_PER_M;
 }
@@ -2675,6 +2680,7 @@ function makeStripRow(entry, far){
   } else {
     row.style.top=stripIdealCenter(entry)+'px';
     stripRowNodes.set(entry.i,row);
+    if (stripRowResizeObserver) stripRowResizeObserver.observe(row);
     const rowIcon=catIconEl(entry.s.cat, 15); rowIcon.classList.add('strip-shop-dot');
     row.appendChild(rowIcon);
     appendStripShopName(row,entry.s.name);
