@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>なかやま商店街マップ</title>
-<meta name="description" content="なかやま商店街（仙台市青葉区）のお店を、実際の位置で見られるデジタルマップ。お店をタップすると紹介と公式ページに行けます。">
+<meta name="description" content="なかやま商店街（仙台市青葉区）のお店を、実際の位置で見られるデジタルマップ。お店をタップすると紹介と詳しい店舗情報に行けます。">
 <meta property="og:type" content="website">
 <meta property="og:title" content="なかやま商店街マップ">
 <meta property="og:description" content="なかやま商店街（仙台市青葉区）のお店を、実際の位置で見られるデジタルマップ。">
@@ -3175,7 +3175,10 @@ function buildDetailCard(s){
     statuses.appendChild(voiceButton);
   }
   if (s.note) statuses.appendChild(detailText('span', 'detail-status', '紹介あり'));
-  if (s.url && /^https:\/\//.test(s.url)) statuses.appendChild(detailText('span', 'detail-status', '公式ページあり'));
+  // 2026-07-29 組合担当者あみさん指定の言い回し。「公式ページ」は作り手の言葉で、
+  // 見る人には何が出るのか分からない。v2 へ作り直した時に旧表記へ戻っていた
+  // (2026-08-08 の過去FB総点検で発覚)。
+  if (s.url && /^https:\/\//.test(s.url)) statuses.appendChild(detailText('span', 'detail-status', '詳しい店舗情報あり'));
   if (statuses.children.length) card.appendChild(statuses);
   if (s.note) card.appendChild(detailText('p', 'detail-note', s.note));
 
@@ -3199,7 +3202,7 @@ function buildDetailCard(s){
   }
 
   if (s.url && /^https:\/\//.test(s.url)){
-    const link = detailText('a', 'detail-link', '公式ページを開く ↗');
+    const link = detailText('a', 'detail-link', '詳しい店舗情報はこちら ↗');
     link.href = s.url; link.target = '_blank'; link.rel = 'noopener';
     card.appendChild(link);
   }
