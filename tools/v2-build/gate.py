@@ -739,14 +739,31 @@ if not A.no_browser:
                 for (const t of vis) if (ovl(g, t.getBoundingClientRect()))
                   sigHit.push({n: t.textContent.trim(), kind: 'ラベル'});
               }
-              // この倍率で「どのお店？」チューザーが出る店の数。
-              // nearby が地図単位固定だとズームしても減らない。
-              let chooserShops = null;
+              // 印を押した時に その店が開くか。2026-08-08 に押し分けの判定を
+              // nearby() (実座標で20m以内なら必ず選択窓) から
+              // shopsByTapDistance() (押した所からの画面距離) へ変えた。
+              // gate は nearby を呼び続けていて、例外を握り潰していたため
+              // N24 が黙って対象0件になっていた。握り潰しは二度とやらない —
+              // 測れなかった時は null ではなく理由を返し、Python 側で不合格にする。
+              let tapSelf = null, tapErr = null;
               try {
-                chooserShops = GEO.shops.filter(s2 => nearby(s2).length > 1).length;
-              } catch (e) { chooserShops = null; }
+                if (typeof shopsByTapDistance !== 'function')
+                  throw new Error('shopsByTapDistance が無い');
+                if (typeof starTargetPx !== 'function')
+                  throw new Error('starTargetPx が無い');
+                const ownR = starTargetPx() / 2;
+                tapSelf = [];
+                for (const s of starList) {
+                  const ranked = shopsByTapDistance(s.cx, s.cy);
+                  if (!ranked.length) { tapSelf.push({n: s.n, got: '(候補なし)'}); continue; }
+                  if (ranked[0].d > ownR) { tapSelf.push({n: s.n, got: '選択窓'}); continue; }
+                  if (ranked[0].shop.name !== s.n)
+                    tapSelf.push({n: s.n, got: ranked[0].shop.name});
+                }
+              } catch (e) { tapErr = String((e && e.message) || e); }
               return {pxPerMeter:+s0.toFixed(4), rows, roadPx, labelCross:cross,
-                      labelsVisible:vis.length, uiCovered:covered, chooserShops,
+                      labelsVisible:vis.length, uiCovered:covered,
+                      tapSelf, tapErr, tapChecked: starList.length,
                       badges, sigW: sigBoxes.length ? +sigBoxes[0].width.toFixed(1) : 0,
                       sigCount: sigBoxes.length, sigHit, jsErrors:0,
                       // 2026-08-07: 「置けるはず」の判定を検査側でもう一度作ると、
@@ -873,13 +890,25 @@ if not A.no_browser:
                                         && bg.getBoundingClientRect().width > 1);
                     if (!vis && !badgeVis) out.voiceHidden.push(sp.name);
                   }
-                  // nearby の半径 (チューザーが出る条件) を実際の関数から測る
-                  let nb = null;
-                  try { nb = (typeof nearby === 'function')
-                        ? GEO.shops.filter(o => nearby(GEO.shops[0]).includes(o)).length : null; } catch (e) {}
-                  out.chooserShops = GEO.shops.filter(s => {
-                    try { return nearby(s).length > 1; } catch (e) { return false; }
-                  }).length;
+                  // 印を押した時に自分の店が開くか (押し分けの実測)。
+                  // 例外は握り潰さない — 測れなければ理由を返して不合格にする。
+                  out.tapSelf = null; out.tapErr = null;
+                  try {
+                    if (typeof shopsByTapDistance !== 'function')
+                      throw new Error('shopsByTapDistance が無い');
+                    const ownR = starTargetPx() / 2;
+                    out.tapSelf = [];
+                    for (const h of document.querySelectorAll('g.hit')) {
+                      const st = h.querySelector('.star'); if (!st) continue;
+                      const b = st.getBoundingClientRect(); if (!(b.width > 0)) continue;
+                      const nm = GEO.shops[+h.dataset.i].name;
+                      const ranked = shopsByTapDistance(b.left + b.width/2, b.top + b.height/2);
+                      if (!ranked.length) { out.tapSelf.push({n: nm, got: '(候補なし)'}); continue; }
+                      if (ranked[0].d > ownR) { out.tapSelf.push({n: nm, got: '選択窓'}); continue; }
+                      if (ranked[0].shop.name !== nm)
+                        out.tapSelf.push({n: nm, got: ranked[0].shop.name});
+                    }
+                  } catch (e) { out.tapErr = String((e && e.message) || e); }
                   return out;
                 }"""
                 # N27 ズームのたびに走るラベル配置が、時間内に終わるか。
@@ -1131,20 +1160,26 @@ if not A.no_browser:
                 # 画面の状態を作る手順。詳細シートは単一ボタンで開ける店、
                 # チューザーは複数候補が出る店を選ぶ。
                 STATES = [
+                  # 印の真ん中を押す = 現行の判定①。その店の詳細が開くのが正。
                   ("詳細シート", r"""async () => {
-                     const h=[...document.querySelectorAll('g.hit')].find(x=>{
-                       try{return nearby(GEO.shops[+x.dataset.i]).length<=1;}catch(e){return false;}})
-                       || document.querySelector('g.hit');
-                     h.dispatchEvent(new MouseEvent('click',{bubbles:true}));
-                     await new Promise(r=>setTimeout(r,700)); return true; }"""),
+                     const h=document.querySelector('g.hit');
+                     if(!h) return false;
+                     const st=h.querySelector('.star'); const b=st.getBoundingClientRect();
+                     st.dispatchEvent(new MouseEvent('click',{bubbles:true,detail:1,
+                       clientX:b.left+b.width/2, clientY:b.top+b.height/2}));
+                     await new Promise(r=>setTimeout(r,700));
+                     return document.body.classList.contains('detail-open'); }"""),
+                  # 選択窓。指では ほぼ到達しない状態になったが (2026-08-08 実測:
+                  # 印の中点1770通りのうち、選択窓の条件を満たすのは3通り)、
+                  # 出た時の見た目は検査する。到達性は N24 側で別に測る。
                   ("チューザー", r"""async () => {
                      document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
                      await new Promise(r=>setTimeout(r,300));
-                     const h=[...document.querySelectorAll('g.hit')].find(x=>{
-                       try{return nearby(GEO.shops[+x.dataset.i]).length>1;}catch(e){return false;}});
-                     if(!h) return false;
-                     h.dispatchEvent(new MouseEvent('click',{bubbles:true}));
-                     await new Promise(r=>setTimeout(r,450)); return true; }"""),
+                     if (typeof showChooser !== 'function') return false;
+                     const list=GEO.shops.slice(0,3);
+                     showChooser(list, list[0]);
+                     await new Promise(r=>setTimeout(r,450));
+                     return document.getElementById('chooser').classList.contains('show'); }"""),
                   ("お店一覧", r"""async () => {
                      document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
                      await new Promise(r=>setTimeout(r,300));
@@ -1192,8 +1227,14 @@ if not A.no_browser:
                     for _k in ("texts", "taps", "wrap", "clip", "contrast", "gaps", "emoji"):
                         sweep[_k] += base[_k]
                     sweep["bypass"] = base["bypass"]
+                    # 状態を作れなかったら「対象が無い」ではなく「測れなかった」。
+                    # 黙って continue すると、その画面が総なめから消える
+                    # (2026-08-08 実測: nearby() の廃止でチューザーが対象0件のまま
+                    #  PASS し続けていた)。作れなかった状態は控えて不合格にする。
+                    sweep["missing"] = []
                     for st, act in STATES:
                         if up.evaluate(act) is False:
+                            sweep["missing"].append(st)
                             continue
                         r = up.evaluate(SWEEPJS, st)
                         for _k in ("texts", "taps", "wrap", "clip", "contrast", "gaps", "emoji"):
@@ -1272,6 +1313,7 @@ if not A.no_browser:
                         u["voiceHidden"] = m2["voiceHidden"]
                         # N45-N47 地図の画面。開いた地図を実際に測る (2026-07-31 追加)
                         u["mapFrame"] = up.evaluate(MAP_FRAME_JS)
+                    u["vw"] = uw
                     u["vh"] = uh
                     u["portrait"] = uh > uw
                     u["sweep"] = sweep
@@ -1434,7 +1476,7 @@ fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "
                          "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27",
                          "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39",
                          "N40", "N41", "N42", "N43", "N44",
-                         "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52")}
+                         "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -2144,14 +2186,32 @@ if REND:
         fails["N21"].append("%s (%s) が %.1fpx (床%.0f) [%s]"
                             % (sel_, e["txt"], e["fs"], lim, _where(e["where"])))
 
-    # N24 密集地でチューザーが出る店の数。既定ズームでは指(44px)が2店(最短8.5m=7.8px)を
-    # 覆うので不可避。だが nearby が地図単位固定(22m)だとズームしても減らない
-    # (2026-07-30 実測: 5px/m でも21件。店は42px離れているのに出る)。
-    # 画面px基準にすれば歩きズームで8件、拡大しきれば0件になり単一ボタンで押せる。
-    wk = REND.get("walk") or {}
-    if wk.get("chooserShops") is not None and wk["chooserShops"] > 10:
-        fails["N24"].append("歩きズームでチューザーが出る店が%d件 (上限10件)。"
-                            "nearby が画面px基準になっていない" % wk["chooserShops"])
+    # N24 印を押したらその店が開く (2026-08-08 ボス指示「選択窓より、ちゃんと見やすく
+    # 押しやすく独立してあるボタンがある方がいい」)。旧版は nearby() の件数を数えて
+    # いたが、その関数は 2026-08-08 に廃止された。gate は呼び続けて例外を握り潰し、
+    # 対象0件のまま PASS していた。押した所の実判定で測り直す。
+    for _zn, _z in (("既定ズーム", REND), ("歩きズーム", REND.get("walk") or {})):
+        if not _z:
+            continue
+        if _z.get("tapErr"):
+            fails["N24"].append("%s で押し分けを測れなかった: %s "
+                                "(判定の関数を変えたら gate も直すこと)" % (_zn, _z["tapErr"]))
+            continue
+        _ts = _z.get("tapSelf")
+        if _ts is None:
+            fails["N24"].append("%s で押し分けの測定そのものが行われていない" % _zn)
+        elif _ts:
+            fails["N24"].append("%s: 印を押しても その店が開かない %d件 (%s)"
+                                % (_zn, len(_ts),
+                                   "、".join("%s→%s" % (x["n"], x["got"]) for x in _ts[:4])))
+
+    # N53 検査が対象を作れていること。状態を作れずに黙って飛ばすと、
+    # その画面は総なめから消えたまま PASS になる。
+    for u in REND.get("ui") or []:
+        _ms = (u.get("sweep") or {}).get("missing") or []
+        if _ms:
+            fails["N53"].append("%dx%d で作れなかった画面: %s"
+                                % (u.get("vw", 0), u.get("vh", 0), "、".join(_ms)))
 
 # ---- N16 座標の出典 (src) が書き換えられていない ----
 # src は N7 の上限を決めるキーなので、書き換えれば閾値を緩めたのと同じになる。
@@ -2180,7 +2240,7 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N19": "信号アイコンが★やラベルと重なっていない",
        "N20": "操作要素が44x44px以上", "N21": "文字が14px以上 (帰属表示は12px)",
        "N22": "操作要素が画面の外に出ていない", "N23": "地図が画面の62%以上",
-       "N24": "拡大すればチューザーなしで単一ボタンで押せる",
+       "N24": "印を押したらその店が開く (選択窓なしで独立して押せる)",
        "N25": "固定UIが帰属表示・注記を覆っていない",
        "N26": "こどもの声の店のラベルが端末を問わず出ている",
        "N27": "ズームしても地図の再描画が止まらない",
@@ -2208,12 +2268,13 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N49": "絞り込んだ結果が1画面で見渡せる",
        "N50": "探しそうな言葉で店が引ける",
        "N51": "通りの中の道路名・信号が重なっていない",
-       "N52": "地図が枠を埋めている (下に空白が残らない)"}
+       "N52": "地図が枠を埋めている (下に空白が残らない)",
+       "N53": "検査が対象を作れている (状態が黙って抜けていない)"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
               "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43", "N44",
-              "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52"):
+              "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
@@ -2341,10 +2402,17 @@ P("  信号が交差点に立っている: %d / %d" % (sum(SIG_OK), len(signals)
 if sum(SIG_OK) != len(signals):
     gfail.append("交差点にない信号 %d基" % (len(signals) - sum(SIG_OK)))
 
+# 「歩ける店」= 店ごとの違反が1件も無い店の数。違反文の先頭語を店名とみなすが、
+# 店名で始まらない違反文 (端末名・要素名など) まで店として数えていた。
+# 2026-08-08 実測: N53 の「360x640 で…」6件が幽霊の6店になり 60→54 と出た。
+# 実在する店名だけを数える。
+_shop_names = {s["name"] for s in shops}
 nav_fail = set()
 for k in fails:
     for t in fails[k]:
-        nav_fail.add(t.split(" ")[0].split("(")[0].split("←")[0].strip())
+        nm = t.split(" ")[0].split("(")[0].split("←")[0].strip()
+        if nm in _shop_names:
+            nav_fail.add(nm)
 P("")
 P("=" * 78)
 P("歩ける店 (N1..N44 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
