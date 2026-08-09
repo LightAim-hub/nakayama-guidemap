@@ -144,6 +144,10 @@
     touch-action:none; cursor:grab; }
   #viewport.is-panning{ cursor:grabbing; user-select:none; }
   #mapwrap{ width:100%; max-width:1000px; margin:0 auto; position:relative; }
+  /* 2026-08-09: 広い画面で地図が中央1000pxに収まり、左右が大きく空いていた
+     (1440pxで左右200pxずつ)。地図を開いている間は画面を使い切る。
+     二列表示の時は今までどおり1000pxのまま。 */
+  body.map-open #mapwrap{ max-width:none; }
   svg{ display:block; width:100%; height:auto; }
   body.map-open #mapwrap, body.map-open #map{ width:100%; height:100%; }
   text{ user-select:none; }
@@ -186,6 +190,11 @@
   .shoplabel{ font-family:'Yusei Magic',sans-serif; fill:var(--ink); font-weight:700;
     paint-order:stroke; stroke:var(--paper); stroke-width:7px; stroke-linejoin:round; }
   .shoplabel.b{ font-weight:700; }
+  /* いま開いているか (2026-08-09)。掲載から確実に読めるものだけ出す */
+  .open-now{ display:inline-block; padding:2px 10px; border-radius:999px;
+    font-weight:700; font-size:max(14px,.875rem); border:2px solid currentColor; }
+  .open-now--open{ color:#1f6b3c; background:#eaf7ee; }
+  .open-now--closed{ color:#8a4a20; background:#f7efe6; }
   /* 引いた時に重なる印をまとめた丸 (2026-08-09) */
   .cluster{ cursor:pointer; }
   .cluster-dot{ fill:#fffaf0; stroke:var(--ink); stroke-width:2px; vector-effect:non-scaling-stroke; }
@@ -3384,9 +3393,9 @@ function buildDetailCard(s){
   }
   const photos = Array.isArray(s.photos) ? s.photos.filter(photo => photo && photo.src && photo.alt) : [];
   if (photos.length) card.appendChild(buildPhotoGallery(s, photos));
-  const facts = buildDetailFacts(s);
-  if (facts) card.appendChild(facts);
-  card.appendChild(buildDetailActions(s));
+  // 2026-08-09: こどもの声のボタンが 電話・営業時間・道順 の下にあり、写真のある地点では
+  // 画面の外に落ちて、声で絞り込んだ人に声が見えなかった。2026-07-29 のあみさん指定
+  // (写真は店名の下・こどもの声バッジの上) どおり、写真のすぐ下へ戻す。
   const statuses = detailText('div', 'detail-statuses');
   const voices = s.voices || [];
   if (voices.length){
@@ -3416,6 +3425,9 @@ function buildDetailCard(s){
   // (2026-08-08 の過去FB総点検で発覚)。
   if (s.url && /^https:\/\//.test(s.url)) statuses.appendChild(detailText('span', 'detail-status', '詳しい店舗情報あり'));
   if (statuses.children.length) card.appendChild(statuses);
+  const facts = buildDetailFacts(s);
+  if (facts) card.appendChild(facts);
+  card.appendChild(buildDetailActions(s));
   if (s.note) card.appendChild(detailText('p', 'detail-note', s.note));
 
   if (voices.length){
@@ -3447,6 +3459,57 @@ function buildDetailCard(s){
 }
 // 2026-08-04: 電話も営業時間も出していなかった。公式ページには書いてあるので取り込む。
 // 「開いてるかな」「電話してから行こうかな」は、現地に立った人が最初に思うこと。
+// ---- 「いま開いているか」 ----
+// 2026-08-09 ボス判断。営業時間44店・定休日41店を持っているのに出していなかった。
+// ただし掲載の書き方は店ごとにばらばら（「不定休」「第1.2.3水曜日」「お問い合わせください」
+// 「9:00～なくなり次第終了」など）。**確実に読めるものだけ**出し、少しでも曖昧なら
+// 何も出さない。間違って「営業中」と出す方が、出さないより害が大きい。
+const WEEK_JA = ['日','月','火','水','木','金','土'];
+function closedStateToday(s, now){
+  const c = (s.closed || '').trim();
+  if (!c) return null;                       // 定休の記載が無い = 休みか分からない
+  if (/無休/.test(c)) return 'open';
+  // 読み解けない書き方は判定しない
+  if (/不定休|問い合わせ|問合|第\s*[0-9０-９]|毎月|元旦|年末年始|GW|お盆|臨時/.test(c)) return null;
+  const day = WEEK_JA[now.getDay()];
+  for (const part of c.split(/[、,・\/／]/).map(t => t.trim()).filter(Boolean)){
+    // 「木曜午後」のような半日休みは、時間まで読み取れないので判定しない
+    if (/午前|午後/.test(part)) { if (part.indexOf(day) >= 0) return null; continue; }
+    if (/^祝/.test(part)) continue;          // 今日が祝日かどうかは分からない
+    if (part.indexOf(day) >= 0) return 'closedToday';
+  }
+  if (/祝/.test(c)) return null;             // 祝日休みの店は「営業中」と断定しない
+  return 'open';
+}
+function hoursRangesToday(s){
+  const h = (s.hours || '').trim();
+  if (!h) return null;
+  if (/問い合わせ|問合|なくなり次第|予約制|要相談|応相談/.test(h)) return null;
+  if (/24時間/.test(h)) return [[0, 1440]];
+  if (/※/.test(h)) return null;              // 注記つきは断定しない
+  if (/[月火水木金土日]曜|平日|[月火水木金土日]・/.test(h)) return null;  // 曜日で違う店は読まない
+  const found = [...h.matchAll(
+    /(\d{1,2})\s*[:：時]\s*(\d{0,2})\s*分?\s*[~〜～\-−–ー]\s*(\d{1,2})\s*[:：時]\s*(\d{0,2})/g)];
+  if (!found.length) return null;
+  return found.map(m => {
+    const a = (+m[1]) * 60 + (+(m[2] || 0));
+    let b = (+m[3]) * 60 + (+(m[4] || 0));
+    if (b <= a) b += 1440;                   // 25:00 や 0:00 のような日またぎ
+    return [a, b];
+  });
+}
+function openNowLabel(s, now){
+  const at = now || new Date();
+  const state = closedStateToday(s, at);
+  if (state === 'closedToday') return {text:'本日定休', kind:'closed'};
+  if (state !== 'open') return null;
+  const ranges = hoursRangesToday(s);
+  if (!ranges) return null;
+  const mins = at.getHours() * 60 + at.getMinutes();
+  const inside = ranges.some(([a, b]) =>
+    (mins >= a && mins < b) || (mins + 1440 >= a && mins + 1440 < b));
+  return inside ? {text:'いま営業中', kind:'open'} : {text:'いまは時間外', kind:'closed'};
+}
 function buildDetailFacts(s){
   const rows = [
     ['電話',   s.tel,    'tel'],
@@ -3455,6 +3518,15 @@ function buildDetailFacts(s){
   ].filter(r => r[1]);
   if (!rows.length) return null;
   const box = detailText('dl', 'detail-facts');
+  const now = openNowLabel(s);
+  if (now){
+    box.appendChild(detailText('dt', 'detail-fact-label', 'いま'));
+    const dd = detailText('dd', 'detail-fact-value');
+    const tag = detailText('span', 'open-now open-now--' + now.kind, now.text);
+    tag.setAttribute('aria-label', s.name + 'は' + now.text);
+    dd.appendChild(tag);
+    box.appendChild(dd);
+  }
   rows.forEach(([label, value, kind]) => {
     box.appendChild(detailText('dt', 'detail-fact-label', label));
     const dd = detailText('dd', 'detail-fact-value');
@@ -3516,7 +3588,10 @@ function updateDetailIndex(index, panMap){
   detailIndex = Math.max(0, Math.min(detailShops.length - 1, index));
   const s = detailShops[detailIndex];
   pinned = s;
-  detailCount.textContent = (detailIndex + 1) + ' / ' + detailShops.length;
+  // 2026-08-09: 「29 / 60」だけでは何の順番か伝わらない。件数だと分かる形にする。
+  detailCount.textContent = (detailIndex + 1) + '件目 / ' + detailShops.length + '件';
+  detailCount.setAttribute('aria-label',
+    detailShops.length + '件中 ' + (detailIndex + 1) + '件目');
   detailPrev.disabled = detailIndex === 0;
   detailNext.disabled = detailIndex === detailShops.length - 1;
   detailTitle.textContent = s.name + 'の詳細';
