@@ -1279,6 +1279,16 @@ if not A.no_browser:
                   for (const e of document.querySelectorAll('.strip-shop-name')) {
                     if (!vis(e)) continue;
                     const full = e.textContent.trim();
+                    // かたまり自体が1文字 = 折り返した時にその1文字が行に取り残される。
+                    // 「ウジエスーパー / 中 / 山店」がこれだった (ボスの実機写真)。
+                    // かたまりの内側では折れていないので、下の判定では見えない。
+                    // もとの名前で独立した語 (「ダイニングバー 祭」の「祭」) は正しい。
+                    const words = new Set(full.split(/\s+/));
+                    for (const sp of e.querySelectorAll('span')) {
+                      const one = sp.textContent;
+                      if ([...one].length === 1 && !words.has(one))
+                        lone.push({state, txt: full.slice(0,22), line: '「'+one+'」だけのかたまり'});
+                    }
                     for (const sp of e.querySelectorAll('span')) {
                       const t = sp.firstChild;
                       if (!t || t.nodeType !== 3) continue;
