@@ -1257,26 +1257,42 @@ if not A.no_browser:
                                   order:getComputedStyle(e).order})),
                   };
                   // N57 一覧の店名が語の途中で折り返されていないか。
-                  // 2026-08-09: 「ウジエスーパー中 / 山店」のように語の途中で1文字だけが
-                  // 行をまたいでいた (ボスの実機写真)。一度直したのに割れ方が変わって
-                  // 同じ日に再発したので検査に入れる。もとの名前で独立した語
-                  //(「ダイニングバー 祭」の「祭」) は正しいので数えない。
+                  // 2026-08-09: 「ウジエスーパー中 / 山店」のように行の境目が語の途中に
+                  // 来ていた (ボスの実機写真)。一度直したのに割れ方が変わって同じ日に
+                  // 再発したので検査に入れる。
+                  // 判定 = 行の境目にある2文字が「同じ文字種で、もとの名前で隣り合っている」なら不合格。
+                  //   中｜山  → どちらも漢字で隣り合う → 語の途中 → 不合格
+                  //   ー｜中  → カタカナと漢字の境目 → 自然な折り返し → 合格
+                  //   バー｜祭 → もとの名前では間に空白 → 合格
+                  // 「1文字だけの行」で数えると「ウジエスーパー中 / 山店」を取りこぼす
+                  // (1行目8文字・2行目2文字なので、1文字の行が無い)。2026-08-09 に実際に外した。
+                  const charKind = ch => /[ァ-ヺーヽヾ・]/.test(ch) ? 'kana'
+                    : /[ぁ-ゟ一-鿿々〆ヵヶ]/.test(ch) ? 'jp'
+                    : /[0-9A-Za-z]/.test(ch) ? 'latin' : 'other';
                   const lone = [];
                   for (const e of document.querySelectorAll('.strip-shop-name')) {
                     if (!vis(e)) continue;
                     const spans = [...e.querySelectorAll('span')];
                     if (spans.length < 2) continue;
-                    const rows = new Map();
+                    const rows = [];
                     spans.forEach(sp => {
                       const top = Math.round(sp.getBoundingClientRect().top);
-                      rows.set(top, (rows.get(top) || '') + sp.textContent);
+                      const last = rows[rows.length - 1];
+                      if (last && Math.abs(last.top - top) <= 1) last.text += sp.textContent;
+                      else rows.push({top, text: sp.textContent});
                     });
-                    if (rows.size < 2) continue;
-                    const words = new Set(e.textContent.trim().split(/\s+/));
-                    for (const line of rows.values()) {
-                      const one = line.trim();
-                      if ([...one].length === 1 && !words.has(one))
-                        lone.push({state, txt:e.textContent.trim().slice(0,22), line:one});
+                    if (rows.length < 2) continue;
+                    const full = e.textContent;
+                    for (let i = 1; i < rows.length; i++) {
+                      const before = rows[i-1].text.slice(-1);
+                      const after = rows[i].text.slice(0, 1);
+                      if (!before || !after) continue;
+                      // もとの名前で連続していない = 間に空白がある = 自然な折り返し
+                      if (full.indexOf(before + after) < 0) continue;
+                      const k = charKind(before);
+                      if (k !== 'other' && k === charKind(after))
+                        lone.push({state, txt: full.trim().slice(0,22),
+                                   line: before + '｜' + after});
                     }
                   }
                   return {texts, taps, wrap, clip, contrast, gaps, emoji, bypass, lone};
@@ -1346,9 +1362,9 @@ if not A.no_browser:
                     up.goto(url, wait_until="load")
                     up.wait_for_timeout(1200)
                     sweep = {"texts": [], "taps": [], "wrap": [], "clip": [],
-                             "contrast": [], "gaps": [], "emoji": []}
+                             "contrast": [], "gaps": [], "emoji": [], "lone": []}
                     base = up.evaluate(SWEEPJS, "開いた直後")
-                    for _k in ("texts", "taps", "wrap", "clip", "contrast", "gaps", "emoji"):
+                    for _k in ("texts", "taps", "wrap", "clip", "contrast", "gaps", "emoji", "lone"):
                         sweep[_k] += base[_k]
                     sweep["bypass"] = base["bypass"]
                     # 状態を作れなかったら「対象が無い」ではなく「測れなかった」。
@@ -1361,7 +1377,7 @@ if not A.no_browser:
                             sweep["missing"].append(st)
                             continue
                         r = up.evaluate(SWEEPJS, st)
-                        for _k in ("texts", "taps", "wrap", "clip", "contrast", "gaps", "emoji"):
+                        for _k in ("texts", "taps", "wrap", "clip", "contrast", "gaps", "emoji", "lone"):
                             sweep[_k] += r[_k]
                     up.evaluate("""async () => {
                         document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
@@ -2087,7 +2103,7 @@ if REND:
             _lone.setdefault((it["txt"], it["line"]), []).append(
                 "%dx%d %s" % (u["vw"], u.get("vh", 0), it["state"]))
     for (txt, line), where in sorted(_lone.items()):
-        fails["N57"].append("一覧の「%s」が「%s」の1文字だけで行が分かれる [%s]"
+        fails["N57"].append("一覧の「%s」が語の途中「%s」で行が分かれる [%s]"
                             % (txt, line, sorted(set(where))[0]))
 
     for _k, _n, _fmt in (("wrap", "N28", "%s (%s) が「%s」で改行される [%s]"),
