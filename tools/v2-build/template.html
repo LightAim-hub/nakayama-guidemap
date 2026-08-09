@@ -1566,8 +1566,22 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       return Math.min(rect.right,blocked.right)-Math.max(rect.left,blocked.left) > .05 &&
         Math.min(rect.bottom,blocked.bottom)-Math.max(rect.top,blocked.top) > .05;
     });
-    const labelInsideViewport = rect => {
+    const labelInsideViewport = (rect, entry) => {
       if (!viewportRect) return true;
+      // 2026-08-09: 「画面とまったく重ならない名前は合格」にしていた。引き出し線で
+      // 遠くへ運んでいた頃の名残で、線を廃した今は「印は画面に見えているのに
+      // 名前だけ画面の外」という置き方を許してしまう (実測: 1画面あたり最大10件。
+      // 使う人には名前が無いのと同じ)。印が画面に見えている店は、名前も画面の中に
+      // 収まる置き場だけを使う。
+      if (entry){
+        const own = starCenters.get(entry.idx);
+        if (own && own.x >= viewportRect.left && own.x <= viewportRect.right &&
+                   own.y >= viewportRect.top && own.y <= viewportRect.bottom){
+          const painted = expandedRect(rect, 4);
+          return painted.left >= viewportRect.left+6 && painted.right <= viewportRect.right-6 &&
+                 painted.top >= viewportRect.top+6 && painted.bottom <= viewportRect.bottom-6;
+        }
+      }
       // getBBox() does not include every painted pixel of the outlined SVG text.
       // Keep an extra metric guard so a candidate judged just outside the visible
       // band cannot paint back across the header/footer edge by a few pixels.
@@ -1629,7 +1643,7 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       const renderedRect=renderedCandidateRect(entry,rect);
       if (!anchorBelongsToOwnStar(entry,candidate)) return 'anchor';
       if (!belongsToOwnStar(entry,renderedMainRect)) return 'owner';
-      if (!labelInsideViewport(renderedRect)) return 'viewport';
+      if (!labelInsideViewport(renderedRect, entry)) return 'viewport';
       if (overlapsKeepOut(renderedRect)) return 'keepout';
       if (overlapsMapSymbol(entry,renderedRect)) return 'symbol';
       if (overlapsRoad(renderedRect)) return 'road';
@@ -1683,7 +1697,7 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       const renderedMainRect=renderedCandidateRect(entry,mainRect);
       const renderedRect=renderedCandidateRect(entry,rect);
       if (!anchorBelongsToOwnStar(entry,candidate) || !belongsToOwnStar(entry,renderedMainRect)) return false;
-      if (!labelInsideViewport(renderedRect) || overlapsKeepOut(renderedRect) ||
+      if (!labelInsideViewport(renderedRect, entry) || overlapsKeepOut(renderedRect) ||
           overlapsMapSymbol(entry,renderedRect) || overlapsRoad(renderedRect)) return false;
       if (nearbyPlacementConflicts(renderedRect).length) return false;
       setLabelPosition(entry,candidate,scale);
@@ -1697,7 +1711,7 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       const renderedMainRect=renderedCandidateRect(entry,mainRect);
       const renderedRect=renderedCandidateRect(entry,rect);
       if (!anchorBelongsToOwnStar(entry,candidate) || !belongsToOwnStar(entry,renderedMainRect)) return false;
-      if (!labelInsideViewport(renderedRect) || overlapsKeepOut(renderedRect) ||
+      if (!labelInsideViewport(renderedRect, entry) || overlapsKeepOut(renderedRect) ||
           overlapsMapSymbol(entry,renderedRect) || overlapsRoad(renderedRect)) return false;
       if (nearbyPlacementConflicts(renderedRect).length) return false;
       addPlacement(entry,renderedRect);
@@ -1728,7 +1742,7 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
         const renderedRect=renderedCandidateRect(entry,rect);
         if (!anchorBelongsToOwnStar(entry,candidate) ||
             !belongsToOwnStar(entry,renderedMainRect)) continue;
-        if (!labelInsideViewport(renderedRect) || overlapsKeepOut(renderedRect) ||
+        if (!labelInsideViewport(renderedRect, entry) || overlapsKeepOut(renderedRect) ||
             overlapsMapSymbol(entry,renderedRect) || overlapsRoad(renderedRect)) continue;
         options.push({candidate,rect:renderedRect});
       }
@@ -1824,7 +1838,7 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
         const renderedRect=renderedCandidateRect(entry,rect);
         if (!anchorBelongsToOwnStar(entry,candidate)){ reject.anchor++; return; }
         if (!belongsToOwnStar(entry,renderedMainRect)){ reject.owner++; return; }
-        if (!labelInsideViewport(renderedRect)){ reject.viewport++; return; }
+        if (!labelInsideViewport(renderedRect, entry)){ reject.viewport++; return; }
         if (overlapsKeepOut(renderedRect)){ reject.keepout++; return; }
         if (overlapsMapSymbol(entry,renderedRect)){ reject.symbol++; return; }
         if (overlapsRoad(renderedRect)){ reject.road++; return; }
