@@ -3050,6 +3050,14 @@ function stripChild(tag,className,text){
 const stripNameSegmenter=typeof Intl.Segmenter === 'function'
   ? new Intl.Segmenter('ja',{granularity:'word'}) : null;
 const stripNameSuffix=/^(?:丁目|支店|薬局|センター|クリニック)$/;
+// 一覧の店名の「かたまり」の最大の長さ (文字数)。
+// これより長いかたまりは、あらかじめ分けて置く。分けておけば
+// 入る時は同じ行に並び、入らない時だけ かたまりの境目で折れる。
+// 分けずに置くと、狭い端末でブラウザが好きな所で折り、1文字だけ落ちる
+// (実測: 320px・文字24px で「リハビリステーショ / ン」)。
+const STRIP_NAME_MAX_CHUNK=4;
+// 行の頭に来てはいけない字。ここでは分けない (「ステ / ーション」を避ける)
+const STRIP_NAME_HEAD_NG=/[ーンっッぁぃぅぇぉゃゅょァィゥェォャュョ、。・]/;
 // 文字の種類。カタカナ (長音・中黒を含む) / ひらがな・漢字 / 英数 に分ける。
 // 折り返してよいのはこの境目だけ、という判断に使う。
 function stripNameKind(text){
@@ -3091,13 +3099,31 @@ function setStripShopName(node,name){
     const prev=tokens[tokens.length-1];
     if (prev && !prev.space){
       const a=stripNameKind(prev.text), b=stripNameKind(part);
-      if (a !== 'other' && a === b){
+      // くっつけた結果が長すぎると、こんどは枠に入らずブラウザが好きな所で折る。
+      // 2026-08-09 実測: 「リハビリ」+「ステーション」を1つにしたら
+      // 「リハビリステーショ / ン / 中山」と1文字だけ落ちた (枠131px・文字14px)。
+      // 枠に入る目安は9文字なので、それを超えるくっつけ方はしない。
+      if (a !== 'other' && a === b &&
+          [...prev.text].length + [...part].length <= STRIP_NAME_MAX_CHUNK){
         prev.text+=part;
         return;
       }
     }
     tokens.push({text:part,space:false});
   });
+  // 長いかたまりは、枠に入る長さに分けて置く (上の定数の理由を参照)
+  const chunks=[];
+  tokens.forEach(t => {
+    if (t.space || [...t.text].length <= STRIP_NAME_MAX_CHUNK){ chunks.push(t); return; }
+    const ch=[...t.text];
+    while (ch.length){
+      let n=Math.min(STRIP_NAME_MAX_CHUNK, ch.length);
+      if (ch.length - n === 1) n--;   // 残りが1文字だけになる分け方はしない
+      while (n > 1 && n < ch.length && STRIP_NAME_HEAD_NG.test(ch[n])) n--;
+      chunks.push({text:ch.splice(0, n).join(''), space:false});
+    }
+  });
+  tokens.length=0; chunks.forEach(t => tokens.push(t));
   tokens.forEach((token, i) => {
     if (token.space){ node.appendChild(document.createTextNode(' ')); return; }
     // 2026-08-09: 折り返しで最後の1文字だけが次の行へ落ちていた

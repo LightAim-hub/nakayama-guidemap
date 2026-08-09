@@ -1269,30 +1269,35 @@ if not A.no_browser:
                   const charKind = ch => /[ァ-ヺーヽヾ・]/.test(ch) ? 'kana'
                     : /[ぁ-ゟ一-鿿々〆ヵヶ]/.test(ch) ? 'jp'
                     : /[0-9A-Za-z]/.test(ch) ? 'latin' : 'other';
+                  // 判定 = 本体が決めた「かたまり」(span) の中で行が変わっていないか。
+                  // 長い外来語は枠に入らないのでどこかで折るしかなく、境目そのものは
+                  // 責められない。責めるべきは**かたまりの内側で折れること**で、
+                  // それが「ウジエスーパー中 / 山店」「リハビリステーショ / ン」の正体。
+                  // 折ってよい位置の定義は本体 (setStripShopName) が持っている。
+                  // 検査側で定義し直すと必ずズレるので、span の切れ目をそのまま使う。
                   const lone = [];
                   for (const e of document.querySelectorAll('.strip-shop-name')) {
                     if (!vis(e)) continue;
-                    const spans = [...e.querySelectorAll('span')];
-                    if (spans.length < 2) continue;
-                    const rows = [];
-                    spans.forEach(sp => {
-                      const top = Math.round(sp.getBoundingClientRect().top);
-                      const last = rows[rows.length - 1];
-                      if (last && Math.abs(last.top - top) <= 1) last.text += sp.textContent;
-                      else rows.push({top, text: sp.textContent});
-                    });
-                    if (rows.length < 2) continue;
-                    const full = e.textContent;
-                    for (let i = 1; i < rows.length; i++) {
-                      const before = rows[i-1].text.slice(-1);
-                      const after = rows[i].text.slice(0, 1);
-                      if (!before || !after) continue;
-                      // もとの名前で連続していない = 間に空白がある = 自然な折り返し
-                      if (full.indexOf(before + after) < 0) continue;
-                      const k = charKind(before);
-                      if (k !== 'other' && k === charKind(after))
-                        lone.push({state, txt: full.trim().slice(0,22),
-                                   line: before + '｜' + after});
+                    const full = e.textContent.trim();
+                    for (const sp of e.querySelectorAll('span')) {
+                      const t = sp.firstChild;
+                      if (!t || t.nodeType !== 3) continue;
+                      const txt = t.textContent;
+                      if (txt.length < 2) continue;
+                      const rg = document.createRange();
+                      let prevTop = null, at = null;
+                      for (let i = 0; i < txt.length; i++) {
+                        rg.setStart(t, i); rg.setEnd(t, i + 1);
+                        const b = rg.getBoundingClientRect();
+                        if (!(b.width > 0)) continue;
+                        const top = Math.round(b.top);
+                        if (prevTop !== null && top > prevTop + 1){
+                          at = txt[i-1] + '｜' + txt[i];
+                          break;
+                        }
+                        prevTop = top;
+                      }
+                      if (at) lone.push({state, txt: full.slice(0,22), line: at});
                     }
                   }
                   return {texts, taps, wrap, clip, contrast, gaps, emoji, bypass, lone};
