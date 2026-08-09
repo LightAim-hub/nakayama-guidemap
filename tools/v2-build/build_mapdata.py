@@ -149,12 +149,26 @@ def apply_official_fixes(shop_list, label=None):
     return renamed, relinked
 
 
+# 2026-08-09 ボス経由の組合確認: 5丁目の店の掲載名は「Double Egg」だけ。
+# 4丁目は「Double Egg4丁目」のまま。座標・URL の対応表は旧名 (=内部名) で引くので、
+# 差し替えは全部を組み終わった最後に行う (下の FINAL_RENAME)。
+# ⚠ 凍結ベースは前回の生成物 (mapdata.json) なので、そこには差し替え後の名前が
+#   入っている。読み込んだ直後に内部名へ戻さないと、次のビルドが必ず
+#   「店が増減しています」で止まる (2026-08-09 実際に止まった)。
+FINAL_RENAME = {'Double Egg5丁目': 'Double Egg'}
+FINAL_RENAME_BACK = {v: k for k, v in FINAL_RENAME.items()}
+
+
 # 通常ビルドは、現在の本番mapdataを位置修正前の凍結ベースとして使う。
 # preview側で増えた道路・信号・meta・店舗付帯情報を本番へ混ぜないための境界。
 PRODUCTION_BASELINE = None
 if not ARGS.preview:
     with open(P('mapdata.json'), encoding='utf-8') as f:
         PRODUCTION_BASELINE = json.load(f)
+    for _sh in PRODUCTION_BASELINE.get('shops', []):
+        _back = FINAL_RENAME_BACK.get(_sh.get('name'))
+        if _back:
+            _sh['name'] = _back
     revert_official_fixes(PRODUCTION_BASELINE.get('shops', []))
     PRODUCTION_BASELINE['shops'] = [sh for sh in PRODUCTION_BASELINE.get('shops', [])
                                    if sh['name'] not in CLOSED_SHOPS]
@@ -1910,10 +1924,7 @@ if os.path.exists(_details_path):
 else:
     print('official_details.json が無いので電話・営業時間は入れない')
 
-# 2026-08-09 ボス経由の組合確認: 5丁目の店の掲載名は「Double Egg」だけ。
-# 4丁目は「Double Egg4丁目」のまま。座標・URL の対応表は旧名で引くので、
-# すべて組み終わったこの位置で名前だけ差し替える。
-FINAL_RENAME = {'Double Egg5丁目': 'Double Egg'}
+# 掲載名への差し替え (定義と理由は冒頭の FINAL_RENAME を見る)
 for _sh in shops:
     _new = FINAL_RENAME.get(_sh['name'])
     if _new:

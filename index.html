@@ -1995,6 +1995,109 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
         hideLabel(entry);
       }
     });
+    // 2026-08-09 ボス「まあ多少横に動かすとかでもいいよ多少ね、いやこことここ
+    // 店の位置違いすぎるやんってならなかったら大丈夫」。
+    // ここまでで名前が置けなかった店だけ、印そのものを通りに沿って横へ逃がして
+    // 名前の入る隙間を作る。斜め配置を廃した代償 (名前が出ない店が 2件→9件) を、
+    // 「名前は印の真横・真下・真上」を守ったまま戻すための手段。
+    //  - 動かすのは名前が出ていない店の印だけ。出ている名前は1pxも動かさない
+    //  - 実位置から MARK_SHIFT_MAX_M 以内・通りは渡らない (spreadMarks と同じ制約)
+    //  - 動かした先で 印どうしが重なる / 道路の塗りに乗る なら その位置は使わない
+    const nudgeMarksForLabels = () => {
+      if (!screenMatrix || !(screenMatrix.a > 0)) return false;
+      const markPxNow = starTargetPx() * 1.15;   // 縁取りのぶん見た目が大きい
+      const half = markPxNow / 2, needPx = markPxNow + MARK_MIN_GAP_PX;
+      const boxAt = point => ({left:point.x-half, right:point.x+half,
+                               top:point.y-half, bottom:point.y+half});
+      // いちばん近い印との隙間 (縦横のどちらか広い方で測る = 印は四角なので)
+      const nearestMarkGap = (idx, point) => {
+        let worst = Infinity;
+        for (const [other, q] of starCenters){
+          if (other === idx) continue;
+          const d = Math.max(Math.abs(q.x-point.x), Math.abs(q.y-point.y));
+          if (d < worst) worst = d;
+        }
+        return worst;
+      };
+      const steps = [];
+      for (let m = MARK_NUDGE_STEP_M; m <= MARK_SHIFT_MAX_M; m += MARK_NUDGE_STEP_M)
+        steps.push(m, -m);
+      let moved = false;
+      // 逃がしても駄目だった時に「どこまで試して何で落ちたか」を残す。
+      // 名前が出ない理由を推測でなく数で追えるようにするため (__labelPriorityReject と同じ)
+      const nudgeLog = {};
+      visibleEntries.forEach(entry => {
+        if (entry.s.labelVisible) return;
+        const own = starCenters.get(entry.idx), origin = screenOrigins.get(entry.idx);
+        if (!own || !origin) return;
+        const base = (markShift.get(entry.idx) || {dx:0}).dx;
+        const bus = busXAtY(entry.s.y);
+        const outside = entry.s.x >= bus ? 1 : -1;
+        // 元から道路の塗りに乗っている印は、そこを基準にする (これ以上悪くしない)
+        const roadAlready = overlapsRoad(boxAt(own));
+        // 2026-08-09: 「動かした先で隣と needPx 以上あくこと」を条件にしていたら、
+        // ん daccha とこや のように**動かす前から隣と19pxしかない**店は
+        // 全方向で弾かれて一歩も動けなかった。条件は「今より狭くしないこと」。
+        const gapNow = nearestMarkGap(entry.idx, own);
+        const restore = () => {
+          starCenters.set(entry.idx, own);
+          screenOrigins.set(entry.idx, origin);
+          entry.wrapped = false; entry.wrapLines = null;
+        };
+        const tried = [];
+        for (const step of steps){
+          const dx = base + step;
+          if (Math.abs(dx) > MARK_SHIFT_MAX_M){ tried.push(step + ':上限'); continue; }
+          const nx = entry.s.x + dx;
+          if (outside > 0 ? nx <= bus + 1 : nx >= bus - 1){   // 通りを渡らない
+            tried.push(step + ':通りを渡る'); continue; }
+          const px = screenMatrix.a * step;
+          const point = {x:own.x + px, y:own.y};
+          const gapNext = nearestMarkGap(entry.idx, point);
+          if (gapNext < needPx && gapNext < gapNow - .5){
+            tried.push(step + ':印が近づく'); continue; }
+          if (gapNext < markPxNow){ tried.push(step + ':印が重なる'); continue; }
+          if (!roadAlready && overlapsRoad(boxAt(point))){ tried.push(step + ':道路'); continue; }
+          starCenters.set(entry.idx, point);
+          screenOrigins.set(entry.idx, {x:origin.x + px, y:origin.y});
+          entry.wrapped = false; entry.wrapLines = null;
+          let ok = placeGreedy(entry);
+          if (!ok){
+            // 1行で入らないなら、この位置で2行も試す
+            const lines = splitLabelText(entry.s.short || entry.s.name);
+            if (lines){
+              entry.wrapped = true; entry.wrapLines = lines;
+              ok = placeGreedy(entry);
+              if (!ok){ entry.wrapped = false; entry.wrapLines = null; }
+            }
+          }
+          if (ok){
+            markShift.set(entry.idx, {dx, dy:0});
+            moved = true;
+            nudgeLog[entry.s.name] = step + 'm 動かして置けた';
+            // 自分の印を動かした事実を、後続の店の判定にも効かせる
+            starGrid.clear();
+            visibleEntries.forEach(other => {
+              const p = starCenters.get(other.idx);
+              starGrid.insert({idx:other.idx, point:p},
+                              {left:p.x, right:p.x, top:p.y, bottom:p.y});
+            });
+            return;
+          }
+          tried.push(step + ':置き場が無い');
+        }
+        nudgeLog[entry.s.name] = tried;
+        restore();
+      });
+      window.__markNudge = nudgeLog;
+      if (moved) document.querySelectorAll('g.hit').forEach(h => {
+        const shift = markShift.get(+h.dataset.i);
+        if (shift) h.setAttribute('transform', 'translate(' + shift.dx.toFixed(3) + ',0)');
+        else h.removeAttribute('transform');
+      });
+      return moved;
+    };
+    nudgeMarksForLabels();
     // 全部置き終わってから、まだ名前が出ていない店の理由を残す (途中で残すと、
     // あとから救えた分が古い理由のまま残ってしまう)
     visibleEntries.filter(entry => !entry.s.labelVisible).forEach(recordConstrainedReject);
@@ -2326,6 +2429,8 @@ function updateMapScaleBar(scale){
 // 動かすのは描画の時だけで、店の実座標 (x,y) は触らない。
 const MARK_MIN_GAP_PX = 3;      // 印と印の間に最低これだけ空ける (画面px)
 const MARK_SHIFT_MAX_M = 18;    // 実際の位置からずらしてよい上限 (m)
+// 1m 刻みも試したが救える店は増えなかった (2026-08-09 実測)。試す回数が倍になるだけ。
+const MARK_NUDGE_STEP_M = 2;    // 名前を置くために印を逃がす時の刻み (m)
 let markShift = new Map();      // idx -> {dx, dy} 地図の単位
 // 印が重なる時だけ、その集まりを1つの丸にまとめる。
 // 押し分け (spreadMarks) を通したあとの画面上の距離で判断するので、
