@@ -1340,8 +1340,10 @@ function restoreSvgAttr(node,name,value){
   else node.setAttribute(name,value);
 }
 function cachedCandidateRects(entry,candidate,scale,starCenters){
-  const own=starCenters.get(entry.idx), side=candidate.side;
-  const anchorX=own.x+side*candidate.gapPx, anchorY=own.y+candidate.dyPx;
+  const own=starCenters.get(entry.idx), side=candidate.side || 0;
+  const vert=candidate.vert || 0;
+  const anchorX=vert ? own.x : own.x+side*candidate.gapPx;
+  const anchorY=vert ? own.y : own.y+(candidate.dyPx||0);
   const fontPx=labelTargetPx(entry.s);
   // 2行に折り返した時は形が変わるので、測り直した値を別に持つ (混ざると幅を誤る)
   const wrapTag=entry.wrapped ? ':w' : '';
@@ -1389,11 +1391,17 @@ function cachedCandidateRects(entry,candidate,scale,starCenters){
   } else if (activeLabelLayoutStats) {
     activeLabelLayoutStats.metricCacheHits+=entry.distance ? 2 : 1;
   }
-  const anchored=(metric,y) => ({
+  const anchored=(metric,y) => vert ? {
+    // 真下・真上に置く時は横は中央そろえ。縦は印の外へ (印の半分 + すき間)
+    left:anchorX-(metric.right-metric.left)/2,
+    right:anchorX+(metric.right-metric.left)/2,
+    top:y+vert*(candidate.gapPx+fontPx/2)+metric.top,
+    bottom:y+vert*(candidate.gapPx+fontPx/2)+metric.bottom,
+  } : {
     left:anchorX+(side>0 ? metric.left : -metric.right),
     right:anchorX+(side>0 ? metric.right : -metric.left),
     top:y+metric.top,bottom:y+metric.bottom,
-  });
+  };
   const mainRect=anchored(main,anchorY);
   if (!entry.distance) return {mainRect,rect:mainRect};
   const distancePx=10, distanceY=anchorY+fontPx/2+distancePx/2+6;
@@ -1699,6 +1707,7 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       const renderedMainRect=renderedCandidateRect(entry,mainRect);
       const renderedRect=renderedCandidateRect(entry,rect);
       if (!anchorBelongsToOwnStar(entry,candidate) || !belongsToOwnStar(entry,renderedMainRect)) return false;
+      if (candidate.diag && !labelColumnIsClear(entry,renderedMainRect,starCenters,starTargetPx())) return false;
       if (!labelInsideViewport(renderedRect, entry) || overlapsKeepOut(renderedRect) ||
           overlapsMapSymbol(entry,renderedRect) || overlapsRoad(renderedRect)) return false;
       if (nearbyPlacementConflicts(renderedRect).length) return false;
@@ -1713,6 +1722,7 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       const renderedMainRect=renderedCandidateRect(entry,mainRect);
       const renderedRect=renderedCandidateRect(entry,rect);
       if (!anchorBelongsToOwnStar(entry,candidate) || !belongsToOwnStar(entry,renderedMainRect)) return false;
+      if (candidate.diag && !labelColumnIsClear(entry,renderedMainRect,starCenters,starTargetPx())) return false;
       if (!labelInsideViewport(renderedRect, entry) || overlapsKeepOut(renderedRect) ||
           overlapsMapSymbol(entry,renderedRect) || overlapsRoad(renderedRect)) return false;
       if (nearbyPlacementConflicts(renderedRect).length) return false;
@@ -1744,6 +1754,8 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
         const renderedRect=renderedCandidateRect(entry,rect);
         if (!anchorBelongsToOwnStar(entry,candidate) ||
             !belongsToOwnStar(entry,renderedMainRect)) continue;
+        if (candidate.diag &&
+            !labelColumnIsClear(entry,renderedMainRect,starCenters,starTargetPx())) continue;
         if (!labelInsideViewport(renderedRect, entry) || overlapsKeepOut(renderedRect) ||
             overlapsMapSymbol(entry,renderedRect) || overlapsRoad(renderedRect)) continue;
         options.push({candidate,rect:renderedRect});
@@ -1840,6 +1852,8 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
         const renderedRect=renderedCandidateRect(entry,rect);
         if (!anchorBelongsToOwnStar(entry,candidate)){ reject.anchor++; return; }
         if (!belongsToOwnStar(entry,renderedMainRect)){ reject.owner++; return; }
+        if (candidate.diag &&
+            !labelColumnIsClear(entry,renderedMainRect,starCenters,starTargetPx())){ reject.owner++; return; }
         if (!labelInsideViewport(renderedRect, entry)){ reject.viewport++; return; }
         if (overlapsKeepOut(renderedRect)){ reject.keepout++; return; }
         if (overlapsMapSymbol(entry,renderedRect)){ reject.symbol++; return; }
@@ -2039,12 +2053,12 @@ function updateSignalStyles(scale, mainRoadPx, starCenters){
 }
 function setLabelPosition(entry, candidate, scale){
   const s = entry.s, main = entry.main, distance = entry.distance;
-  const side = candidate.side, dyPx = candidate.dyPx;
+  const side = candidate.side || 0, dyPx = candidate.dyPx || 0, vert = candidate.vert || 0;
   const fontPx = labelTargetPx(s), fontMap = fontPx / scale;
   const offsetMap = candidate.gapPx / scale;
-  s.anchor = side > 0 ? 'start' : 'end';
-  s.lx = s.x + side * offsetMap;
-  s.ly = s.y + dyPx / scale;
+  s.anchor = vert ? 'middle' : (side > 0 ? 'start' : 'end');
+  s.lx = vert ? s.x : s.x + side * offsetMap;
+  s.ly = vert ? s.y + vert * (candidate.gapPx + fontPx/2) / scale : s.y + dyPx / scale;
   s.labelLeader = false;
   main.setAttribute('x', s.lx);
   main.setAttribute('y', s.ly);
@@ -2114,18 +2128,42 @@ function labelCandidates(s){
   // 置き場は 横1つ × 縦3つ (同じ高さ / 1行上 / 1行下) だけにする。
   // 近い列で置けるならそこ。道路に乗ってしまう店だけ「もう1段外」を使う (2列に揃う)。
   const gaps = [gapPx, gapPx + LABEL_FAR_COLUMN_PX];
-  const step = LABEL_ROW_STEP_PX;
-  const dySteps = [0, -step, step];
+  // 2026-08-09 ボス指摘「マークと店名の位置関係がおかしい。所々 右下になっとったり
+  // 右上になっとったりする」。実測すると 出ている名前の22%(163件中36件)が
+  // 印の真横から19px上下にずれ、斜めに浮いていた。中山鍼灸接骨院は名前の21px下に
+  // 自分の印があり、名前の真下には別の店の印。どちらの名前か分からない。
+  // かといって「真横だけ」にすると、その3店は名前ごと消えた。
+  // そこで斜めをやめ、置き場を「印の真横 / 印の真下 / 印の真上」の3方向にする。
+  // どれに置いても、名前は必ず自分の印にくっついて見える。
   const out = [];
-  gaps.forEach(g => dySteps.forEach(dyPx => {
-    out.push({side:preferred, gapPx:g, dyPx});
-    out.push({side:-preferred, gapPx:g, dyPx});
+  gaps.forEach(g => {
+    out.push({side:preferred, gapPx:g, dyPx:0});
+    out.push({side:-preferred, gapPx:g, dyPx:0});
+  });
+  out.push({vert:1, gapPx:gapPx});    // 真下
+  out.push({vert:-1, gapPx:gapPx});   // 真上
+  // ここまでで置けない店だけ、最後の手段として斜め (真横から1行ぶん上下)。
+  // 斜めは「名前の真上・真下に他店の印が来ていない」時しか使わない
+  // (来ていると、どちらの店の名前か分からなくなる = ボス指摘の正体)。
+  const step = LABEL_ROW_STEP_PX;
+  gaps.forEach(g => [-step, step].forEach(dyPx => {
+    out.push({side:preferred, gapPx:g, dyPx, diag:true});
+    out.push({side:-preferred, gapPx:g, dyPx, diag:true});
   }));
   return out;
 }
 function rectDistance(rect, x, y){
   return Math.hypot(Math.max(rect.left-x, 0, x-rect.right),
     Math.max(rect.top-y, 0, y-rect.bottom));
+}
+// 斜めに置いた名前の真上・真下に他店の印があると、どちらの名前か分からなくなる。
+function labelColumnIsClear(entry, rect, starCenters, reachPx){
+  for (const [idx, point] of starCenters){
+    if (idx === entry.idx) continue;
+    if (point.x < rect.left - 2 || point.x > rect.right + 2) continue;
+    if (point.y > rect.top - reachPx && point.y < rect.bottom + reachPx) return false;
+  }
+  return true;
 }
 function labelBelongsToOwnStar(entry, rect, starCenters){
   const own = starCenters.get(entry.idx);

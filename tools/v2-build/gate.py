@@ -753,6 +753,18 @@ if not A.no_browser:
                 const gapOK = [starTargetPx()/2 + LABEL_GAP_PX];
                 gapOK.push(gapOK[0] + LABEL_FAR_COLUMN_PX);
                 const dyOK = [0, -LABEL_ROW_STEP_PX, LABEL_ROW_STEP_PX];
+                // 斜めに置いた名前は「その名前の真上・真下に他店の印が無い」時だけ認める。
+                // 2026-08-09 ボス指摘の正体 = 名前の下に別の店の印が来て、
+                // どちらの店の名前か分からなくなっていたこと。
+                const starPts = [];
+                document.querySelectorAll('g.hit').forEach(hh => {
+                  const ss = hh.querySelector('.star'); if (!ss) return;
+                  const bb = ss.getBoundingClientRect(); if (!(bb.width > 0)) return;
+                  starPts.push({i:+hh.dataset.i, x:bb.left+bb.width/2, y:bb.top+bb.height/2});
+                });
+                const columnClear = (i, r, reach) => !starPts.some(pt =>
+                  pt.i !== i && pt.x >= r.left-2 && pt.x <= r.right+2 &&
+                  pt.y > r.top-reach && pt.y < r.bottom+reach);
                 slotBad = [];
                 for (const t of document.querySelectorAll('text.shoplabel[data-main-label]')){
                   if (getComputedStyle(t).display === 'none') continue;
@@ -766,10 +778,20 @@ if not A.no_browser:
                   const gap = (r.left + r.width/2 >= cx) ? r.left - cx : cx - r.right;
                   const dy = (r.top + r.height/2) - cy;
                   slotChecked++;
+                  const sideways = (r.left > cx+1) || (r.right < cx-1);
+                  if (!sideways){
+                    // 真下・真上に置いた名前。横は印の中心にそろっていること
+                    const off = Math.abs((r.left+r.right)/2 - cx);
+                    if (off > 3.0)
+                      slotBad.push(nm + ' 縦置きなのに横へ' + off.toFixed(1) + 'px');
+                    continue;
+                  }
                   const gd = Math.min(...gapOK.map(g => Math.abs(gap-g)));
                   const dd = Math.min(...dyOK.map(d => Math.abs(dy-d)));
                   if (gd > 2.0) slotBad.push(nm + ' 横' + gap.toFixed(1) + 'px');
                   else if (dd > 3.0) slotBad.push(nm + ' 縦' + dy.toFixed(1) + 'px');
+                  else if (Math.abs(dy) > 3.0 && !columnClear(+h.dataset.i, r, starTargetPx()))
+                    slotBad.push(nm + ' 斜めなのに名前の上下に他店の印がある');
                 }
               } catch (e) { slotErr = String((e && e.message) || e); }
               // 印を押した時に その店が開くか。2026-08-08 に押し分けの判定を
