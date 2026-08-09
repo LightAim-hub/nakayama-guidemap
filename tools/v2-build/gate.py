@@ -1310,7 +1310,47 @@ if not A.no_browser:
                       if (at) lone.push({state, txt: full.slice(0,22), line: at});
                     }
                   }
-                  return {texts, taps, wrap, clip, contrast, gaps, emoji, bypass, lone};
+                  // N58 ボタンの文字に「1文字だけの行」ができていないか。
+                  // 2026-08-10: 見出しの戻るボタンが「✕ 通りへもど / る」と割れ、
+                  // 「る」が1文字だけ最後の行に落ちていた (3回目の同型指摘)。
+                  // N28 が捕まえられなかった理由 = 要素の**最初のテキストノードしか**見ておらず、
+                  // `✕ 通り<wbr>へもどる` の2つ目のノードにある「もど｜る」が視界の外だった。
+                  // ここでは要素の中の全テキストノードを論理順につなぎ、行ごとに数える。
+                  // もとの文で独立している語 (「✕ 通りへもどる」の「✕」) は正しいので除く。
+                  const orphan = [];
+                  for (const e of document.querySelectorAll('button, [role="button"], .chip')) {
+                    if (!vis(e)) continue;
+                    if (e.closest('.strip-row, .lrow, #listrows, #strip')) continue; // N57 の担当
+                    const nodes = [];
+                    const tw = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
+                    for (let n = tw.nextNode(); n; n = tw.nextNode())
+                      if (n.textContent.length) nodes.push(n);
+                    const full = nodes.map(n => n.textContent).join('');
+                    if (full.trim().length < 3) continue;
+                    const words = new Set(full.trim().split(/\s+/));
+                    const rg = document.createRange();
+                    const lines = new Map();
+                    for (const n of nodes) {
+                      const t = n.textContent;
+                      for (let i = 0; i < t.length; i++) {
+                        if (!t[i].trim()) continue;
+                        rg.setStart(n, i); rg.setEnd(n, i + 1);
+                        const b = rg.getBoundingClientRect();
+                        if (!(b.width > 0 || b.height > 0)) continue;
+                        const key = Math.round(b.top);
+                        if (!lines.has(key)) lines.set(key, []);
+                        lines.get(key).push(t[i]);
+                      }
+                    }
+                    if (lines.size < 2) continue;
+                    for (const [, chars] of lines) {
+                      if (chars.length !== 1) continue;
+                      if (words.has(chars[0])) continue; // もとから独立した1文字は正しい
+                      orphan.push({state, sel: sel(e), txt: full.trim().slice(0, 24),
+                                   ch: chars[0], lines: lines.size});
+                    }
+                  }
+                  return {texts, taps, wrap, clip, contrast, gaps, emoji, bypass, lone, orphan};
                 }"""
                 # 画面の状態を作る手順。詳細シートは単一ボタンで開ける店、
                 # チューザーは複数候補が出る店を選ぶ。
@@ -1377,9 +1417,9 @@ if not A.no_browser:
                     up.goto(url, wait_until="load")
                     up.wait_for_timeout(1200)
                     sweep = {"texts": [], "taps": [], "wrap": [], "clip": [],
-                             "contrast": [], "gaps": [], "emoji": [], "lone": []}
+                             "contrast": [], "gaps": [], "emoji": [], "lone": [], "orphan": []}
                     base = up.evaluate(SWEEPJS, "開いた直後")
-                    for _k in ("texts", "taps", "wrap", "clip", "contrast", "gaps", "emoji", "lone"):
+                    for _k in ("texts", "taps", "wrap", "clip", "contrast", "gaps", "emoji", "lone", "orphan"):
                         sweep[_k] += base[_k]
                     sweep["bypass"] = base["bypass"]
                     # 状態を作れなかったら「対象が無い」ではなく「測れなかった」。
@@ -1392,7 +1432,7 @@ if not A.no_browser:
                             sweep["missing"].append(st)
                             continue
                         r = up.evaluate(SWEEPJS, st)
-                        for _k in ("texts", "taps", "wrap", "clip", "contrast", "gaps", "emoji", "lone"):
+                        for _k in ("texts", "taps", "wrap", "clip", "contrast", "gaps", "emoji", "lone", "orphan"):
                             sweep[_k] += r[_k]
                     up.evaluate("""async () => {
                         document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
@@ -1632,7 +1672,7 @@ fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "
                          "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39",
                          "N40", "N41", "N42", "N43", "N44",
                          "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54",
-                         "N55", "N56", "N57")}
+                         "N55", "N56", "N57", "N58")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -2121,6 +2161,17 @@ if REND:
         fails["N57"].append("一覧の「%s」が語の途中「%s」で行が分かれる [%s]"
                             % (txt, line, sorted(set(where))[0]))
 
+    # N58 ボタンの文字に「1文字だけの行」ができていないか (2026-08-10・同型3回目)
+    _orph = {}
+    for u in (REND.get("ui") or []):
+        for it in (u.get("sweep") or {}).get("orphan", []):
+            _orph.setdefault((it["sel"], it["txt"], it["ch"]), []).append(
+                "%dx%d %s" % (u["vw"], u.get("vh", 0), it["state"]))
+    for (sel_, txt, ch), where in sorted(_orph.items()):
+        _w = sorted(set(where))
+        fails["N58"].append("%s の「%s」が折り返され、「%s」だけが1行に取り残される [%s]"
+                            % (sel_, txt, ch, _w[0] + ("" if len(_w) == 1 else " ほか%d" % (len(_w)-1))))
+
     for _k, _n, _fmt in (("wrap", "N28", "%s (%s) が「%s」で改行される [%s]"),
                          ("clip", "N29", "%s (%s) が入れ物に収まらない 必要%dpx / 幅%dpx [%s]")):
         _seen = {}
@@ -2495,13 +2546,14 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N54": "店名が印に対して決まった置き場に出ている",
        "N55": "引き切っても印が重ならない (まとめの丸で解く)",
        "N56": "地図に名前が出ている店の数が落ちていない",
-       "N57": "一覧の店名が語の途中で折り返されていない"}
+       "N57": "一覧の店名が語の途中で折り返されていない",
+       "N58": "ボタンの文字に1文字だけの行ができていない"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
               "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43", "N44",
               "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54",
-              "N55", "N56", "N57"):
+              "N55", "N56", "N57", "N58"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:

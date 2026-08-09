@@ -78,6 +78,9 @@
     border:1.5px solid var(--ink-soft); border-radius:999px; padding:2px 9px; white-space:nowrap;
   }
   header p{ font-size:max(14px, 0.875rem); color:var(--ink-soft); margin-top:3px; }
+  .shop-total-summary{ flex:0 0 auto; margin-left:auto; color:var(--ink-soft);
+    font-family:'Zen Maru Gothic','Hiragino Maru Gothic ProN','Yu Gothic',sans-serif;
+    font-size:max(14px, .875rem); font-weight:700; line-height:1; white-space:nowrap; }
   .chip:focus-visible, .searchbar input:focus-visible{
     outline:3px solid var(--focus-ring); outline-offset:2px; }
 
@@ -662,27 +665,34 @@
     overflow:auto; width:100%; height:auto; background:var(--paper); }
   body.map-open #mapwrap{ min-height:100%; }
   body.map-open header{ position:fixed; inset:0 0 auto; z-index:31; height:var(--map-head-h); padding:0 6px;
-    display:grid; grid-template-columns:minmax(138px,1fr) auto auto; align-items:center; gap:5px;
+    display:grid; grid-template-columns:minmax(112px,1fr) minmax(72px,112px) 90px; align-items:center; gap:8px;
     border-bottom:2px dashed rgba(92,67,39,.35); overflow:hidden; }
-  body.map-open header h1{ min-width:0; display:block; font-size:14px; line-height:1.1; white-space:nowrap; }
-  body.map-open header h1 small, body.map-open header p{ display:none; }
-  body.map-open .map-filter-badge{ display:none; min-width:0; max-width:112px; padding:3px 7px;
+  body.map-open header h1{ min-width:0; display:block; overflow:hidden; text-overflow:ellipsis;
+    font-size:14px; line-height:1.1; white-space:nowrap; }
+  body.map-open header h1 small, body.map-open header p, body.map-open .shop-total-summary{ display:none; }
+  body.map-open .map-filter-badge{ display:inline-flex; width:100%; min-width:44px; max-width:112px; height:44px;
+    padding:3px 7px; align-items:center; justify-content:center; cursor:pointer;
     border:1.5px solid var(--voice); border-radius:999px; color:var(--voice); background:#edf6f3;
     font-size:14px; font-weight:700; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  body.map-open .map-filter-badge:not(:empty){ display:block; }
+  body.map-open .map-filter-badge:focus-visible{ outline:3px solid var(--focus-ring); outline-offset:-3px; }
   body.map-open #mapback{ display:inline-flex; min-width:44px; height:44px; padding:0 8px; align-items:center;
     justify-content:center; border:0; background:transparent; color:var(--ink); font:inherit; font-size:14px;
     font-weight:700; line-height:1.1; white-space:nowrap; cursor:pointer; }
+  body.map-open #mapback{ width:90px; padding-inline:2px; white-space:normal; word-break:keep-all; }
   body.map-open #mapback:focus-visible{ outline:3px solid var(--focus-ring); outline-offset:-3px; }
-  body.map-open.map-filtering header{ grid-template-columns:minmax(138px,1fr) minmax(0,138px) 90px; }
-  body.map-open.map-filtering .map-filter-badge{ max-width:138px; }
-  body.map-open.map-filtering #mapback{ width:90px; padding-inline:2px; white-space:normal; }
   body.map-open #stripview{ visibility:hidden; }
   .zoomctl, #editbar, #srcinfo{ display:none; }
   body.map-open #controls{ position:fixed; inset:auto 0 0; z-index:31; height:var(--map-controls-h); min-height:var(--map-controls-h);
     padding:6px 8px; display:grid; grid-template-columns:74px minmax(0,1fr);
     grid-template-rows:44px; column-gap:0; row-gap:0; border-top:2px dashed rgba(92,67,39,.35); }
   body.map-open #controls .filters, body.map-open #controls .searchbar{ display:none; }
+  body.map-open.map-filters-open #controls .filters{ display:grid; position:fixed;
+    top:calc(var(--map-head-h) + 6px); left:8px; right:8px; z-index:34;
+    max-height:calc(100vh - var(--map-head-h) - var(--map-controls-h) - 18px); overflow:auto;
+    padding:10px; border:2px solid var(--voice); border-radius:14px; background:var(--paper);
+    box-shadow:0 8px 24px rgba(80,60,30,.24); }
+  body.map-open.map-filters-open #viewport,
+  body.map-open.map-filters-open .map-float-tools{ pointer-events:none; }
   body.map-open #controls .control-actions{ grid-column:2; grid-row:1; height:44px;
     grid-template-columns:repeat(2,minmax(44px,1fr)); gap:8px; }
   body.map-open #mapbtn, body.map-open #listbtn{
@@ -811,8 +821,9 @@
 <a class="skip-map" href="#listbtn">通り沿い表示をとばす</a>
 
 <header>
-  <h1>なかやま商店街マップ <small>仙台市青葉区</small></h1>
-  <span class="map-filter-badge" id="mapFilterBadge" role="status" aria-live="polite"></span>
+  <h1>なかやま商店街マップ <small>仙台市青葉区</small><span class="shop-total-summary" id="shopTotalSummary"></span></h1>
+  <button class="map-filter-badge" id="mapFilterBadge" type="button" aria-controls="filters"
+    aria-expanded="false">絞り込み</button>
   <button id="mapback" type="button" aria-controls="viewport" aria-label="通りへもどる">✕ 通り<wbr>へもどる</button>
   <p>西側・東側を実際の南北位置に合わせて並べています。お店をタップすると詳細を確認でき、「地図で見る」で全体へ切り替えられます。</p>
 </header>
@@ -930,9 +941,10 @@
 
 <script>
 const GEO = __MAPDATA_JSON__;
-document.getElementById('infoAsOf').textContent = 'このマップの情報は' + GEO.meta.info_as_of + '時点の情報です。';
+document.getElementById('shopTotalSummary').textContent = '全' + GEO.shops.length + '店';
+document.getElementById('infoAsOf').textContent = 'このマップの情報は' + GEO.meta.details_as_of + '時点の情報です。';
 document.getElementById('stripCreditAsOf').textContent =
-  'このマップの情報は' + GEO.meta.info_as_of + '時点のものです。';
+  'このマップの情報は' + GEO.meta.details_as_of + '時点のものです。';
 const partner = (GEO.meta.partner_logos || []).find(x => x.name === '宮城大学' && x.status === 'approved' && x.src);
 if (partner) {
   [['partnerLogo', 'partnerLogoImage'], ['stripCreditPartner', 'stripCreditPartnerImage']].forEach(pair => {
@@ -1037,6 +1049,7 @@ function scrollStripTo(s){
 })();
 function setMapOpen(open, restoreFocus){
   document.body.classList.toggle('map-open', open);
+  if (!open) setMapFiltersOpen(false);
   const viewportNode = document.getElementById('viewport');
   const stripViewNode = document.getElementById('stripview');
   viewportNode.setAttribute('aria-hidden', open ? 'false' : 'true');
@@ -1083,6 +1096,12 @@ creditSummary.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape' || !document.body.classList.contains('map-open')) return;
+  if (document.body.classList.contains('map-filters-open')){
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    setMapFiltersOpen(false, true);
+    return;
+  }
   if (document.body.classList.contains('detail-open') || document.body.classList.contains('list-open') ||
       document.getElementById('chooser').classList.contains('show')) return;
   setMapOpen(false, true);
@@ -2822,6 +2841,31 @@ Object.keys(CATS).forEach(k => {
   });
   filtersDiv.appendChild(b);
 });
+const mapFilterBadge = document.getElementById('mapFilterBadge');
+function setMapFiltersOpen(open, restoreFocus){
+  const next = !!open && document.body.classList.contains('map-open');
+  document.body.classList.toggle('map-filters-open', next);
+  mapFilterBadge.setAttribute('aria-expanded', next ? 'true' : 'false');
+  if (next){
+    requestAnimationFrame(() => {
+      const first = filtersDiv.querySelector('button');
+      if (first) first.focus({preventScroll:true});
+    });
+  } else if (restoreFocus){
+    mapFilterBadge.focus({preventScroll:true});
+  }
+}
+mapFilterBadge.addEventListener('click', e => {
+  e.stopPropagation();
+  const opening = !document.body.classList.contains('map-filters-open');
+  if (opening){
+    hideDetail();
+    hideChooser();
+    setListOpen(false);
+  }
+  setMapFiltersOpen(opening);
+});
+filtersDiv.addEventListener('click', e => e.stopPropagation());
 
 /* ---------- 通り沿い二列表示 (Task AE) ---------- */
 const STRIP_PX_PER_M = 1.3;
@@ -3159,6 +3203,13 @@ function openStripShop(row, s, keyboard){
 }
 function makeStripRow(entry, far){
   const row=stripChild('div','strip-row');
+  let distText='';
+  if (far){
+    const actualFar=entry.s.far_m;
+    distText = actualFar && actualFar >= 400
+      ? (actualFar >= 1000 ? '約' + (actualFar/1000).toFixed(1) + 'km先' : '約' + actualFar + 'm先')
+      : (entry.side === 'west' ? '西へ約' : '東へ約') + Math.round(entry.distance) + 'm';
+  }
   row.dataset.i=String(entry.i);
   row.dataset.side=entry.side;
   row.dataset.y=entry.y.toFixed(1);
@@ -3166,7 +3217,7 @@ function makeStripRow(entry, far){
   row.setAttribute('role','button');
   row.tabIndex=0;
   row.setAttribute('aria-label',entry.s.name + ((entry.s.voices||[]).length ? '、こどもの声あり' : '') +
-    (far ? '、通りから'+entry.side.replace('west','西').replace('east','東')+'へ約'+Math.round(entry.distance)+'メートル' : ''));
+    (distText ? '、' + distText : ''));
   if (far){
     row.style.gridColumn=entry.side === 'west' ? '1' : '2';
     const main=stripChild('span','strip-far-main');
@@ -3181,10 +3232,6 @@ function makeStripRow(entry, far){
     row.appendChild(main);
     // 2026-08-04: 1km以上離れた店にも「東へ約147m」と通りからの直角距離を出していて、
     // 実際の遠さが伝わらなかった。縁に寄せている店は本当の距離を出す。
-    const far = entry.s.far_m;
-    const distText = far && far >= 400
-      ? (far >= 1000 ? '約' + (far/1000).toFixed(1) + 'km先' : '約' + far + 'm先')
-      : (entry.side === 'west' ? '西へ約' : '東へ約') + Math.round(entry.distance) + 'm';
     row.appendChild(stripChild('span','strip-distance',distText));
   } else {
     row.style.top=stripIdealCenter(entry)+'px';
@@ -3425,16 +3472,15 @@ function applyFilter({fromSearch=false} = {}){
   status.textContent = filtering ? (matched.length ? matched.length+'件' : '見つかりません') : '';
   status.classList.toggle('empty', filtering && matched.length === 0);
   updateEmptyHelp(filtering, matched.length);
-  const mapFilterBadge = document.getElementById('mapFilterBadge');
   const filterParts = [];
   if (query) filterParts.push('「'+query+'」');
   if (voiceOnly) filterParts.push('こどもの声');
   if (activeCats.size) filterParts.push([...activeCats].map(k => CATS[k].label).join('・'));
-  const fullMapFilterText = filtering ? filterParts.join('・')+' '+matched.length+'件' : '';
+  const fullMapFilterText = filtering ? filterParts.join('・')+' '+matched.length+'件' : '絞り込み';
   mapFilterBadge.textContent = filtering && voiceOnly && !query && !activeCats.size
     ? '声 '+matched.length+'件' : fullMapFilterText;
   mapFilterBadge.title = fullMapFilterText;
-  mapFilterBadge.setAttribute('aria-label',fullMapFilterText);
+  mapFilterBadge.setAttribute('aria-label', fullMapFilterText + '。押すと条件を変更できます');
   scheduleMapScaleStyles();
 
   if (query) renderList(null, '検索結果'); else renderList();
@@ -3521,7 +3567,7 @@ function sheetShiftMap(){
   const scale = matrix ? Math.hypot(matrix.a, matrix.b) : 0;
   return scale > 0 ? (covered / 2) / scale : 0;
 }
-function focusShopOnMap(s, openDetail){
+function focusShopOnMap(s, openDetail, focusDetailHeading){
   const vb = svg.viewBox.baseVal;
   if (openDetail && query && !searchReturnViewBox){
     searchReturnViewBox = {x:vb.x, y:vb.y, width:vb.width, height:vb.height};
@@ -3537,6 +3583,10 @@ function focusShopOnMap(s, openDetail){
     pinned = s;
     requestAnimationFrame(() => {
       showDetail(s, false);
+      if (focusDetailHeading){
+        detailTitle.tabIndex = -1;
+        detailTitle.focus({preventScroll:true});
+      }
       // シートが出てから測り直す。出はじめの1フレームではまだ画面の下にいて
       // 「覆われる高さ0」と読めてしまうので、上がりきったところでもう一度測る。
       requestAnimationFrame(place);
@@ -3711,16 +3761,21 @@ function buildDetailCard(s){
   const statuses = detailText('div', 'detail-statuses');
   const voices = s.voices || [];
   if (voices.length){
-    const voiceButton = detailText('button', 'detail-status voice', 'こどもの声 ' + voices.length + '件を見る');
+    const voiceExpandedOnOpen = voiceOnly;
+    const voiceButton = detailText('button', 'detail-status voice', voiceExpandedOnOpen
+      ? 'こどもの声を閉じる' : 'こどもの声 ' + voices.length + '件を見る');
     voiceButton.type = 'button';
-    voiceButton.setAttribute('aria-label', s.name + 'のこどもの声' + voices.length + '件を見る');
-    voiceButton.setAttribute('aria-expanded', 'false');
+    voiceButton.setAttribute('aria-label', s.name + 'のこどもの声' + voices.length + '件を' +
+      (voiceExpandedOnOpen ? '閉じる' : '見る'));
+    voiceButton.setAttribute('aria-expanded', voiceExpandedOnOpen ? 'true' : 'false');
     voiceButton.addEventListener('click', () => {
       const block = card.querySelector('.detail-voice-block');
       if (!block) return;
       const expanded = voiceButton.getAttribute('aria-expanded') !== 'true';
       voiceButton.setAttribute('aria-expanded', expanded ? 'true' : 'false');
       voiceButton.textContent = expanded ? 'こどもの声を閉じる' : 'こどもの声 ' + voices.length + '件を見る';
+      voiceButton.setAttribute('aria-label', s.name + 'のこどもの声' + voices.length + '件を' +
+        (expanded ? '閉じる' : '見る'));
       block.hidden = !expanded;
       if (!expanded) return;
       const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -3747,7 +3802,7 @@ function buildDetailCard(s){
   if (voices.length){
     const block = detailText('section', 'detail-voice-block');
     block.tabIndex = -1;
-    block.hidden = true;
+    block.hidden = !voiceOnly;
     const title = detailText('h3', 'detail-voice-title');
     title.appendChild(detailText('span', 'voice-title-icon', '···'));
     title.appendChild(detailText('span', '', 'こどもの声'));
@@ -3756,7 +3811,7 @@ function buildDetailCard(s){
     // 2026-08-04: 誰の・いつの言葉か書いていなかった。「安い」のような
     // 感じ方の言葉が、お店の側の説明に見えてしまう。出どころと時点を添える。
     block.appendChild(detailText('p', 'detail-voice-source',
-      '地域のこどもたちから寄せられた声です（' + GEO.meta.info_as_of + '時点）。'
+      '地域のこどもたちから寄せられた声です（' + GEO.meta.voices_as_of + '時点）。'
       + '感じ方には個人差があります。'));
     card.appendChild(block);
   } else if (!s.note){
@@ -3855,7 +3910,7 @@ function buildDetailFacts(s){
     box.appendChild(dd);
   });
   const note = detailText('p', 'detail-facts-note',
-    'なかやま商店街振興組合の掲載情報より（' + GEO.meta.info_as_of + '時点）。変わっている場合があります。');
+    'なかやま商店街振興組合の掲載情報より（' + GEO.meta.details_as_of + '時点）。変わっている場合があります。');
   const wrap = detailText('div', 'detail-facts-wrap');
   wrap.appendChild(box); wrap.appendChild(note);
   return wrap;
@@ -4105,7 +4160,7 @@ detailRail.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight'){ e.preventDefault(); moveDetailTo(detailIndex + 1, true); }
 });
 chooser.addEventListener('click', e => e.stopPropagation());
-document.addEventListener('click', () => { hideDetail(); hideChooser(); });
+document.addEventListener('click', () => { hideDetail(); hideChooser(); setMapFiltersOpen(false); });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (closePhotoLightbox(true)){
@@ -4597,8 +4652,12 @@ function renderList(memberIdx, title){
     b.tabIndex = listrows.children.length ? -1 : 0;
     const d = catIconEl(s.cat, 17); d.classList.add('ldot');
     const nm = document.createElement('span'); nm.className='lname'; nm.textContent = s.name;
-    const ad = document.createElement('span'); ad.className='laddr'; ad.textContent = (s.addr||'').replace('仙台市青葉区','').replace('仙台市泉区','泉区 ');
-    b.setAttribute('aria-label', s.name + ((s.voices||[]).length ? '、こどもの声あり' : ''));
+    const addressText = (s.addr||'').replace('仙台市青葉区','').replace('仙台市泉区','泉区 ');
+    const ad = document.createElement('span'); ad.className='laddr'; ad.textContent = addressText;
+    const rowLabel = [CATS[s.cat].label, s.name];
+    if ((s.voices||[]).length) rowLabel.push('こどもの声あり');
+    if (addressText) rowLabel.push(addressText);
+    b.setAttribute('aria-label', rowLabel.join('、'));
     b.appendChild(d); b.appendChild(nm);
     if ((s.voices||[]).length){
       const vi = document.createElement('span'); vi.className='lvoice'; vi.title='こどもの声あり'; vi.setAttribute('aria-hidden','true');
@@ -4697,7 +4756,11 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
   const hit = GEO.shops.find(s => norm(s.name).trim() === key)
            || GEO.shops.find(s => norm(s.name).indexOf(key) >= 0);
   if (!hit) return;
-  requestAnimationFrame(() => { setMapOpen(true); focusShopOnMap(hit, true); });
+  requestAnimationFrame(() => {
+    setMapOpen(true);
+    lastFocusHit = mapButton;
+    focusShopOnMap(hit, true, true);
+  });
 })();
 new MutationObserver(scheduleMapScaleStyles).observe(svg, {attributes:true, attributeFilter:['viewBox']});
 if (window.ResizeObserver) new ResizeObserver(scheduleMapScaleStyles).observe(svg);

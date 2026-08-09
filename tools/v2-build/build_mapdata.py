@@ -188,7 +188,10 @@ if not ARGS.preview:
 LAT0, LON0 = 38.2935, 140.8435
 COSF = math.cos(math.radians(LAT0))
 ROT = math.radians(46.4)  # バス通り(方位133.6°)を画面下向きにする時計回り回転
-INFO_AS_OF = '2026年6月12日'  # 振興組合支給マップの明記日 (2026-07-10受領)
+VOICES_AS_OF = '2026年6月12日'  # 地域のこどもたちから声を集めた日
+DETAILS_AS_OF = '2026年8月4日'  # official_details.json を取り込んだ日
+# 既存の参照元を壊さないため、従来キーも声の収集日時点の値で残す。
+INFO_AS_OF = VOICES_AS_OF
 
 # 校章等の使用許可と正式画像の受領後にだけパスを設定する。
 # 空文字の間はテンプレート側の協力ロゴ欄を表示しない。
@@ -978,6 +981,7 @@ _north_dx, _north_dy = _north1[0] - _north0[0], _north1[1] - _north0[1]
 _north_screen_deg = math.degrees(math.atan2(_north_dx, -_north_dy))
 meta = {'W': W, 'H': H, 'proj': unproject_expr(), 'minx': round(minx, 2), 'miny': round(miny, 2),
          'scale_m_per_px': 1.0, 'info_as_of': INFO_AS_OF,
+         'voices_as_of': VOICES_AS_OF, 'details_as_of': DETAILS_AS_OF,
          'road_counts': road_counts, 'road_quality': road_quality,
          'north_vector': [round(_north_dx, 4), round(_north_dy, 4)],
          'north_screen_deg': round(_north_screen_deg, 4),
@@ -1930,6 +1934,11 @@ for _sh in shops:
     if _new:
         print('掲載名を差し替え: %s -> %s' % (_sh['name'], _new))
         _sh['name'] = _new
+
+# 本番ビルドでは地物を凍結ベースへ戻すため、時点情報は出力直前にも明示して保つ。
+meta['info_as_of'] = INFO_AS_OF
+meta['voices_as_of'] = VOICES_AS_OF
+meta['details_as_of'] = DETAILS_AS_OF
 
 data = {'meta': meta, 'shops': shops, 'roads': roads, 'rivers': rivers,
         'parks': parks, 'waters': waters, 'sando': sando, 'busway': busway, 'exits': exits,
