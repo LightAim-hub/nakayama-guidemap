@@ -2058,6 +2058,16 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
             tried.push(step + ':印が近づく'); continue; }
           if (gapNext < markPxNow){ tried.push(step + ':印が重なる'); continue; }
           if (!roadAlready && overlapsRoad(boxAt(point))){ tried.push(step + ':道路'); continue; }
+          // 2026-08-09: 逃がした先が「他店の名前のすぐ下」になり、その名前が
+          // どちらの店のものか分からなくなっていた (実測: Double Egg を12m動かすと
+          // おたからや の名前の真下に入る)。既に出ている名前の持ち主が
+          // 「その名前にいちばん近い印」でなくなる位置には動かさない (belongsToOwnStar と同じ物差し)。
+          if (placed.some(item => {
+                const q = starCenters.get(item.entry.idx);
+                if (!q) return false;
+                return rectDistance(item.rect, point.x, point.y)
+                     < rectDistance(item.rect, q.x, q.y) / LABEL_OWNER_RATIO;
+              })){ tried.push(step + ':他店の名前を横取りする'); continue; }
           starCenters.set(entry.idx, point);
           screenOrigins.set(entry.idx, {x:origin.x + px, y:origin.y});
           entry.wrapped = false; entry.wrapLines = null;
