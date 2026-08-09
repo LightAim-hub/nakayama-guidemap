@@ -767,6 +767,16 @@
     .control-actions{ grid-template-columns:auto minmax(0,1fr) minmax(0,1fr); }
     #searchbtn{ display:inline-flex; width:auto; min-width:44px; padding-inline:12px; font-size:14px; }
   }
+  @media(max-width:340px) and (orientation:portrait){
+    #stripview{ margin-bottom:8px; }
+    #controls .voice-filter{ padding-inline:2px; gap:2px; }
+    #controls .voice-filter .voice-chip-icon{ width:12px; height:10px; border-width:1.4px; }
+    #controls .voice-filter .voice-chip-icon::before{ inset:-4px 0 0; font-size:7px; }
+    #controls .voice-filter .voice-chip-icon::after{ left:2px; bottom:-3px; width:4px; height:4px;
+      border-width:0 0 1.4px 1.4px; }
+    #controls .voice-filter .lbl{ word-break:keep-all; overflow-wrap:normal; line-break:strict; }
+    #controls #mapbtn, #controls #listbtn{ padding-inline:4px; white-space:nowrap; word-break:keep-all; }
+  }
   @media(max-width:480px){
     .strip-guide{ grid-template-columns:minmax(0,1fr) 60px minmax(0,1fr); padding-inline:5px; }
     .strip-row{ width:calc(50% - 35px); gap:4px; padding:6px 4px; font-size:max(14px, .875rem); }
