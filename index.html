@@ -1397,8 +1397,8 @@ function cachedCandidateRects(entry,candidate,scale,starCenters){
     // 衝突判定が甘くならないよう左右に少し余裕をとる
     left:anchorX-(metric.right-metric.left)/2-2,
     right:anchorX+(metric.right-metric.left)/2+2,
-    top:y+vert*(candidate.gapPx+fontPx/2)+metric.top,
-    bottom:y+vert*(candidate.gapPx+fontPx/2)+metric.bottom,
+    top:y+vert*(candidate.gapPx+labelBoxHeightPx(entry,fontPx)/2)+metric.top,
+    bottom:y+vert*(candidate.gapPx+labelBoxHeightPx(entry,fontPx)/2)+metric.bottom,
   } : {
     left:anchorX+(side>0 ? metric.left : -metric.right),
     right:anchorX+(side>0 ? metric.right : -metric.left),
@@ -1459,6 +1459,15 @@ function splitLabelText(text){
 }
 function labelLinesFor(entry){
   return entry.wrapped ? (entry.wrapLines || null) : null;
+}
+// 2026-08-09: 真下・真上に置いた名前が自分の印にかぶっていた (4件)。
+// 隙間を「印の外側 + 名前の高さの半分」で取り直す。候補の計算と実際の描画で
+// 同じ式を使わないとズレるので、ここに一本化する。
+function labelBoxHeightPx(entry, fontPx){
+  const n = (labelLinesFor(entry) || ['']).length;
+  // 1.3倍では足りず、真下に置いた名前が印に1.3〜2.5pxかぶっていた (2026-08-09 実測)。
+  // 実際の高さは文字サイズの約1.7倍。少し余裕を持たせる。
+  return fontPx * 1.75 + 4 + (n - 1) * fontPx * LABEL_LINE_GAP_EM;
 }
 function writeLabelLines(node, lines, x, y, lineHeight){
   node.textContent = '';
@@ -2064,7 +2073,9 @@ function setLabelPosition(entry, candidate, scale){
   s.placedGap = candidate.gapPx;
   s.anchor = vert ? 'middle' : (side > 0 ? 'start' : 'end');
   s.lx = vert ? s.x : s.x + side * offsetMap;
-  s.ly = vert ? s.y + vert * (candidate.gapPx + fontPx/2) / scale : s.y + dyPx / scale;
+  s.ly = vert
+    ? s.y + vert * (candidate.gapPx + labelBoxHeightPx(entry, fontPx)/2) / scale
+    : s.y + dyPx / scale;
   s.labelLeader = false;
   main.setAttribute('x', s.lx);
   main.setAttribute('y', s.ly);
