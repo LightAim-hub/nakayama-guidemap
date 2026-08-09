@@ -1551,7 +1551,10 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       const widths=ROAD_WIDTHS[cls];
       if (!widths) return;
       const fillMap=Math.max(widths.fill,widths.floorPx/scale);
-      addRoadSegments(road.pts,fillMap*widths.casing/widths.fill*scale);
+      // 2026-08-09: 道路の外枠(casing)まで避けていたので、塗りより38%広く空けていた。
+      // ボス指示は「道路と被らない位置に」= 塗りに乗らないこと。塗りだけ避ける。
+      // これで名前を置ける余地が広がる (左官職人早坂組ほか、道路で落ちていた店)。
+      addRoadSegments(road.pts,fillMap*scale);
     });
     (GEO.sando||[]).forEach(points => addRoadSegments(points,3*scale));
     const overlapsRoad = rect => countLayoutPairs(roadGrid.query(rect)).some(segment =>
@@ -1752,6 +1755,12 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
         if (placeCandidate(entry,candidate)) return true;
       }
       const why = {anchor:0, owner:0, viewport:0, keepout:0, symbol:0, road:0, blocked:0, tried:cands.length};
+      // どの置き場がどの理由で落ちたかを1つずつ残す (合計だけだと原因が追えない)
+      why.each = cands.map(candidate => {
+        const where = candidate.vert ? (candidate.vert > 0 ? '真下' : '真上')
+          : ((candidate.side > 0 ? '右' : '左') + (candidate.gapPx > 20 ? '遠' : '近'));
+        return where + ':' + (candidateReject(entry,candidate) || 'OK');
+      });
       cands.forEach(candidate => { const r = candidateReject(entry,candidate); if (r) why[r]++; });
       greedyReject.set(entry.s.name, why);
       hideLabel(entry);
