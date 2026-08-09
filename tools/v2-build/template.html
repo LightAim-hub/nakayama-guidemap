@@ -191,6 +191,8 @@
     paint-order:stroke; stroke:var(--paper); stroke-width:7px; stroke-linejoin:round; }
   .shoplabel.b{ font-weight:700; }
   /* いま開いているか (2026-08-09)。掲載から確実に読めるものだけ出す */
+  .detail-photo-caption{ margin:6px 2px 0; color:var(--ink-soft); font-size:max(14px,.85rem);
+    line-height:1.35; }
   .open-now{ display:inline-block; padding:2px 10px; border-radius:999px;
     font-weight:700; font-size:max(14px,.875rem); border:2px solid currentColor; }
   .open-now--open{ color:#1f6b3c; background:#eaf7ee; }
@@ -797,7 +799,7 @@
 <header>
   <h1>なかやま商店街マップ <small>仙台市青葉区</small></h1>
   <span class="map-filter-badge" id="mapFilterBadge" role="status" aria-live="polite"></span>
-  <button id="mapback" type="button" aria-controls="viewport">✕ 通り沿い<wbr>にもどる</button>
+  <button id="mapback" type="button" aria-controls="viewport" aria-label="通りへもどる">✕ 通り<wbr>へもどる</button>
   <p>西側・東側を実際の南北位置に合わせて並べています。お店をタップすると詳細を確認でき、「地図で見る」で全体へ切り替えられます。</p>
 </header>
 
@@ -1941,6 +1943,8 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
     // ので、1行で出ていた名前が消えたり動いたりすることはない。
     visibleEntries.forEach(entry => {
       if (entry.s.labelVisible || entry.wrapped) return;
+      // 3行まで許す案も試したが、救える店は0件で、途中で切れた見苦しい行が
+      // 混ざるだけだった (2026-08-09 実測)。2行までにとどめる。
       const lines = splitLabelText(entry.s.short || entry.s.name);
       if (!lines) return;
       entry.wrapped = true; entry.wrapLines = lines;
@@ -3363,6 +3367,9 @@ function buildPhotoGallery(s, photos){
   mainButton.appendChild(mainPicture);
   mainButton.addEventListener('click', () => openPhotoLightbox(currentPhoto, s.name, mainButton));
   gallery.appendChild(mainButton);
+  // 2026-08-09: 何の写真かが読み上げ(alt)にしか無く、目で見る人には分からなかった。
+  // サムネイルは写真の上に重ねて置いてあるので、説明はその下 (galleryの最後) に置く。
+  const caption = detailText('p', 'detail-photo-caption', currentPhoto.alt);
   if (photos.length > 1){
     const thumbnails = detailText('div', 'detail-photo-thumbs');
     thumbnails.setAttribute('aria-label', '表示する写真を選ぶ');
@@ -3379,6 +3386,7 @@ function buildPhotoGallery(s, photos){
         currentPhoto = photo;
         setPhotoPicture(mainPicture, photo, mainButton);
         mainButton.setAttribute('aria-label', photo.alt + 'を拡大表示');
+        caption.textContent = photo.alt;
         buttons.forEach(item => item.setAttribute('aria-pressed', item === button ? 'true' : 'false'));
         live.textContent = photo.alt + 'を表示中';
       });
@@ -3388,7 +3396,13 @@ function buildPhotoGallery(s, photos){
     gallery.appendChild(thumbnails);
     gallery.appendChild(live);
   }
-  return gallery;
+  // 狭い画面ではサムネイルが写真の下端に重ねて置かれる (.detail-photo-thumbs は
+  // gallery の bottom を基準にした絶対配置)。説明を gallery の中に入れると
+  // サムネの下に潜って読めなくなるので、gallery の外へ出す。
+  const wrap = detailText('div', 'detail-gallery-wrap');
+  wrap.appendChild(gallery);
+  wrap.appendChild(caption);
+  return wrap;
 }
 function buildDetailCard(s){
   const card = detailText('article', 'detail-card');
@@ -3433,11 +3447,13 @@ function buildDetailCard(s){
     });
     statuses.appendChild(voiceButton);
   }
-  if (s.note) statuses.appendChild(detailText('span', 'detail-status', '紹介あり'));
+  // 2026-08-09: 「紹介あり」「詳しい店舗情報あり」は こどもの声のボタンと同じ丸い形で
+  // 並んでいたが押せない。中身は同じカードの中に本文とリンクとして出ているので、
+  // 押せそうに見えるだけの表示は外す。
   // 2026-07-29 組合担当者あみさん指定の言い回し。「公式ページ」は作り手の言葉で、
   // 見る人には何が出るのか分からない。v2 へ作り直した時に旧表記へ戻っていた
   // (2026-08-08 の過去FB総点検で発覚)。
-  if (s.url && /^https:\/\//.test(s.url)) statuses.appendChild(detailText('span', 'detail-status', '詳しい店舗情報あり'));
+
   if (statuses.children.length) card.appendChild(statuses);
   const facts = buildDetailFacts(s);
   if (facts) card.appendChild(facts);
