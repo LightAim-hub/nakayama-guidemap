@@ -578,12 +578,20 @@
      店名が「…」も無しに黙って切れていた (360x640・文字22pxで40件)。
      何の店か分からなくなる方が害が大きいので、行数で切らず全部見せる。
      行が伸びるぶんは .strip-row の min-height と ResizeObserver が吸収する。 */
-  .strip-shop-name{ min-width:0; word-break:normal; overflow-wrap:normal; }
+  .strip-shop-name{ min-width:0; word-break:normal; overflow-wrap:normal;
+    /* 2026-08-09: 「ウジエスーパー中山 / 店」のように最後の1文字だけが次の行へ
+       落ちていた (ボスの実機写真)。行の分け方をならして孤立を避ける。 */
+    text-wrap:pretty; }
   /* 2026-08-08: 「ウジエスーパー」のような塊は途中で折らない (nowrap) 作りにしていたが、
      枠より長い塊が来ると枠からはみ出して端が切れていた (320px幅・文字を大きくした端末で実測)。
      keep-all で普段は折らず、どうしても入らない時だけ折る。 */
   .strip-name-token{ display:inline-block; max-width:100%;
-    white-space:normal; word-break:keep-all; overflow-wrap:anywhere; }
+    white-space:normal; word-break:keep-all; overflow-wrap:anywhere;
+    /* 2026-08-09: 折り返しで最後の1文字だけが次の行へ落ちていた
+       (「ウジエスーパー中山 / 店」)。文節で折れるブラウザではそちらを使う。 */
+    word-break:auto-phrase; text-wrap:pretty; }
+  /* 名前の末尾2文字は切り離さない (1文字だけが次の行に落ちるのを防ぐ) */
+  .strip-name-keep{ white-space:nowrap; overflow-wrap:normal; word-break:keep-all; }
   #strip > .strip-row{ min-height:45px; padding-block:3px; }
   #strip > .strip-row .strip-shop-name{ flex:1 1 auto; text-overflow:clip; white-space:normal; }
   .strip-voice{ flex:0 0 auto; color:var(--voice); font-size:15px; line-height:1.2; }
@@ -2937,9 +2945,38 @@ function setStripShopName(node,name){
     }
     tokens.push({text:part,space:false});
   });
-  tokens.forEach(token => {
-    if (token.space) node.appendChild(document.createTextNode(' '));
-    else node.appendChild(stripChild('span','strip-name-token',token.text));
+  tokens.forEach((token, i) => {
+    if (token.space){ node.appendChild(document.createTextNode(' ')); return; }
+    // 2026-08-09: 折り返しで最後の1文字だけが次の行へ落ちていた
+    // (ボスの実機写真「ウジエスーパー中山 / 店」)。
+    // 最後のかたまりの末尾2文字は必ず一緒に折り返す。
+    const isLast = !tokens.slice(i+1).some(t => !t.space);
+    if (!isLast){ node.appendChild(stripChild('span','strip-name-token',token.text)); return; }
+    // 名前の最後は「2文字以上のかたまり」で折り返す。
+    // 「ウジエスーパー / 中山 / 店」のように分かれていると、末尾の1文字だけが
+    // 次の行に落ちる (ボスの実機写真)。最後のかたまりが短い時は前とつなぐ。
+    let tail = [...token.text], headNode = null;
+    if (tail.length < 2){
+      // 直前の実体トークンから足りない分をもらう
+      for (let j = i - 1; j >= 0 && tail.length < 2; j--){
+        if (tokens[j].space || tokens[j].used) continue;
+        const prev = [...tokens[j].text];
+        const take = prev.splice(prev.length - (2 - tail.length));
+        tail = take.concat(tail);
+        tokens[j].text = prev.join('');
+        if (!tokens[j].text) tokens[j].used = true;
+        break;
+      }
+      // 直前のトークンは既に描いてあるので、その末尾を削って描き直す
+      const spans = node.querySelectorAll('.strip-name-token');
+      const lastSpan = spans[spans.length - 1];
+      if (lastSpan){
+        const j = tokens.slice(0, i).map((t,k)=>({t,k})).filter(x=>!x.t.space).pop();
+        if (j) lastSpan.textContent = tokens[j.k].text;
+        if (lastSpan.textContent === '') lastSpan.remove();
+      }
+    }
+    node.appendChild(stripChild('span','strip-name-token strip-name-keep', tail.join('')));
   });
 }
 function openStripShop(row, s, keyboard){

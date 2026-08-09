@@ -1910,6 +1910,16 @@ if os.path.exists(_details_path):
 else:
     print('official_details.json が無いので電話・営業時間は入れない')
 
+# 2026-08-09 ボス経由の組合確認: 5丁目の店の掲載名は「Double Egg」だけ。
+# 4丁目は「Double Egg4丁目」のまま。座標・URL の対応表は旧名で引くので、
+# すべて組み終わったこの位置で名前だけ差し替える。
+FINAL_RENAME = {'Double Egg5丁目': 'Double Egg'}
+for _sh in shops:
+    _new = FINAL_RENAME.get(_sh['name'])
+    if _new:
+        print('掲載名を差し替え: %s -> %s' % (_sh['name'], _new))
+        _sh['name'] = _new
+
 data = {'meta': meta, 'shops': shops, 'roads': roads, 'rivers': rivers,
         'parks': parks, 'waters': waters, 'sando': sando, 'busway': busway, 'exits': exits,
         'zones': zones, 'signals': signals}
