@@ -752,7 +752,8 @@ if not A.no_browser:
               try {
                 const gapOK = [starTargetPx()/2 + LABEL_GAP_PX];
                 gapOK.push(gapOK[0] + LABEL_FAR_COLUMN_PX);
-                const dyOK = [0, -LABEL_ROW_STEP_PX, LABEL_ROW_STEP_PX];
+                // 斜めは廃止。名前は印の真横 (縦のずれ0) か 真下・真上 のみ。
+                const dyOK = [0];
                 // 斜めに置いた名前は「その名前の真上・真下に他店の印が無い」時だけ認める。
                 // 2026-08-09 ボス指摘の正体 = 名前の下に別の店の印が来て、
                 // どちらの店の名前か分からなくなっていたこと。
@@ -790,8 +791,7 @@ if not A.no_browser:
                   const dd = Math.min(...dyOK.map(d => Math.abs(dy-d)));
                   if (gd > 2.0) slotBad.push(nm + ' 横' + gap.toFixed(1) + 'px');
                   else if (dd > 3.0) slotBad.push(nm + ' 縦' + dy.toFixed(1) + 'px');
-                  else if (Math.abs(dy) > 3.0 && !columnClear(+h.dataset.i, r, starTargetPx()))
-                    slotBad.push(nm + ' 斜めなのに名前の上下に他店の印がある');
+
                 }
               } catch (e) { slotErr = String((e && e.message) || e); }
               // 印を押した時に その店が開くか。2026-08-08 に押し分けの判定を
