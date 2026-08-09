@@ -563,9 +563,11 @@
   .strip-row.glowing{ border-color:var(--voice); box-shadow:0 0 0 3px rgba(38,116,123,.2), 2px 4px 0 rgba(92,67,39,.26); }
   .strip-row:focus-visible{ outline:3px solid var(--focus-ring); outline-offset:2px; }
   .strip-shop-dot{ flex:0 0 auto; }
-  .strip-shop-name{ min-width:0; max-height:2.5em; overflow:hidden;
-    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
-    word-break:normal; overflow-wrap:normal; }
+  /* 2026-08-09: 2行で打ち切って隠していたため、端末の文字を大きくすると
+     店名が「…」も無しに黙って切れていた (360x640・文字22pxで40件)。
+     何の店か分からなくなる方が害が大きいので、行数で切らず全部見せる。
+     行が伸びるぶんは .strip-row の min-height と ResizeObserver が吸収する。 */
+  .strip-shop-name{ min-width:0; word-break:normal; overflow-wrap:normal; }
   /* 2026-08-08: 「ウジエスーパー」のような塊は途中で折らない (nowrap) 作りにしていたが、
      枠より長い塊が来ると枠からはみ出して端が切れていた (320px幅・文字を大きくした端末で実測)。
      keep-all で普段は折らず、どうしても入らない時だけ折る。 */
@@ -595,15 +597,20 @@
   .strip-distance{ color:var(--ink-soft); font-size:max(14px, 0.875rem); font-weight:400; }
   .map-filter-badge, #mapback{ display:none; }
 
-  #controls{ flex:0 0 var(--controls-h); height:var(--controls-h); z-index:30; display:grid;
-    grid-template-columns:minmax(0,1fr); grid-template-rows:44px 44px 44px;
+  /* 高さは下限。中身 (文字を大きくした時のボタン) に合わせて伸びる */
+  #controls{ flex:0 0 auto; min-height:var(--controls-h); z-index:30; display:grid;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:minmax(44px,auto) minmax(44px,auto) minmax(44px,auto);
     gap:8px; padding:8px 10px; background:var(--paper); border-top:2px dashed rgba(92,67,39,.35);
     box-shadow:0 -8px 22px rgba(92,67,39,.1); }
   /* 1つあたり90pxを下回らせない。0まで縮められると、文字が縦1列に積まれて枠から溢れる
      (2026-08-08 商店街担当者（あみさん）の「検索したら大変なことに」の正体)。 */
+  /* 2026-08-09: 高さを44pxで固定していたため、端末の文字を大きくすると
+     ボタンの文字が枠から16pxはみ出し、隣のボタンの文字と重なっていた。
+     44pxは「指で押せる最低の大きさ」なので下限として残し、中身に合わせて伸ばす。 */
   #controls .filters{ display:grid; grid-template-columns:repeat(6,minmax(90px,1fr)); gap:8px;
-    height:44px; padding:0; overflow:visible; }
-  #controls .chip{ width:100%; min-width:0; max-width:none; height:44px; min-height:44px;
+    min-height:44px; padding:0; overflow:visible; align-items:stretch; }
+  #controls .chip{ width:100%; min-width:0; max-width:none; height:auto; min-height:44px;
     padding:3px 6px; justify-content:center; line-height:1.05; }
   #controls .chip .lbl{ min-width:0; text-align:center; white-space:normal; }
   #controls .searchbar{ height:44px; padding:0; gap:8px; }
@@ -699,26 +706,27 @@
   @media(max-width:759px) and (orientation:portrait){
     body{ --controls-h:216px; }
     header{ flex:0 0 44px; height:44px; overflow:hidden; }
-    #controls{ grid-template-rows:96px 44px 44px; }
+    #controls{ grid-template-rows:minmax(96px,auto) minmax(44px,auto) minmax(44px,auto); }
     #controls .filters{ grid-template-columns:repeat(3,minmax(90px,1fr));
-      grid-template-rows:44px 44px; height:96px; }
+      grid-template-rows:minmax(44px,auto) minmax(44px,auto); min-height:96px; }
   }
   /* 2026-08-04: 背の低い端末では固定UIが画面の40〜48%を占め、61件中4〜5件しか
      見えなかった。検索欄は「さがす」ボタンの中にしまい、通りの方向案内も省く。
      指の基準44pxは崩さない。(この規則は上のportrait規則より後に置くこと) */
   @media(max-width:759px) and (orientation:portrait) and (max-height:720px){
     body{ --controls-h:164px; }
-    #controls{ flex:0 0 var(--controls-h); min-height:var(--controls-h); height:var(--controls-h);
-      grid-template-rows:96px 44px; }
+    #controls{ flex:0 0 auto; min-height:var(--controls-h);
+      grid-template-rows:minmax(96px,auto) minmax(44px,auto); }
     /* 横スクロールにすると、画面の外に出たチップが「無いもの」になってしまう
        (検査 N22 も落ちる)。3つ×2段のまま、1つあたり90pxを下回らないようにする。
        2026-08-08 商店街担当者（あみさん）の「検索したら大変なことに」への対応。 */
     #controls .filters{ display:grid; grid-template-columns:repeat(3,minmax(90px,1fr));
-      grid-template-rows:44px 44px; height:96px; min-height:96px; padding:0; overflow:visible; }
-    #controls .chip{ width:100%; min-width:0; max-width:none; height:44px; min-height:44px; }
+      grid-template-rows:minmax(44px,auto) minmax(44px,auto); min-height:96px;
+      padding:0; overflow:visible; }
+    #controls .chip{ width:100%; min-width:0; max-width:none; height:auto; min-height:44px; }
     #controls .searchbar{ display:none; }
     body.search-open{ --controls-h:216px; }
-    body.search-open #controls{ grid-template-rows:96px 44px 44px; }
+    body.search-open #controls{ grid-template-rows:minmax(96px,auto) minmax(44px,auto) minmax(44px,auto); }
     body.search-open #controls .searchbar{ display:flex; }
     .strip-guide{ display:none; }
     .control-actions{ grid-template-columns:auto minmax(0,1fr) minmax(0,1fr); }
@@ -870,17 +878,17 @@
   <span class="detail-handle" aria-hidden="true"></span>
   <div class="detail-head">
     <div class="detail-head-copy">
-      <span class="detail-eyebrow">お店の詳細</span>
-      <span class="detail-guide">左右にスワイプして次のお店へ</span>
+      <span class="detail-eyebrow" id="detailEyebrow">お店の詳細</span>
+      <span class="detail-guide">左右にスワイプして次へ</span>
     </div>
     <h2 class="sr-only" id="detailTitle">お店の詳細</h2>
-    <button class="detail-close" id="detailClose" aria-label="お店の詳細を閉じる">✕</button>
+    <button class="detail-close" id="detailClose" aria-label="詳細を閉じる">✕</button>
   </div>
   <div class="detail-rail" id="detailRail" tabindex="0" aria-label="店舗詳細"></div>
   <div class="detail-nav">
-    <button id="detailPrev" type="button" aria-label="前のお店">← 前のお店</button>
+    <button id="detailPrev" type="button" aria-label="前へ">← 前へ</button>
     <span class="detail-count" id="detailCount" role="status" aria-live="polite"></span>
-    <button id="detailNext" type="button" aria-label="次のお店">次のお店 →</button>
+    <button id="detailNext" type="button" aria-label="次へ">次へ →</button>
   </div>
 </aside>
 <div id="editbar"><button id="exportBtn">座標をエクスポート</button></div>
@@ -3127,10 +3135,17 @@ function applyFilter({fromSearch=false} = {}){
       searchOpenedList = false;
       setSelectedShop(matched.length === 1 ? matched[0] : null);
       if (matched.length === 1){
-        requestAnimationFrame(() => {
-          const row=document.querySelector('.strip-row[data-i="'+GEO.shops.indexOf(matched[0])+'"]');
-          if (row) row.scrollIntoView({block:'nearest'});
-        });
+        // 2026-08-09: 地図を見ている人が絞り込んで1件になった時、その店が画面の外なら
+        // 薄い印だけが残り、探している店がどこにも見えなかった (実測: 「パン」「ケーキ」
+        // 「美容」で 濃い印0・名前0)。1件に決まったのだから、その店まで連れて行く。
+        if (document.body.classList.contains('map-open')){
+          focusShopOnMap(matched[0], false);
+        } else {
+          requestAnimationFrame(() => {
+            const row=document.querySelector('.strip-row[data-i="'+GEO.shops.indexOf(matched[0])+'"]');
+            if (row) row.scrollIntoView({block:'nearest'});
+          });
+        }
       }
     } else if (searchOpenedList){
       setListOpen(false);
@@ -3181,17 +3196,41 @@ function placeBubble(box, px, py){
   else if (wantTop > maxTop) top -= (wantTop - maxTop);
   box.style.left = cx + 'px'; box.style.top = top + 'px';
 }
+// 詳細シートは画面の下半分を覆う。ど真ん中に置くとシートの裏に隠れるので、
+// 「シートに隠れずに見えている帯」の真ん中へ置く。
+// 2026-08-09 実測: 送られた ?shop= のリンクを開くと、4件中3件がシートの裏にいた。
+function sheetShiftMap(){
+  if (!document.body.classList.contains('detail-open')) return 0;
+  const vp = viewport.getBoundingClientRect();
+  const sheet = detailPanel && detailPanel.getBoundingClientRect();
+  if (!sheet || !(sheet.height > 0)) return 0;
+  const covered = vp.bottom - Math.max(vp.top, sheet.top);
+  if (!(covered > 0)) return 0;
+  const matrix = svg.getScreenCTM();
+  const scale = matrix ? Math.hypot(matrix.a, matrix.b) : 0;
+  return scale > 0 ? (covered / 2) / scale : 0;
+}
 function focusShopOnMap(s, openDetail){
   const vb = svg.viewBox.baseVal;
   if (openDetail && query && !searchReturnViewBox){
     searchReturnViewBox = {x:vb.x, y:vb.y, width:vb.width, height:vb.height};
   }
-  setMapViewBox({x:s.x-vb.width/2, y:s.y-vb.height/2,
-    width:vb.width, height:vb.height});
+  const place = () => {
+    const box = svg.viewBox.baseVal;
+    setMapViewBox({x:s.x-box.width/2, y:s.y-box.height/2 + sheetShiftMap(),
+      width:box.width, height:box.height});
+  };
+  place();
   setSelectedShop(s);
   if (openDetail){
     pinned = s;
-    requestAnimationFrame(() => showDetail(s, false));
+    requestAnimationFrame(() => {
+      showDetail(s, false);
+      // シートが出てから測り直す。出はじめの1フレームではまだ画面の下にいて
+      // 「覆われる高さ0」と読めてしまうので、上がりきったところでもう一度測る。
+      requestAnimationFrame(place);
+      setTimeout(place, 420);
+    });
   }
 }
 function detailText(tag, className, text){
@@ -3447,12 +3486,14 @@ function buildDetailActions(s){
     route.setAttribute('aria-label', s.name + 'までの道順を地図アプリで開く');
     actions.appendChild(route);
   }
-  const share = detailText('button', 'detail-action', 'このお店を送る');
+  // 公園・名所を「お店」と呼ばない (2026-08-09)
+  const shareLabel = (s.cat === 'place') ? 'この場所を送る' : 'このお店を送る';
+  const share = detailText('button', 'detail-action', shareLabel);
   share.type = 'button';
   share.setAttribute('aria-label', s.name + 'のページのリンクを送る');
   share.addEventListener('click', async () => {
     const url = shopShareUrl(s);
-    const done = msg => { share.textContent = msg; setTimeout(() => { share.textContent = 'このお店を送る'; }, 2200); };
+    const done = msg => { share.textContent = msg; setTimeout(() => { share.textContent = shareLabel; }, 2200); };
     try {
       if (navigator.share){ await navigator.share({title: s.name + '｜なかやま商店街マップ', url: url}); return; }
       await navigator.clipboard.writeText(url); done('リンクをコピーしました');
@@ -3479,6 +3520,10 @@ function updateDetailIndex(index, panMap){
   detailPrev.disabled = detailIndex === 0;
   detailNext.disabled = detailIndex === detailShops.length - 1;
   detailTitle.textContent = s.name + 'の詳細';
+  // 公園・名所を「お店」と呼ばない (2026-08-09)。カテゴリは合っているのに
+  // 周りの文言が全部「お店」で、読み上げでも「お店の詳細」と読まれていた。
+  const eyebrow = document.getElementById('detailEyebrow');
+  if (eyebrow) eyebrow.textContent = (s.cat === 'place') ? 'この場所の詳細' : 'お店の詳細';
   // 2026-08-04: 見えていないカードの中のボタンやリンクにも Tab が入ってしまい、
   // 詳細を閉じるまでに 76 回押す必要があった。表示中の1枚だけを操作対象に残す。
   Array.from(detailRail.children).forEach((card, i) => {
