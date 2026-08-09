@@ -532,6 +532,12 @@
   .empty-help-all{ display:block; width:100%; min-height:48px; margin-top:12px; border:2px solid var(--voice);
     border-radius:12px; background:var(--paper); font:inherit; font-size:15px; font-weight:700;
     color:var(--voice); cursor:pointer; }
+  /* 2026-08-09: 1件見つかった時は、この箱が探し当てた店より大きくて
+     「見つからなかった」ように見えていた (実機で確認)。見つかった時は控えめに。 */
+  .empty-help.empty-help-found{ margin:10px 10px 14px; padding:10px 12px 12px;
+    border:1px solid rgba(122,92,59,.22); background:transparent; }
+  .empty-help.empty-help-found .empty-help-title{ font-size:14px; color:var(--ink-soft); }
+  .empty-help.empty-help-found .empty-help-all{ min-height:44px; margin-top:8px; font-size:14px; }
   /* 結果が0〜1件の時は、通りの背骨と方向の案内を出さない (見るものが無いのに枠だけ残る) */
   body.few-results .strip-guide,
   body.few-results .strip-road-label,
@@ -2026,10 +2032,17 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       // 逃がしても駄目だった時に「どこまで試して何で落ちたか」を残す。
       // 名前が出ない理由を推測でなく数で追えるようにするため (__labelPriorityReject と同じ)
       const nudgeLog = {};
-      visibleEntries.forEach(entry => {
-        if (entry.s.labelVisible) return;
+      const refreshStarGrid = () => {
+        starGrid.clear();
+        visibleEntries.forEach(other => {
+          const p = starCenters.get(other.idx);
+          starGrid.insert({idx:other.idx, point:p},
+                          {left:p.x, right:p.x, top:p.y, bottom:p.y});
+        });
+      };
+      const tryNudgeEntry = entry => {
         const own = starCenters.get(entry.idx), origin = screenOrigins.get(entry.idx);
-        if (!own || !origin) return;
+        if (!own || !origin) return false;
         const base = (markShift.get(entry.idx) || {dx:0}).dx;
         const bus = busXAtY(entry.s.y);
         const outside = entry.s.x >= bus ? 1 : -1;
@@ -2086,18 +2099,22 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
             moved = true;
             nudgeLog[entry.s.name] = step + 'm 動かして置けた';
             // 自分の印を動かした事実を、後続の店の判定にも効かせる
-            starGrid.clear();
-            visibleEntries.forEach(other => {
-              const p = starCenters.get(other.idx);
-              starGrid.insert({idx:other.idx, point:p},
-                              {left:p.x, right:p.x, top:p.y, bottom:p.y});
-            });
-            return;
+            refreshStarGrid();
+            return true;
           }
           tried.push(step + ':置き場が無い');
         }
         nudgeLog[entry.s.name] = tried;
         restore();
+        return false;
+      };
+      // 2026-08-09: 「いちばん近い相手にどいてもらって席を空ける」も実装して測ったが、
+      // 救えた店は0件だった。理由は数字で出る — ん daccha とこや は名前の幅126pxに対し
+      // 隣まで19px。隣を上限18m (=26px) 動かしても 45px にしかならず、
+      // 2行にしても63px要るので届かない。複雑さだけ増えるので入れていない。
+      visibleEntries.forEach(entry => {
+        if (entry.s.labelVisible) return;
+        tryNudgeEntry(entry);
       });
       window.__markNudge = nudgeLog;
       if (moved) document.querySelectorAll('g.hit').forEach(h => {
@@ -3033,6 +3050,14 @@ function stripChild(tag,className,text){
 const stripNameSegmenter=typeof Intl.Segmenter === 'function'
   ? new Intl.Segmenter('ja',{granularity:'word'}) : null;
 const stripNameSuffix=/^(?:丁目|支店|薬局|センター|クリニック)$/;
+// 文字の種類。カタカナ (長音・中黒を含む) / ひらがな・漢字 / 英数 に分ける。
+// 折り返してよいのはこの境目だけ、という判断に使う。
+function stripNameKind(text){
+  if (/^[ァ-ヺー・ㇰ-ㇿ]+$/.test(text)) return 'kana';
+  if (/^[ぁ-ゟ一-鿿々〆ヵヶ]+$/.test(text)) return 'jp';
+  if (/^[0-9A-Za-z&.'’‐-―-]+$/.test(text)) return 'latin';
+  return 'other';
+}
 function appendStripShopName(parent,name){
   const node=stripChild('span','strip-shop-name');
   setStripShopName(node,name);
@@ -3058,6 +3083,19 @@ function setStripShopName(node,name){
         return;
       }
     }
+    // 2026-08-09: 語の区切り (Intl.Segmenter) は「中山/店」「ダイニング/バー」のように
+    // 1つの語を割ることがあり、そこで折り返すと語の途中で切れて見える
+    // (ボスの実機写真「ウジエスーパー中 / 山店」の本体)。
+    // 同じ文字種が続いている間は1つのかたまりにする。折り返してよいのは
+    // カタカナ↔漢字↔英数 の境目と、もともとの空白だけ。
+    const prev=tokens[tokens.length-1];
+    if (prev && !prev.space){
+      const a=stripNameKind(prev.text), b=stripNameKind(part);
+      if (a !== 'other' && a === b){
+        prev.text+=part;
+        return;
+      }
+    }
     tokens.push({text:part,space:false});
   });
   tokens.forEach((token, i) => {
@@ -3070,25 +3108,19 @@ function setStripShopName(node,name){
     // 名前の最後は「2文字以上のかたまり」で折り返す。
     // 「ウジエスーパー / 中山 / 店」のように分かれていると、末尾の1文字だけが
     // 次の行に落ちる (ボスの実機写真)。最後のかたまりが短い時は前とつなぐ。
-    let tail = [...token.text], headNode = null;
+    let tail = [...token.text];
     if (tail.length < 2){
-      // 直前の実体トークンから足りない分をもらう
-      for (let j = i - 1; j >= 0 && tail.length < 2; j--){
-        if (tokens[j].space || tokens[j].used) continue;
-        const prev = [...tokens[j].text];
-        const take = prev.splice(prev.length - (2 - tail.length));
-        tail = take.concat(tail);
-        tokens[j].text = prev.join('');
-        if (!tokens[j].text) tokens[j].used = true;
+      // 2026-08-09 訂正: 直前から「足りない分だけ」もらうと語の途中で切れる
+      // (「中山」から1文字もらって「中」「山店」になっていた)。
+      // 直前のかたまりを丸ごと取り込む。空白はまたがない (別の語なので)。
+      for (let j = i - 1; j >= 0; j--){
+        if (tokens[j].space || tokens[j].used) break;
+        tail = [...tokens[j].text].concat(tail);
+        tokens[j].used = true;
+        const spans = node.querySelectorAll('.strip-name-token');
+        const lastSpan = spans[spans.length - 1];
+        if (lastSpan) lastSpan.remove();
         break;
-      }
-      // 直前のトークンは既に描いてあるので、その末尾を削って描き直す
-      const spans = node.querySelectorAll('.strip-name-token');
-      const lastSpan = spans[spans.length - 1];
-      if (lastSpan){
-        const j = tokens.slice(0, i).map((t,k)=>({t,k})).filter(x=>!x.t.space).pop();
-        if (j) lastSpan.textContent = tokens[j.k].text;
-        if (lastSpan.textContent === '') lastSpan.remove();
       }
     }
     node.appendChild(stripChild('span','strip-name-token strip-name-keep', tail.join('')));
@@ -3275,13 +3307,18 @@ function updateEmptyHelp(filtering, count){
   }
   box.hidden = false;
   box.replaceChildren();
+  box.classList.toggle('empty-help-found', count === 1);
   const head = document.createElement('p'); head.className = 'empty-help-title';
   head.textContent = count === 0
     ? (query ? '「'+query+'」に当てはまるお店は見つかりませんでした' : '当てはまるお店がありません')
-    : 'ほかの探し方';
+    : '1件見つかりました。上のお店を押すと詳しく見られます';
   box.appendChild(head);
+  // 2026-08-09: 1件見つかった時に「ほかの探し方」と候補語6つが画面の大半を占め、
+  // 探し当てた店より大きかった。使う人には「見つからなかった」ように見える
+  // (実機で確認)。見つかった時は候補語を出さず、一覧への導線だけ残す。
+  if (count === 0){
   const lead = document.createElement('p'); lead.className = 'empty-help-lead';
-  lead.textContent = count === 0 ? 'こんな言葉で探せます' : 'よく探されている言葉';
+  lead.textContent = 'こんな言葉で探せます';
   box.appendChild(lead);
   const wrap = document.createElement('div'); wrap.className = 'empty-help-words';
   EMPTY_SUGGEST.forEach(word => {
@@ -3296,8 +3333,10 @@ function updateEmptyHelp(filtering, count){
     wrap.appendChild(b);
   });
   box.appendChild(wrap);
+  }
   const all = document.createElement('button');
-  all.type = 'button'; all.className = 'empty-help-all'; all.textContent = 'お店一覧をぜんぶ見る';
+  all.type = 'button'; all.className = 'empty-help-all';
+  all.textContent = count === 0 ? 'お店一覧をぜんぶ見る' : 'ほかのお店も見る';
   all.addEventListener('click', () => {
     const input = document.getElementById('q');
     input.value = ''; query = '';
@@ -3877,6 +3916,36 @@ function showDetail(s, focusClose){
   updateDetailIndex(detailIndex, false);
   requestAnimationFrame(() => detailRail.scrollTo({left: detailIndex * detailRail.clientWidth, behavior:'auto'}));
   if (focusClose) document.getElementById('detailClose').focus();
+  nudgeMapAboveSheet(s);
+}
+// 2026-08-09: 印を押して詳細を開くと、押した店の印がシートの縁に半分隠れていた
+// (実機で確認。地図の下の方の店を押した時)。押した店が見えないまま説明だけ出る。
+// 中心へ飛ばすと「自分が押した場所」が動いて分からなくなるので、
+// **隠れる分だけ**地図を上へずらす。見えている時は1pxも動かさない。
+function nudgeMapAboveSheet(s){
+  if (!s || !document.body.classList.contains('map-open')) return;
+  const apply = () => {
+    if (!document.body.classList.contains('detail-open')) return;
+    const vp = viewport.getBoundingClientRect();
+    const sheet = detailPanel && detailPanel.getBoundingClientRect();
+    if (!sheet || !(sheet.height > 0)) return;
+    const top = Math.max(vp.top, sheet.top);
+    const matrix = svg.getScreenCTM();
+    if (!matrix) return;
+    const scale = Math.hypot(matrix.a, matrix.b);
+    if (!(scale > 0)) return;
+    const shift = markShift.get(GEO.shops.indexOf(s)) || {dx:0, dy:0};
+    const mx = s.x + shift.dx, my = s.y + shift.dy;
+    const py = matrix.b*mx + matrix.d*my + matrix.f;
+    // 印1つ分＋名前1行ぶんの余裕をシートの上に残す
+    // (1.8倍だと印は見えるが名前がシートの縁で切れていた・実機で確認)
+    const need = py - (top - starTargetPx() * 1.6 - labelTargetPx(s) * 1.9);
+    if (!(need > 1)) return;
+    const box = svg.viewBox.baseVal;
+    setMapViewBox({x:box.x, y:box.y + need/scale, width:box.width, height:box.height});
+  };
+  requestAnimationFrame(apply);
+  setTimeout(apply, 420);
 }
 function hideDetail(restoreFocus){
   closePhotoLightbox(false);

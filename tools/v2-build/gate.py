@@ -1256,7 +1256,30 @@ if not A.no_browser:
                                        .trim().slice(0,16),
                                   order:getComputedStyle(e).order})),
                   };
-                  return {texts, taps, wrap, clip, contrast, gaps, emoji, bypass};
+                  // N57 一覧の店名が語の途中で折り返されていないか。
+                  // 2026-08-09: 「ウジエスーパー中 / 山店」のように語の途中で1文字だけが
+                  // 行をまたいでいた (ボスの実機写真)。一度直したのに割れ方が変わって
+                  // 同じ日に再発したので検査に入れる。もとの名前で独立した語
+                  //(「ダイニングバー 祭」の「祭」) は正しいので数えない。
+                  const lone = [];
+                  for (const e of document.querySelectorAll('.strip-shop-name')) {
+                    if (!vis(e)) continue;
+                    const spans = [...e.querySelectorAll('span')];
+                    if (spans.length < 2) continue;
+                    const rows = new Map();
+                    spans.forEach(sp => {
+                      const top = Math.round(sp.getBoundingClientRect().top);
+                      rows.set(top, (rows.get(top) || '') + sp.textContent);
+                    });
+                    if (rows.size < 2) continue;
+                    const words = new Set(e.textContent.trim().split(/\s+/));
+                    for (const line of rows.values()) {
+                      const one = line.trim();
+                      if ([...one].length === 1 && !words.has(one))
+                        lone.push({state, txt:e.textContent.trim().slice(0,22), line:one});
+                    }
+                  }
+                  return {texts, taps, wrap, clip, contrast, gaps, emoji, bypass, lone};
                 }"""
                 # 画面の状態を作る手順。詳細シートは単一ボタンで開ける店、
                 # チューザーは複数候補が出る店を選ぶ。
@@ -1578,7 +1601,7 @@ fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "
                          "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39",
                          "N40", "N41", "N42", "N43", "N44",
                          "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54",
-                         "N55", "N56")}
+                         "N55", "N56", "N57")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -2057,6 +2080,16 @@ if REND:
                             "Tab では届かない — キーボードだけの人がその機能を使えない"
                             % "／".join(_unreach[:5]))
 
+    # N57 一覧の店名が語の途中で折り返されていないか (2026-08-09 ボスの実機写真)
+    _lone = {}
+    for u in (REND.get("ui") or []):
+        for it in (u.get("sweep") or {}).get("lone", []):
+            _lone.setdefault((it["txt"], it["line"]), []).append(
+                "%dx%d %s" % (u["vw"], u.get("vh", 0), it["state"]))
+    for (txt, line), where in sorted(_lone.items()):
+        fails["N57"].append("一覧の「%s」が「%s」の1文字だけで行が分かれる [%s]"
+                            % (txt, line, sorted(set(where))[0]))
+
     for _k, _n, _fmt in (("wrap", "N28", "%s (%s) が「%s」で改行される [%s]"),
                          ("clip", "N29", "%s (%s) が入れ物に収まらない 必要%dpx / 幅%dpx [%s]")):
         _seen = {}
@@ -2430,13 +2463,14 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N53": "検査が対象を作れている (状態が黙って抜けていない)",
        "N54": "店名が印に対して決まった置き場に出ている",
        "N55": "引き切っても印が重ならない (まとめの丸で解く)",
-       "N56": "地図に名前が出ている店の数が落ちていない"}
+       "N56": "地図に名前が出ている店の数が落ちていない",
+       "N57": "一覧の店名が語の途中で折り返されていない"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
               "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43", "N44",
               "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54",
-              "N55", "N56"):
+              "N55", "N56", "N57"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
