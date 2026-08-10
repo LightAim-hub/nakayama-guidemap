@@ -60,6 +60,28 @@ def _open_map(page):
 #   ・何が地図の上に乗っているか ・見出しと閉じる手段があるか
 #   ・画面の中にある店名が縁で切れていないか
 # を返す。「比率は通るのに中身が切れている」を捕まえるため。
+# N61 方位記号の針が本当に北を向いているか (2026-08-10)
+# あみさん「右下のコンパスが全然方角あってない」。実測 92.8度ずれ。
+# 「投影を rot_deg 回したぶん戻す」と考えて符号を逆にしていた。正しくは
+# 「北へ1m進むと画面がどっちへ動くか」。針の向きは画面から実測し、
+# 期待値は GEO の投影式から出す (どちらも人の思い込みを挟まない)。
+COMPASS_JS = """() => {
+  const n = document.getElementById('compassNeedle');
+  const p = (typeof GEO !== 'undefined' && GEO.meta && GEO.meta.proj) ? GEO.meta.proj : null;
+  if (!n || !p) return {ok: false, why: !n ? '針が無い' : '投影が無い'};
+  const svg = n.ownerSVGElement;
+  const m = n.getCTM();
+  const pt = (x, y) => { const q = svg.createSVGPoint(); q.x = x; q.y = y; return q.matrixTransform(m); };
+  const c = pt(22, 22), tip = pt(22, 5);          // 中心 → 北の先端
+  const actual = (Math.atan2(tip.x - c.x, -(tip.y - c.y)) * 180 / Math.PI + 360) % 360;
+  // 投影: x = mx*cos+my*sin, y = mx*sin-my*cos。北 = (mx,my)=(0,1)
+  const R = p.rot_deg * Math.PI / 180;
+  const nx = Math.sin(R), ny = -Math.cos(R);
+  const want = (Math.atan2(nx, -ny) * 180 / Math.PI + 360) % 360;
+  let d = Math.abs(actual - want); if (d > 180) d = 360 - d;
+  return {ok: true, actual: Math.round(actual * 10) / 10, want: Math.round(want * 10) / 10,
+          off: Math.round(d * 10) / 10};
+}"""
 MAP_FRAME_JS = """() => {
   const MAP_PAD = 6;
   const vp = document.getElementById('viewport');
@@ -374,6 +396,17 @@ UI_DEVICES = [(320, 568), (360, 640), (375, 667), (390, 844), (428, 926)]
 # N20/N21 はここでも見る。一方 N23 (地図の大きさ) は横向きだと前提が変わるので
 # 縦向きだけで判定する — 横向きは「地図が主」でなく「一覧が主」の使い方になる。
 UI_LANDSCAPE = [(640, 360), (844, 390)]
+# 2026-08-10: 端末の「文字の大きさ」を一度も変えて見ていなかった。あみさんの
+# 「スマホで拡大すると文字が大変」は、Android の文字設定 200% (16px→32px) で
+# header が中身を刈り込んでいたもの。ブラウザのピンチ拡大と地図の＋は無傷だった。
+# 全端末 x 全文字サイズは時間の割に増えないので、いちばん狭い端末と代表機だけを
+# 24px (150%) と 32px (200%) で総なめする。ここは総なめ (N20-N35/N43-N49/N57-N59)
+# だけを回し、16px 前提で較正した寸法の検査は縦横の既定サイズに任せる。
+UI_FONT_ROWS = [(320, 568, 24), (320, 568, 32), (390, 844, 24), (390, 844, 32)]
+# 総なめが集める箱の名前。1か所で持つ — 2026-08-09 の N57 と 08-10 の N58 は
+# どちらも「判定は正しいのに、この並びへ足し忘れて戻り値を捨てていた」ため
+# 何も捕まえずに PASS していた。増やす時はここだけ直せば全経路に届く。
+SWEEP_KEYS = ("texts", "taps", "wrap", "clip", "contrast", "gaps", "emoji", "lone", "orphan", "cutbox", "rank")
 
 # ---- 2026-07-31 追加 (N45-N50) ----
 # ここまでの N1-N44 は「数えられるもの」だけを見ていた。地図を開いた画面を一度も
@@ -1322,7 +1355,12 @@ if not A.no_browser:
                   // ここでは要素の中の全テキストノードを論理順につなぎ、行ごとに数える。
                   // もとの文で独立している語 (「✕ 通りへもどる」の「✕」) は正しいので除く。
                   const orphan = [];
-                  for (const e of document.querySelectorAll('button, [role="button"], .chip')) {
+                  // 2026-08-10: ボタンとチップしか見ていなかったので、詳細の案内文
+                  // 「左右にスワイプして次 / へ」の1文字落ちを素通りしていた (目で発見)。
+                  // 短い案内・見出しも同じ規則で見る。
+                  for (const e of document.querySelectorAll(
+                      'button, [role="button"], .chip, .detail-guide, .detail-eyebrow,'
+                      + ' .detail-cat, .empty-help-title, .strip-credit-contact, h1, h2')) {
                     if (!vis(e)) continue;
                     if (e.closest('.strip-row, .lrow, #listrows, #strip')) continue; // N57 の担当
                     const nodes = [];
@@ -1354,7 +1392,44 @@ if not A.no_browser:
                                    ch: chars[0], lines: lines.size});
                     }
                   }
-                  return {texts, taps, wrap, clip, contrast, gaps, emoji, bypass, lone, orphan};
+                  // N59 箱が中身の文字を切っていないか。
+                  // 端末の文字設定を大きくすると、高さを px で決め打ちした箱 (header 等) が
+                  // 中の見出しを黙って刈り込む。2026-08-10 あみさん「拡大すると文字が大変」。
+                  // 見る軸ごとに判定する: はみ出た側が hidden/clip の時だけ違反。
+                  // スクロールできる箱 (auto/scroll) と読み上げ専用の 1px 箱は対象外。
+                  const cutbox = [];
+                  for (const e of document.querySelectorAll('*')) {
+                    if (!vis(e)) continue;
+                    const b = e.getBoundingClientRect();
+                    if (b.width <= 2 || b.height <= 2) continue;   // .sr-only
+                    const cs = getComputedStyle(e);
+                    if (cs.textOverflow === 'ellipsis') continue;  // 切れたと分かる形なので別扱い
+                    if (!(e.innerText || '').trim()) continue;
+                    const dw = e.scrollWidth - e.clientWidth;
+                    const dh = e.scrollHeight - e.clientHeight;
+                    const hidX = /hidden|clip/.test(cs.overflowX), hidY = /hidden|clip/.test(cs.overflowY);
+                    const w = hidX && dw > 2 ? dw : 0, h = hidY && dh > 2 ? dh : 0;
+                    if (!w && !h) continue;
+                    cutbox.push({state, sel: sel(e), txt: (e.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 24),
+                                 dw: w, dh: h});
+                  }
+                  // N60 同じ行の中で、店名が住所より小さくなっていないか。
+                  // 端末の文字設定に上限をつけて崩れを止める直し方は、上限をつけ忘れた
+                  // 文字だけが伸び続けて主従が入れ替わる。2026-08-10 実測: 200%の端末で
+                  // 店名18px / 住所28px になり、住所の方が目立っていた。
+                  const rank = [];
+                  for (const row of document.querySelectorAll('.lrow, .strip-row')) {
+                    if (!vis(row)) continue;
+                    const nm = row.querySelector('.lname, .strip-shop-name');
+                    const ad = row.querySelector('.laddr, .strip-shop-addr');
+                    if (!nm || !ad || !vis(nm) || !vis(ad)) continue;
+                    const n = parseFloat(getComputedStyle(nm).fontSize);
+                    const a = parseFloat(getComputedStyle(ad).fontSize);
+                    if (n >= a - 0.05) continue;
+                    rank.push({state, sel: sel(row), txt: (nm.innerText || '').trim().slice(0, 20),
+                               name: Math.round(n * 10) / 10, addr: Math.round(a * 10) / 10});
+                  }
+                  return {texts, taps, wrap, clip, contrast, gaps, emoji, bypass, lone, orphan, cutbox, rank};
                 }"""
                 # 画面の状態を作る手順。詳細シートは単一ボタンで開ける店、
                 # チューザーは複数候補が出る店を選ぶ。
@@ -1416,14 +1491,21 @@ if not A.no_browser:
                      await new Promise(r=>setTimeout(r,700)); return true; }"""),
                 ]
                 UI = []
-                for uw, uh in UI_DEVICES + UI_LANDSCAPE:
+                for uw, uh, ufs in ([(w, h, 16) for w, h in UI_DEVICES + UI_LANDSCAPE]
+                                    + UI_FONT_ROWS):
                     up = br.new_page(viewport={"width": uw, "height": uh})
+                    if ufs != 16:
+                        # 端末の「文字の大きさ」設定。ブラウザのページ拡大ではないので
+                        # 見た目は伸びず、rem と既定サイズの文字だけが伸びる。
+                        _cdp = up.context.new_cdp_session(up)
+                        _cdp.send("Page.enable")
+                        _cdp.send("Page.setFontSizes", {"fontSizes": {"standard": ufs, "fixed": ufs}})
                     up.goto(url, wait_until="load")
                     up.wait_for_timeout(1200)
-                    sweep = {"texts": [], "taps": [], "wrap": [], "clip": [],
-                             "contrast": [], "gaps": [], "emoji": [], "lone": [], "orphan": []}
+                    sweep = {"texts": [], "taps": [], "wrap": [], "clip": [], "contrast": [],
+                             "gaps": [], "emoji": [], "lone": [], "orphan": [], "cutbox": [], "rank": []}
                     base = up.evaluate(SWEEPJS, "開いた直後")
-                    for _k in ("texts", "taps", "wrap", "clip", "contrast", "gaps", "emoji", "lone", "orphan"):
+                    for _k in SWEEP_KEYS:
                         sweep[_k] += base[_k]
                     sweep["bypass"] = base["bypass"]
                     # 状態を作れなかったら「対象が無い」ではなく「測れなかった」。
@@ -1436,8 +1518,20 @@ if not A.no_browser:
                             sweep["missing"].append(st)
                             continue
                         r = up.evaluate(SWEEPJS, st)
-                        for _k in ("texts", "taps", "wrap", "clip", "contrast", "gaps", "emoji", "lone", "orphan"):
+                        for _k in SWEEP_KEYS:
                             sweep[_k] += r[_k]
+                    if ufs != 16:
+                        # どの文字サイズで出た違反かを状態名に焼いておく。
+                        # 場所が「320x568 お店一覧」だけだと、既定の文字で再現できず
+                        # 「直ってない」と誤読される。
+                        for _k in SWEEP_KEYS:
+                            for _it in sweep[_k]:
+                                _it["state"] = "文字%dpx %s" % (ufs, _it.get("state", ""))
+                        # 文字を大きくした行は総なめの結果だけ持ち帰る。
+                        UI.append({"vw": uw, "vh": uh, "portrait": uh > uw,
+                                   "fontPx": ufs, "offscreen": [], "sweep": sweep})
+                        up.close()
+                        continue
                     up.evaluate("""async () => {
                         document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
                         const q=document.getElementById('q');
@@ -1512,6 +1606,7 @@ if not A.no_browser:
                         u["voiceHidden"] = m2["voiceHidden"]
                         # N45-N47 地図の画面。開いた地図を実際に測る (2026-07-31 追加)
                         u["mapFrame"] = up.evaluate(MAP_FRAME_JS)
+                        u["compass"] = up.evaluate(COMPASS_JS)
                     u["vw"] = uw
                     u["vh"] = uh
                     u["portrait"] = uh > uw
@@ -1676,7 +1771,7 @@ fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "
                          "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39",
                          "N40", "N41", "N42", "N43", "N44",
                          "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54",
-                         "N55", "N56", "N57", "N58")}
+                         "N55", "N56", "N57", "N58", "N59", "N60", "N61")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -2041,6 +2136,12 @@ if REND:
                                                "attrib": t["attrib"], "where": []})
             e["fs"] = min(e["fs"], t["fs"])
             e["where"].append("%s %s" % (dev, t["state"]))
+        # 文字を大きくして測った行は、ここから下の寸法の検査には渡さない。
+        # 床 (主の内容が画面の何%か等) は 16px 前提で実測して決めたもので、
+        # 200% の文字に同じ床を当てると達成不能な要求になる。
+        # 文字サイズで見たいのは「切れていないか」であって「何%占めるか」ではない。
+        if u.get("fontPx", 16) != 16:
+            continue
         for o in u["offscreen"]:
             fails["N22"].append("%s (%s) が画面の外にある [幅%d]" % (o["nm"], o["txt"], vw))
         for c in (u.get("credits") or []):
@@ -2175,6 +2276,53 @@ if REND:
         _w = sorted(set(where))
         fails["N58"].append("%s の「%s」が折り返され、「%s」だけが1行に取り残される [%s]"
                             % (sel_, txt, ch, _w[0] + ("" if len(_w) == 1 else " ほか%d" % (len(_w)-1))))
+
+    # N59 箱が中身の文字を切っていないか (2026-08-10・あみさん「拡大すると文字が大変」)
+    # 高さを px で決め打ちした箱に、端末の文字設定で伸びる文字を入れると起きる。
+    # どの端末・どの文字サイズで出たかを添える (16px でも出るなら常時の欠陥)。
+    _cut = {}
+    for u in (REND.get("ui") or []):
+        for it in (u.get("sweep") or {}).get("cutbox", []):
+            _cut.setdefault((it["sel"], it["txt"]), []).append(
+                ("%dx%d %s" % (u["vw"], u.get("vh", 0), it["state"]), it["dw"], it["dh"]))
+    for (sel_, txt), rows in sorted(_cut.items()):
+        _w = sorted(set(r[0] for r in rows))
+        _dw, _dh = max(r[1] for r in rows), max(r[2] for r in rows)
+        _lack = " / ".join(x for x in ("横%dpx" % _dw if _dw else "", "縦%dpx" % _dh if _dh else "") if x)
+        fails["N59"].append("%s が中の「%s」を切っている (%s 足りない) [%s]"
+                            % (sel_, txt, _lack,
+                               _w[0] + ("" if len(_w) == 1 else " ほか%d" % (len(_w)-1))))
+
+    # N60 同じ行で店名が住所より小さくなっていないか (2026-08-10)
+    _rank = {}
+    for u in (REND.get("ui") or []):
+        for it in (u.get("sweep") or {}).get("rank", []):
+            _rank.setdefault((it["sel"], it["name"], it["addr"]), []).append(
+                "%dx%d %s" % (u["vw"], u.get("vh", 0), it["state"]))
+    for (sel_, nm, ad), where in sorted(_rank.items()):
+        _w = sorted(set(where))
+        fails["N60"].append("%s の店名が%.1fpx・住所が%.1fpx で、住所の方が大きい [%s]"
+                            % (sel_, nm, ad,
+                               _w[0] + ("" if len(_w) == 1 else " ほか%d" % (len(_w)-1))))
+
+    # N61 方位記号の針が北を向いているか (2026-08-10・あみさん指摘)
+    _cmp = {}
+    for u in (REND.get("ui") or []):
+        c = u.get("compass")
+        if not c:
+            continue
+        if not c.get("ok"):
+            _cmp.setdefault(("測れない", c.get("why", "?"), 0), []).append("%dx%d" % (u["vw"], u.get("vh", 0)))
+        elif c.get("off", 0) > 3:
+            _cmp.setdefault(("ずれ", c["actual"], c["want"]), []).append("%dx%d" % (u["vw"], u.get("vh", 0)))
+    for (kind, a, b), where in sorted(_cmp.items(), key=lambda kv: str(kv[0])):
+        _w = sorted(set(where))
+        if kind == "測れない":
+            fails["N61"].append("方位記号を測れない (%s) [%s]" % (a, _w[0]))
+        else:
+            fails["N61"].append("針が真上から%.1f度を指しているが、北は%.1f度の向き (%.1f度ずれ) [%s]"
+                                % (a, b, abs(((a - b) + 180) % 360 - 180),
+                                   _w[0] + ("" if len(_w) == 1 else " ほか%d" % (len(_w)-1))))
 
     for _k, _n, _fmt in (("wrap", "N28", "%s (%s) が「%s」で改行される [%s]"),
                          ("clip", "N29", "%s (%s) が入れ物に収まらない 必要%dpx / 幅%dpx [%s]")):
@@ -2551,13 +2699,16 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N55": "引き切っても印が重ならない (まとめの丸で解く)",
        "N56": "地図に名前が出ている店の数が落ちていない",
        "N57": "一覧の店名が語の途中で折り返されていない",
-       "N58": "ボタンの文字に1文字だけの行ができていない"}
+       "N58": "ボタンの文字に1文字だけの行ができていない",
+       "N59": "箱が中身の文字を切っていない (端末の文字設定 150%/200%)",
+       "N60": "同じ行で店名が住所より小さくない",
+       "N61": "方位記号の針が北を向いている"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
               "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43", "N44",
               "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54",
-              "N55", "N56", "N57", "N58"):
+              "N55", "N56", "N57", "N58", "N59", "N60", "N61"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:

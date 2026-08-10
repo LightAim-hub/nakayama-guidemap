@@ -52,6 +52,9 @@
     --c-medical:#a8875f; --c-life:#4a9d3f; --c-food:#e8902f; --c-edu:#3f7ec7; --c-place:#2fa3a0;
     --photo-backdrop:rgba(35,25,15,.9); --photo-surface:#fffaf0; --photo-rule:#d8c4a0;
     --photo-focus:#8a4a14; --ease-photo:cubic-bezier(.16,1,.3,1); --dur-photo:140ms;
+    /* Keep one cap per text role. Body text follows the device setting unless a
+       structurally narrow container overrides this shared value. */
+    --heading-font-max:24px; --body-font-max:1rem;
     /* 2026-08-04: 半透明のフォーカス枠は紙色に溶けて 1.58:1 しかなく、キーボードで
        「今どこにいるか」が見えなかった。不透明の濃い色にして 3:1 を満たす。 */
     --focus-ring:#8a4a14;
@@ -63,6 +66,9 @@
     background:var(--paper); color:var(--ink);
     display:flex; flex-direction:column; overflow:hidden;
   }
+  /* At roughly 320px there is not enough line width for list/detail controls to
+     grow without orphaning words. Keep BM's cap only on those narrow devices. */
+  @media(max-width:340px){ body{ --body-font-max:18px; } }
   .skip-map{ position:fixed; left:8px; top:8px; z-index:100; min-height:44px; padding:9px 14px;
     display:inline-flex; align-items:center; color:var(--ink); background:#fffaf0; border:2px solid var(--ink-soft);
     border-radius:50% 45% 52% 48% / 48% 52% 45% 50%; box-shadow:2px 3px 0 rgba(92,67,39,.25);
@@ -70,25 +76,24 @@
   .skip-map:focus-visible{ transform:translateY(0); outline:3px solid var(--focus-ring); outline-offset:2px; }
   header{ padding:10px 14px 6px; border-bottom:2px dashed rgba(92,67,39,.35); z-index:20; background:var(--paper); }
   header h1{
-    font-family:'Yusei Magic',sans-serif; font-size:1.2rem; letter-spacing:0;
+    font-family:'Yusei Magic',sans-serif; font-size:clamp(19.2px,1.2rem,var(--heading-font-max)); letter-spacing:0;
     display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
   }
   header h1 small{
     font-size:.6rem; color:var(--ink-soft); letter-spacing:0;
     border:1.5px solid var(--ink-soft); border-radius:999px; padding:2px 9px; white-space:nowrap;
   }
-  header p{ font-size:max(14px, 0.875rem); color:var(--ink-soft); margin-top:3px; }
+  header p{ font-size:clamp(14px,0.875rem,16px); color:var(--ink-soft); margin-top:3px; }
   .shop-total-summary{ flex:0 0 auto; margin-left:auto; color:var(--ink-soft);
     font-family:'Zen Maru Gothic','Hiragino Maru Gothic ProN','Yu Gothic',sans-serif;
-    font-size:max(14px, .875rem); font-weight:700; line-height:1; white-space:nowrap; }
+    font-size:clamp(14px,.875rem,16px); font-weight:700; line-height:1; white-space:nowrap; }
   .chip:focus-visible, .searchbar input:focus-visible{
     outline:3px solid var(--focus-ring); outline-offset:2px; }
 
   .filters{ display:flex; flex-wrap:wrap; gap:8px; padding:8px 12px 5px; background:var(--paper); z-index:20; }
   .chip{ border:2px solid currentColor; background:#fffaf0; color:var(--ink);
     border-radius:999px; padding:6px 12px; font-weight:700; cursor:pointer;
-    /* 絞り込みは高さの決まった帯に入るので、18pxで頭打ちにする。
-       本文(店名・住所・詳細)は端末の文字設定にそのまま追従させている */
+    /* 絞り込みは高さの決まった帯に入るので、18pxで頭打ちにする。 */
     font-size:clamp(14px, .875rem, 18px);
     display:inline-flex; align-items:center; gap:6px; user-select:none; transition:transform .08s, background .15s;
     min-height:40px; }
@@ -121,11 +126,11 @@
     background:#fffaf0; border-left:1.7px solid currentColor; border-bottom:1.7px solid currentColor; transform:skewY(-35deg); }
   .searchbar{ padding:0 12px 6px; background:var(--paper); z-index:20; display:flex; gap:6px; align-items:center; }
   .searchbar input{
-    flex:1; min-width:0; max-width:340px; font:inherit; font-size:max(16px, 1rem); color:var(--ink);
+    flex:1; min-width:0; max-width:340px; font:inherit; font-size:clamp(16px,1rem,16px); color:var(--ink);
     min-height:44px; padding:8px 12px; border:2px solid rgba(122,92,59,.5); border-radius:999px; background:#fffaf0; outline:none;
   }
   .searchbar input:focus{ border-color:var(--accent); }
-  #searchstatus{ min-width:5.5em; font-size:max(14px, 0.875rem); font-weight:700; color:var(--voice); white-space:nowrap; }
+  #searchstatus{ min-width:5.5em; font-size:clamp(14px,0.875rem,16px); font-weight:700; color:var(--voice); white-space:nowrap; }
   #searchstatus.empty{ color:#b3562e; }
   @media(max-width:759px){
     header{ padding:5px 12px 3px; }
@@ -194,10 +199,10 @@
     paint-order:stroke; stroke:var(--paper); stroke-width:7px; stroke-linejoin:round; }
   .shoplabel.b{ font-weight:700; }
   /* いま開いているか (2026-08-09)。掲載から確実に読めるものだけ出す */
-  .detail-photo-caption{ margin:6px 2px 0; color:var(--ink-soft); font-size:max(14px,.85rem);
+  .detail-photo-caption{ margin:6px 2px 0; color:var(--ink-soft); font-size:clamp(14px,.85rem,var(--body-font-max));
     line-height:1.35; }
   .open-now{ display:inline-block; padding:2px 10px; border-radius:999px;
-    font-weight:700; font-size:max(14px,.875rem); border:2px solid currentColor; }
+    font-weight:700; font-size:clamp(14px,.875rem,var(--body-font-max)); border:2px solid currentColor; }
   .open-now--open{ color:#1f6b3c; background:#eaf7ee; }
   .open-now--closed{ color:#8a4a20; background:#f7efe6; }
   /* 引いた時に重なる印をまとめた丸 (2026-08-09) */
@@ -228,14 +233,15 @@
     border-bottom:1.5px dashed rgba(122,92,59,.28); }
   .detail-head-copy{ min-width:0; }
   .detail-eyebrow{ display:block; color:var(--voice); font-size:.68rem; font-weight:700; letter-spacing:.04em; }
-  .detail-guide{ display:block; color:var(--ink-soft); font-size:.72rem; margin-top:2px; }
+  .detail-guide{ display:block; color:var(--ink-soft); font-size:.72rem; margin-top:2px; text-wrap:pretty; }
   .detail-close{ flex:0 0 auto; width:44px; height:44px; border:0; border-radius:50%; background:var(--paper-deep);
     color:var(--ink); font:inherit; font-size:1rem; cursor:pointer; }
   .detail-close:focus-visible, .detail-nav button:focus-visible, .detail-link:focus-visible{
     outline:3px solid var(--focus-ring); outline-offset:2px; }
   /* 2026-08-04: 中身がはみ出している時、切れかけたボタンが下の「前/次のお店」と
      隙間ゼロで並び、押し間違える。切れ目と下帯の間に必ず隙間を残す。 */
-  .detail-rail{ flex:1; min-height:0; display:flex; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory;
+  .detail-rail{ flex:1; width:100%; max-width:100%; min-width:0; min-height:44px; display:flex;
+    overflow-x:auto; overflow-y:hidden; contain:layout paint; scroll-snap-type:x mandatory;
     overscroll-behavior-x:contain; scrollbar-width:none; margin-bottom:10px; }
   .detail-rail::-webkit-scrollbar{ display:none; }
   .detail-card{ flex:0 0 100%; min-width:0; overflow-y:auto; scroll-snap-align:start; scroll-snap-stop:always;
@@ -244,7 +250,8 @@
     border-radius:999px; font-size:.72rem; font-weight:700; }
   .detail-cat .cat-icon{ margin-right:1px; }
   .detail-cat-label{ color:var(--detail-cat-ink); }
-  .detail-card h2{ margin-top:13px; padding-right:6px; font-family:'Yusei Magic',sans-serif; font-size:1.42rem;
+  .detail-card h2{ margin-top:13px; padding-right:6px; font-family:'Yusei Magic',sans-serif;
+    font-size:min(1.42rem,var(--heading-font-max));
     line-height:1.35; letter-spacing:.01em; }
   .detail-gallery{ display:grid; gap:8px; margin-top:14px; }
   .detail-photo-main{ position:relative; display:block; width:100%; aspect-ratio:16/6.5; overflow:hidden; padding:0;
@@ -288,7 +295,8 @@
   .photo-lightbox-close{ position:absolute; z-index:1; top:8px; right:8px; width:44px; height:44px; border:2px solid var(--photo-rule);
     border-radius:50%; background:var(--photo-surface); color:var(--ink); font:inherit; font-size:1rem; cursor:pointer;
     transition:transform var(--dur-photo) var(--ease-photo); }
-  .photo-lightbox-caption{ max-width:70ch; padding-inline:52px; color:var(--photo-surface); font-size:.82rem;
+  .photo-lightbox-caption{ max-width:70ch; padding-inline:52px; color:var(--photo-surface);
+    font-size:min(.82rem,var(--body-font-max));
     line-height:1.5; text-align:center; }
   .detail-address{ display:flex; gap:8px; align-items:flex-start; margin-top:10px; color:var(--ink-soft);
     font-size:.82rem; line-height:1.55; }
@@ -307,37 +315,40 @@
   .detail-empty{ margin-top:18px; color:var(--ink-soft); font-size:.8rem; line-height:1.65; }
   .detail-voice-block{ margin-top:20px; scroll-margin-top:10px; outline:none; }
   .detail-voice-title{ display:flex; align-items:center; gap:8px; margin-bottom:9px; color:var(--voice);
-    font-size:.8rem; font-weight:700; }
+    font-size:min(.8rem,var(--body-font-max)); font-weight:700; }
   .voice-title-icon, .lvoice{ position:relative; display:inline-flex; align-items:center; justify-content:center;
     flex:0 0 auto; border:1.7px solid var(--voice); background:#fffaf0; color:var(--voice); }
   .voice-title-icon{ width:20px; height:15px; border-radius:6px; font-size:8px; line-height:1; }
   .voice-title-icon::after, .lvoice::after{ content:""; position:absolute; left:3px; bottom:-4px; width:6px; height:6px;
     background:#fffaf0; border-left:1.7px solid var(--voice); border-bottom:1.7px solid var(--voice); transform:skewY(-35deg); }
   .detail-voice{ position:relative; margin:7px 0; padding:10px 12px 10px 28px; border-radius:10px;
-    border-left:4px solid var(--voice); background:#edf6f3; font-size:.82rem; line-height:1.65; }
+    border-left:4px solid var(--voice); background:#edf6f3; font-size:min(.82rem,var(--body-font-max)); line-height:1.65; }
   .detail-voice::before{ content:"“"; position:absolute; left:10px; top:5px; color:var(--voice); font-size:1.2rem; font-weight:700; }
-  .detail-voice-source{ margin-top:10px; color:var(--ink-soft); font-size:.72rem; line-height:1.6; }
+  .detail-voice-source{ margin-top:10px; color:var(--ink-soft);
+    font-size:min(.72rem,var(--body-font-max)); line-height:1.6; }
   .detail-link{ display:flex; align-items:center; justify-content:center; min-height:46px; margin-top:22px; padding:10px 16px;
     border:2px solid #a45e2b; border-radius:999px; color:#a45e2b; font-size:.82rem; font-weight:700; text-decoration:none; }
   .detail-facts-wrap{ margin-top:14px; }
   .detail-facts{ display:grid; grid-template-columns:auto minmax(0,1fr); gap:6px 12px;
     padding:12px 14px; border:1.5px solid rgba(122,92,59,.28); border-radius:12px; background:#fffaf0; }
-  .detail-fact-label{ color:var(--ink-soft); font-size:max(14px, 0.875rem); font-weight:700; white-space:nowrap; }
-  .detail-fact-value{ font-size:max(14px, 0.875rem); line-height:1.65; }
+  .detail-fact-label{ color:var(--ink-soft); font-size:clamp(14px,.875rem,var(--body-font-max)); font-weight:700; white-space:nowrap; }
+  .detail-fact-value{ font-size:clamp(14px,.875rem,var(--body-font-max)); line-height:1.65; }
   .detail-fact-tel{ display:inline-flex; align-items:center; min-height:44px; padding:0 2px;
-    color:#8a4a14; font-size:1rem; font-weight:700; letter-spacing:.02em; }
+    color:#8a4a14; font-size:min(1rem,var(--body-font-max)); font-weight:700; letter-spacing:.02em; }
   .detail-fact-tel:focus-visible{ outline:3px solid var(--focus-ring); outline-offset:2px; }
-  .detail-facts-note{ margin-top:7px; color:var(--ink-soft); font-size:max(14px, 0.875rem); line-height:1.6; }
+  .detail-facts-note{ margin-top:7px; color:var(--ink-soft);
+    font-size:clamp(14px,.875rem,var(--body-font-max)); line-height:1.6; }
   .detail-actions{ display:grid; grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr)); gap:10px;
     margin-top:12px; margin-bottom:14px; }
   .detail-action{ display:flex; align-items:center; justify-content:center; min-height:46px; padding:10px 12px;
     border:1.5px solid rgba(122,92,59,.42); border-radius:999px; background:#fffaf0; color:var(--ink);
-    font:inherit; font-size:.88rem; font-weight:700; text-decoration:none; text-align:center; cursor:pointer; }
+    font:inherit; font-size:min(.88rem,var(--body-font-max)); font-weight:700; text-decoration:none; text-align:center; cursor:pointer; }
   .detail-action:focus-visible{ outline:3px solid var(--focus-ring); outline-offset:2px; }
   .detail-nav{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px; padding:10px 16px 16px;
     border-top:1.5px dashed rgba(122,92,59,.28); background:#fffaf0; }
   .detail-nav button{ min-height:44px; border:1.5px solid rgba(122,92,59,.36); border-radius:999px; background:var(--paper);
-    color:var(--ink); font:inherit; font-size:.78rem; font-weight:700; cursor:pointer; }
+    color:var(--ink); font:inherit; font-size:clamp(14px,.78rem,16px); font-weight:700;
+    white-space:nowrap; word-break:keep-all; cursor:pointer; }
   .detail-nav button:disabled{ opacity:.35; cursor:default; }
   .detail-count{ min-width:64px; color:var(--ink-soft); font-size:.76rem; font-weight:700; text-align:center; }
   /* 候補が多い時に画面からはみ出して選べなくなるので、高さを制限してスクロールさせる */
@@ -475,7 +486,7 @@
     font:inherit; color:var(--ink); cursor:pointer; text-align:left; }
   .lrow:active{ background:#f3e7cc; }
   .lrow .ldot{ flex:0 0 auto; }
-  .lrow .lname{ min-width:0; font-size:max(14px, .9rem); font-weight:700; line-height:1.35; }
+  .lrow .lname{ min-width:0; font-size:clamp(14px,.9rem,var(--body-font-max)); font-weight:700; line-height:1.35; }
   .lrow .lvoice{ grid-column:3; grid-row:1; width:18px; height:13px; border-radius:5px; }
   .lrow .lvoice::before{ content:"···"; position:relative; top:-2px; font-size:8px; font-weight:700; }
   .lrow .laddr{ grid-column:2 / 4; font-size:.7rem; line-height:1.4; color:var(--ink-soft); text-align:left; }
@@ -516,16 +527,19 @@
   .detail-count,
   .chooser .ctitle,
   .chooser .copt,
-  .lrow .laddr{ font-size:max(14px, 0.875rem); }
+  .lrow .laddr{ font-size:clamp(14px,.875rem,var(--body-font-max)); }
+  .detail-nav button{ font-size:clamp(14px,.78rem,16px); }
   /* Task AE: 一本道の実座標を主役にした二列表示 */
   body{ --controls-h:164px; }
-  #stripview{ flex:1 1 auto; min-height:0; margin-bottom:12px; overflow-y:auto; overflow-x:hidden;
+  /* Two-column cards are always half-screen wide, so their names keep BM's cap. */
+  #stripview{ --body-font-max:18px; flex:1 1 auto; min-height:0; margin-bottom:12px; overflow-y:auto; overflow-x:hidden;
     background:var(--paper); -webkit-overflow-scrolling:touch; overscroll-behavior-y:contain; }
   /* 0件・1件の時に出す「次の一歩」。空白だけの画面にしない (2026-08-04) */
   .empty-help{ margin:14px 10px 18px; padding:14px 14px 16px; border:2px dashed rgba(122,92,59,.35);
     border-radius:16px; background:#fffaf0; }
   .empty-help[hidden]{ display:none; }
-  .empty-help-title{ font-family:'Yusei Magic',sans-serif; font-size:15px; color:var(--ink); line-height:1.5; }
+  .empty-help-title{ font-family:'Yusei Magic',sans-serif; font-size:15px; color:var(--ink); line-height:1.5;
+    text-wrap:pretty; }
   .empty-help-lead{ margin-top:8px; font-size:max(14px, 0.875rem); color:var(--ink-soft); }
   .empty-help-words{ display:flex; flex-wrap:wrap; gap:8px; margin-top:9px; }
   .empty-help-word{ min-height:44px; padding:8px 14px; border:2px solid rgba(122,92,59,.4);
@@ -575,10 +589,8 @@
   .strip-row[data-side="west"]{ right:calc(50% + 34px); flex-direction:row-reverse; text-align:right; }
   .strip-row[data-side="east"]{ left:calc(50% + 34px); text-align:left; }
   .strip-row[hidden]{ display:none; }
-  #strip .strip-row.displaced::after{ content:""; position:absolute; top:calc(50% + var(--leader-offset,0px));
-    width:22px; border-top:2px dashed rgba(122,92,59,.62); pointer-events:none; }
-  #strip .strip-row.displaced[data-side="west"]::after{ left:100%; }
-  #strip .strip-row.displaced[data-side="east"]::after{ right:100%; }
+  /* カードの配置ずれは layoutStripRows が使うため残し、短い引き出し破線だけ描かない。 */
+  #strip .strip-row.displaced::after{ content:none; }
   .strip-row:active{ transform:translateY(calc(-50% + 2px)); box-shadow:none; }
   .strip-row.glowing{ border-color:var(--voice); box-shadow:0 0 0 3px rgba(38,116,123,.2), 2px 4px 0 rgba(92,67,39,.26); }
   .strip-row:focus-visible{ outline:3px solid var(--focus-ring); outline-offset:2px; }
@@ -587,7 +599,7 @@
      店名が「…」も無しに黙って切れていた (360x640・文字22pxで40件)。
      何の店か分からなくなる方が害が大きいので、行数で切らず全部見せる。
      行が伸びるぶんは .strip-row の min-height と ResizeObserver が吸収する。 */
-  .strip-shop-name{ min-width:0; word-break:normal; overflow-wrap:normal;
+  .strip-shop-name{ min-width:0; font-size:clamp(14px,.875rem,var(--body-font-max)); word-break:normal; overflow-wrap:normal;
     /* 2026-08-09: 「ウジエスーパー中山 / 店」のように最後の1文字だけが次の行へ
        落ちていた (ボスの実機写真)。行の分け方をならして孤立を避ける。 */
     text-wrap:pretty; }
@@ -740,7 +752,7 @@
 
   @media(max-width:759px) and (orientation:portrait){
     body{ --controls-h:216px; }
-    header{ flex:0 0 44px; height:44px; overflow:hidden; }
+    header{ flex:0 0 auto; min-height:44px; height:auto; overflow:visible; }
     #controls{ grid-template-rows:minmax(96px,auto) minmax(44px,auto) minmax(44px,auto); }
     #controls .filters{ grid-template-columns:repeat(3,minmax(90px,1fr));
       grid-template-rows:minmax(44px,auto) minmax(44px,auto); min-height:96px; }
@@ -750,6 +762,7 @@
      指の基準44pxは崩さない。(この規則は上のportrait規則より後に置くこと) */
   @media(max-width:759px) and (orientation:portrait) and (max-height:720px){
     body{ --controls-h:164px; }
+    header p{ display:none; }
     #controls{ flex:0 0 auto; min-height:var(--controls-h);
       grid-template-rows:minmax(96px,auto) minmax(44px,auto); }
     /* 横スクロールにすると、画面の外に出たチップが「無いもの」になってしまう
@@ -792,7 +805,7 @@
      2026-08-08 商店街担当者（あみさん）の「検索したら大変なことに」への対応。 */
   @media(orientation:landscape) and (max-height:480px){
     body{ --controls-h:108px; }
-    header{ flex:0 0 38px; height:38px; padding:5px 12px 3px; overflow:hidden; }
+    header{ flex:0 0 auto; min-height:38px; height:auto; padding:5px 12px 3px; overflow:visible; }
     header h1{ line-height:26px; flex-wrap:nowrap; }
     header p{ display:none; }
     #controls{ grid-template-columns:minmax(0,1fr) 260px; grid-template-rows:44px 44px;
@@ -1051,11 +1064,11 @@ function scrollStripTo(s){
   const b = row.getBoundingClientRect(), vb = view.getBoundingClientRect();
   view.scrollTop += (b.top + b.height / 2) - (vb.top + view.clientHeight / 2);
 }
-// 方位記号の針を北へ向ける。投影は rot_deg だけ回してあるので、その分だけ戻す。
+// 投影式では北へ1m進む画面ベクトルが真上から時計回りに rot_deg なので、針も同じ向きへ回す。
 (function orientCompass(){
   const needle = document.getElementById('compassNeedle');
   const rot = GEO.meta && GEO.meta.proj ? GEO.meta.proj.rot_deg : 0;
-  if (needle && rot) needle.setAttribute('transform', 'rotate(' + (-rot) + ' 22 22)');
+  if (needle && rot) needle.setAttribute('transform', 'rotate(' + rot + ' 22 22)');
 })();
 function setMapOpen(open, restoreFocus){
   document.body.classList.toggle('map-open', open);
@@ -2818,15 +2831,19 @@ function drawShops(){
 const activeCats = new Set();
 let query = '', voiceOnly = false, searchOpenedList = false, searchReturnViewBox = null;
 const filtersDiv = document.getElementById('filters');
+function setChipLabelChunks(node,chunks){
+  chunks.forEach((chunk,i) => {
+    node.appendChild(document.createTextNode(chunk));
+    if (i < chunks.length-1) node.appendChild(document.createElement('wbr'));
+  });
+}
 const voiceFilter = document.createElement('button');
 voiceFilter.className = 'chip voice-filter'; voiceFilter.setAttribute('aria-pressed','false');
 voiceFilter.type = 'button';
 const voiceIcon = document.createElement('span'); voiceIcon.className = 'voice-chip-icon'; voiceIcon.setAttribute('aria-hidden','true');
 const voiceCount = GEO.shops.filter(s => (s.voices||[]).length > 0).length;
 const voiceLabel = document.createElement('span'); voiceLabel.className = 'lbl';
-voiceLabel.appendChild(document.createTextNode('こどもの声'));
-voiceLabel.appendChild(document.createElement('wbr'));
-voiceLabel.appendChild(document.createTextNode('（'+voiceCount+'店）'));
+setChipLabelChunks(voiceLabel,['こども','の声','（'+voiceCount+'店）']);
 voiceFilter.appendChild(voiceIcon); voiceFilter.appendChild(voiceLabel);
 voiceFilter.addEventListener('click', () => {
   voiceOnly = !voiceOnly;
@@ -2840,7 +2857,9 @@ Object.keys(CATS).forEach(k => {
   b.className = 'chip c-'+k; b.setAttribute('aria-pressed','false');
   const dot = catIconEl(k, 15);
   dot.classList.add('dot');
-  const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = CATS[k].label;
+  const lbl = document.createElement('span'); lbl.className = 'lbl';
+  const labelParts = CATS[k].label.split('・');
+  setChipLabelChunks(lbl,labelParts.map((part,i) => (i ? '・' : '')+part));
   b.appendChild(dot); b.appendChild(lbl);
   b.addEventListener('click', () => {
     const on = b.getAttribute('aria-pressed') === 'true';
