@@ -104,6 +104,8 @@
      縦に余裕がある時は折り返し、低い画面だけチップ帯を横へ送る。2026-08-08
      商店街担当者（あみさん）の「検索したら大変なことに」という指摘。 */
   .chip .lbl{ word-break:keep-all; overflow-wrap:break-word; }
+  /* 塊の中では折らない。折れてよいのは塊と塊の間 (<wbr>) だけ */
+  .chip .lbl-chunk{ white-space:nowrap; }
     /* 2026-08-05: 種類の目印を丸から「種類ごとの形」に変えた。塗りと縁はSVG側が持つ */
   /* 上の svg{width:100%} は地図本体のための指定。種類の目印は指定した大きさで出す
      (これに巻き込まれて横向き画面で 258px に育ち、一覧が2件しか見えなくなっていた) */
@@ -126,7 +128,9 @@
     background:#fffaf0; border-left:1.7px solid currentColor; border-bottom:1.7px solid currentColor; transform:skewY(-35deg); }
   .searchbar{ padding:0 12px 6px; background:var(--paper); z-index:20; display:flex; gap:6px; align-items:center; }
   .searchbar input{
-    flex:1; min-width:0; max-width:340px; font:inherit; font-size:clamp(16px,1rem,16px); color:var(--ink);
+    flex:1; min-width:0; max-width:340px; font:inherit; font-size:clamp(16px,1rem,var(--body-font-max)); color:var(--ink);
+    /* 2026-08-10: clamp(16px,1rem,16px) は min==max で、端末の文字設定を
+       完全に無視していた。自分が打った文字がいちばん小さい、が起きていた */
     min-height:44px; padding:8px 12px; border:2px solid rgba(122,92,59,.5); border-radius:999px; background:#fffaf0; outline:none;
   }
   .searchbar input:focus{ border-color:var(--accent); }
@@ -513,7 +517,8 @@
     button.detail-status{ min-height:44px; }
     .detail-note{ margin-top:12px; padding:10px 12px; font-size:.8rem; line-height:1.65; }
     .detail-voice-block{ margin-top:14px; }
-    .detail-voice{ padding:8px 10px 8px 26px; font-size:.76rem; }
+    /* 2026-08-10: ここが後勝ちで基底の上限を無効化していた */
+    .detail-voice{ padding:8px 10px 8px 26px; font-size:min(.76rem,var(--body-font-max)); }
     .detail-link{ min-height:44px; margin-top:14px; }
     .detail-nav{ padding:8px 12px calc(9px + env(safe-area-inset-bottom)); }
     body.detail-open .zoomctl, body.detail-open #listbtn{ opacity:0; pointer-events:none; }
@@ -542,7 +547,10 @@
   .empty-help{ margin:14px 10px 18px; padding:14px 14px 16px; border:2px dashed rgba(122,92,59,.35);
     border-radius:16px; background:#fffaf0; }
   .empty-help[hidden]{ display:none; }
-  .empty-help-title{ font-family:'Yusei Magic',sans-serif; font-size:15px; color:var(--ink); line-height:1.5;
+  /* 2026-08-10: 見出しが固定15pxで、すぐ下の説明文は200%で28pxまで伸びる。
+     見出しの方が小さくなるので、本文と同じ上限で一緒に伸ばす。 */
+  .empty-help-title{ font-family:'Yusei Magic',sans-serif; color:var(--ink); line-height:1.5;
+    font-size:clamp(15px,0.94rem,var(--body-font-max));
     text-wrap:pretty; }
   .empty-help-lead{ margin-top:8px; font-size:max(14px, 0.875rem); color:var(--ink-soft); }
   .empty-help-words{ display:flex; flex-wrap:wrap; gap:8px; margin-top:9px; }
@@ -557,7 +565,8 @@
      「見つからなかった」ように見えていた (実機で確認)。見つかった時は控えめに。 */
   .empty-help.empty-help-found{ margin:10px 10px 14px; padding:10px 12px 12px;
     border:1px solid rgba(122,92,59,.22); background:transparent; }
-  .empty-help.empty-help-found .empty-help-title{ font-size:14px; color:var(--ink-soft); }
+  .empty-help.empty-help-found .empty-help-title{
+    font-size:clamp(14px,0.875rem,var(--body-font-max)); color:var(--ink-soft); }
   .empty-help.empty-help-found .empty-help-all{ min-height:44px; margin-top:8px; font-size:14px; }
   /* 結果が0〜1件の時は、通りの背骨と方向の案内を出さない (見るものが無いのに枠だけ残る) */
   body.few-results .strip-guide,
@@ -628,7 +637,8 @@
     border:1.5px solid var(--ink); background:linear-gradient(#dc5c4b 0 31%,#e6bd45 32% 65%,#58a965 66%); }
   .far-section{ max-width:780px; margin:0 auto; padding:20px 10px 28px; }
   .far-section[hidden]{ display:none; }
-  .far-section h2{ font-family:'Yusei Magic',sans-serif; font-size:1.05rem; }
+  /* 2026-08-10: 同じスクロールの中で店名は18pxで止まるのに、ここだけ33.6pxまで伸びていた */
+  .far-section h2{ font-family:'Yusei Magic',sans-serif; font-size:min(1.05rem,var(--heading-font-max)); }
   .far-section > p{ margin:5px 0 12px; color:var(--ink-soft); font-size:max(14px, 0.875rem); line-height:1.5; }
   #stripfar{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 10px; align-items:stretch; }
   #stripfar .strip-row{ position:relative; left:auto; right:auto; top:auto !important; width:auto;
@@ -638,7 +648,9 @@
   #stripfar .strip-row[data-side="west"]{ border-left-width:5px; }
   #stripfar .strip-row[data-side="east"]{ border-right-width:5px; }
   .strip-far-main{ display:flex; align-items:center; gap:6px; min-width:0; }
-  .strip-distance{ color:var(--ink-soft); font-size:max(14px, 0.875rem); font-weight:400; }
+  /* 2026-08-10: 店名に18pxの上限を付けた一方ここが青天井で、200%端末では
+     「約650m先」(28px) が店名(18px)より大きくなっていた。同じ上限を通す。 */
+  .strip-distance{ color:var(--ink-soft); font-size:clamp(14px,0.875rem,var(--body-font-max)); font-weight:400; }
   .map-filter-badge, #mapback{ display:none; }
 
   /* 高さは下限。中身 (文字を大きくした時のボタン) に合わせて伸びる */
@@ -890,7 +902,7 @@
 
 <div id="controls" aria-label="検索と表示の操作">
   <div class="filters" id="filters"></div>
-  <div class="searchbar"><input id="q" type="search" placeholder="お店をさがす（例：ケーキ）" aria-label="お店を検索"><span id="searchstatus" role="status" aria-live="polite"></span></div>
+  <div class="searchbar"><input id="q" type="search" placeholder="お店をさがす" aria-label="お店を検索"><span id="searchstatus" role="status" aria-live="polite"></span></div>
   <div class="control-actions">
     <button id="searchbtn" type="button" aria-controls="q" aria-expanded="false">さがす</button>
     <button id="listbtn" aria-controls="listpanel" aria-expanded="false">お店一覧</button>
@@ -2845,8 +2857,14 @@ const activeCats = new Set();
 let query = '', voiceOnly = false, searchOpenedList = false, searchReturnViewBox = null;
 const filtersDiv = document.getElementById('filters');
 function setChipLabelChunks(node,chunks){
+  // 2026-08-10: 素のテキストノードで置くと、ブラウザが中黒の前を「折ってよい場所」と
+  // 見なして「食べる / ・飲む・食料」と行頭に中黒が来る。塊ごとに折らない指定を掛け、
+  // 折ってよいのは <wbr> を置いた場所だけにする。
   chunks.forEach((chunk,i) => {
-    node.appendChild(document.createTextNode(chunk));
+    const span = document.createElement('span');
+    span.className = 'lbl-chunk';
+    span.textContent = chunk;
+    node.appendChild(span);
     if (i < chunks.length-1) node.appendChild(document.createElement('wbr'));
   });
 }
@@ -2872,7 +2890,9 @@ Object.keys(CATS).forEach(k => {
   dot.classList.add('dot');
   const lbl = document.createElement('span'); lbl.className = 'lbl';
   const labelParts = CATS[k].label.split('・');
-  setChipLabelChunks(lbl,labelParts.map((part,i) => (i ? '・' : '')+part));
+  // 2026-08-10: 中黒を次の塊の頭に付けていたため、折れると「・食料」と
+  // 行頭が中黒になっていた (既定の文字サイズでも起きる)。中黒は前の塊の末尾に付ける。
+  setChipLabelChunks(lbl,labelParts.map((part,i) => part+(i < labelParts.length-1 ? '・' : '')));
   b.appendChild(dot); b.appendChild(lbl);
   b.addEventListener('click', () => {
     const on = b.getAttribute('aria-pressed') === 'true';

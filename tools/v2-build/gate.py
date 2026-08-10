@@ -1159,25 +1159,63 @@ if not A.no_browser:
                   // 中点・読点・空白・括弧での改行は自然なので許す。
                   const OK_BREAK = '・、，  （(）)／/';
                   const wrap = [];
+                  // 行の頭に置いてはいけない字。2026-08-10: 「食べる・飲む / ・食料」と
+                  // 中黒で行が始まっていた。OK_BREAK に「・」があるため、中黒の直前で
+                  // 折れるのを「折れてよい所」と読んでいた。折ってよいのは中黒の後ろだけ。
+                  const NO_LINE_START = '・、。，．）)」』】〉》！？!?ーぁぃぅぇぉっゃゅょゎ々…‥';
                   for (const e of document.querySelectorAll(
                         'button, .chip, .chip .lbl, [role="button"]')) {
                     if (!vis(e)) continue;
-                    const t = [...e.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
-                    if (!t) continue;
-                    const txt = t.textContent;
-                    if (txt.trim().length < 2) continue;
-                    const rg = document.createRange();
-                    let prevTop = null;
-                    for (let i = 0; i < txt.length; i++) {
-                      rg.setStart(t, i); rg.setEnd(t, i+1);
-                      const b = rg.getBoundingClientRect();
-                      if (prevTop !== null && b.top > prevTop + 2) {
-                        const before = txt[i-1], after = txt[i];
-                        if (!OK_BREAK.includes(before) && !OK_BREAK.includes(after))
-                          wrap.push({state, sel:sel(e), txt:txt.trim().slice(0,20),
-                                     at: txt.slice(Math.max(0,i-3), i) + '｜' + txt.slice(i, i+3)});
+                    if (e.closest('#viewport')) continue;   // 地図のラベルは N54/N56 の担当
+                    // 一覧の行・二列カードは N57 の担当。ここで重ねて見ると、
+                    // 店名と住所という別々の行を1つの文字列として繋いでしまい、
+                    // 「air｜泉区」のような存在しない改行を報告する。
+                    if (e.matches('.strip-row, .lrow') || e.closest('.strip-row, .lrow, #listrows')) continue;
+                    // 2026-08-10: 最初のテキストノードしか見ていなかったので、
+                    // <wbr> で分割した2つ目以降のノードで起きる改行が視界の外だった。
+                    const nodes = [];
+                    const tw = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
+                    for (let nd = tw.nextNode(); nd; nd = tw.nextNode())
+                      if (nd.textContent.length) nodes.push(nd);
+                    const full = nodes.map(nd => nd.textContent).join('');
+                    if (full.trim().length < 2) continue;
+                    // <wbr> の直後は「ここで折ってよい」と作者が宣言した位置。
+                    // その位置で折れたことを違反として数えない (行頭禁則だけは別に見る)。
+                    const okAt = new Set();
+                    {
+                      let g = 0;
+                      for (const nd of nodes) {
+                        // 文字が span で包まれている場合もあるので、包みの手前も見る
+                        let anchor = nd;
+                        while (anchor && anchor !== e && !anchor.previousSibling) anchor = anchor.parentNode;
+                        let prev = anchor ? anchor.previousSibling : null;
+                        while (prev && prev.nodeType === 3 && !prev.textContent.trim())
+                          prev = prev.previousSibling;
+                        if (prev && prev.nodeName === 'WBR') okAt.add(g);
+                        g += nd.textContent.length;
                       }
-                      prevTop = b.top;
+                    }
+                    const rg = document.createRange();
+                    let prevTop = null, prevCh = null, gi = 0;
+                    for (const nd of nodes) {
+                      const txt = nd.textContent;
+                      for (let i = 0; i < txt.length; i++, gi++) {
+                        rg.setStart(nd, i); rg.setEnd(nd, i+1);
+                        const b = rg.getBoundingClientRect();
+                        if (!b.height) { prevCh = txt[i]; continue; }
+                        if (prevTop !== null && b.top > prevTop + 2) {
+                          const before = prevCh, after = txt[i];
+                          const around = full.slice(Math.max(0, gi-3), gi) + '｜' + full.slice(gi, gi+3);
+                          if (NO_LINE_START.includes(after))
+                            wrap.push({state, sel:sel(e), txt:full.trim().slice(0,20),
+                                       at: around, why:'行頭に置けない字'});
+                          else if (!okAt.has(gi)
+                                   && !OK_BREAK.includes(before) && !OK_BREAK.includes(after))
+                            wrap.push({state, sel:sel(e), txt:full.trim().slice(0,20),
+                                       at: around, why:'語の途中'});
+                        }
+                        prevTop = b.top; prevCh = txt[i];
+                      }
                     }
                   }
                   // N29 文字が入れ物からはみ出していないか (検索の説明文など)。
@@ -1459,7 +1497,9 @@ if not A.no_browser:
                   for (const row of document.querySelectorAll('.lrow, .strip-row')) {
                     if (!vis(row)) continue;
                     const nm = row.querySelector('.lname, .strip-shop-name');
-                    const ad = row.querySelector('.laddr, .strip-shop-addr');
+                    // 2026-08-10: '.strip-shop-addr' は存在しないクラスで、二列カード側が
+                    // まるごと空振りしていた (N57/N58 と同型の3度目)。相方は .strip-distance。
+                    const ad = row.querySelector('.laddr, .strip-distance');
                     if (!nm || !ad || !vis(nm) || !vis(ad)) continue;
                     const n = parseFloat(getComputedStyle(nm).fontSize);
                     const a = parseFloat(getComputedStyle(ad).fontSize);
@@ -1565,9 +1605,40 @@ if not A.no_browser:
                         for _k in SWEEP_KEYS:
                             for _it in sweep[_k]:
                                 _it["state"] = "文字%dpx %s" % (ufs, _it.get("state", ""))
-                        # 文字を大きくした行は総なめの結果だけ持ち帰る。
+                        # 2026-08-10: 文字サイズ行で寸法検査を全部飛ばしていたが、
+                        # header を height:auto にした以上、高さ予算が痩せるのは
+                        # まさに文字を大きくした時。主の内容の高さだけは必ず測る。
+                        up.evaluate("""async () => {
+                            document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+                            const q=document.getElementById('q');
+                            if(q){ q.value=''; q.dispatchEvent(new Event('input',{bubbles:true})); }
+                            const c=document.querySelector('.chip.voice-filter');
+                            if(c && c.getAttribute('aria-pressed')==='true') c.click();
+                            const b=document.getElementById('mapbtn');
+                            if(b && b.getAttribute('aria-expanded')==='true') b.click();
+                            await new Promise(r=>setTimeout(r,700)); }""")
+                        _main = up.evaluate("""() => {
+                          const e = document.getElementById('stripview')
+                                || document.getElementById('strip')
+                                || document.getElementById('viewport');
+                          if (!e) return {r:0, px:0};
+                          const h = e.getBoundingClientRect().height;
+                          return {r:+(h/innerHeight).toFixed(3), px:Math.round(h)};
+                        }""")
+                        _seen = up.evaluate("""() => {
+                          const sv = document.getElementById('stripview');
+                          if (!sv) return 0;
+                          const b = sv.getBoundingClientRect();
+                          return [...document.querySelectorAll('.strip-row')].filter(e => {
+                            if (e.hidden) return false;
+                            const r = e.getBoundingClientRect();
+                            return r.height > 0 && r.bottom > b.top + 4 && r.top < b.bottom - 4;
+                          }).length;
+                        }""")
                         UI.append({"vw": uw, "vh": uh, "portrait": uh > uw,
-                                   "fontPx": ufs, "offscreen": [], "sweep": sweep})
+                                   "fontPx": ufs, "offscreen": [], "sweep": sweep,
+                                   "mainRatio": _main["r"], "mainPx": _main["px"],
+                                   "shopsInView": _seen})
                         up.close()
                         continue
                     up.evaluate("""async () => {
@@ -2174,6 +2245,17 @@ if REND:
                                                "attrib": t["attrib"], "where": []})
             e["fs"] = min(e["fs"], t["fs"])
             e["where"].append("%s %s" % (dev, t["state"]))
+        if u.get("fontPx", 16) != 16:
+            # 文字サイズ行はここだけ通す = 主の内容の高さ。
+            # 地図の割合や押し位置は 16px 前提の床なので当てない。
+            if u.get("portrait", True):
+                # 330px という床は既定16pxで実測して決めた数字で、文字を2倍にした人に
+                # 同じ絶対値を要求するのは筋が通らない (文字が大きいぶん1件が高い)。
+                # 見たいのは「入口で店がいくつ目に入るか」なので件数で見る。
+                if u.get("shopsInView", 99) < 3:
+                    fails["N23"].append("入口で見えている店が%d件しかない (最低3件) [%dx%d 文字%dpx]"
+                                        % (u.get("shopsInView", 0), vw, u.get("vh", 0), u["fontPx"]))
+            continue
         # 文字を大きくして測った行は、ここから下の寸法の検査には渡さない。
         # 床 (主の内容が画面の何%か等) は 16px 前提で実測して決めたもので、
         # 200% の文字に同じ床を当てると達成不能な要求になる。
@@ -2349,6 +2431,8 @@ if REND:
     # 測定が揃っていることを先に要求する。
     _cmp = {}
     _want_cmp = [u for u in (REND.get("ui") or []) if u.get("mapFrame") is not None]
+    if (REND.get("ui") or []) and not any(u.get("compass") for u in (REND.get("ui") or [])):
+        fails["N61"].append("方位記号を一度も測れていない (地図が開かなかった)")
     _have_cmp = [u for u in _want_cmp if u.get("compass")]
     if _want_cmp and len(_have_cmp) != len(_want_cmp):
         fails["N61"].append("方位記号を測れていない画面が %d/%d ある (測定漏れを合格にしない)"
