@@ -385,6 +385,8 @@
   .compass-north{ fill:#b3562e; }
   .compass-south{ fill:#c9b28c; }
   .compass-label{ font-family:'Yusei Magic',sans-serif; font-size:9px; fill:var(--ink);
+    /* 2026-08-10: 針と一緒に回すようにしたので、下地が盤面とは限らない。縁取りで読ませる */
+    paint-order:stroke; stroke:#fffaf0; stroke-width:2.5px; stroke-linejoin:round;
     text-anchor:middle; font-weight:700; }
   .map-float-tools{ display:none; }
   .zoomctl{ position:fixed; right:12px; bottom:62px; z-index:25; display:flex; flex-direction:column; gap:8px; }
@@ -499,7 +501,9 @@
     .detail-head{ padding:6px 14px 5px; }
     .detail-guide{ font-size:.68rem; }
     .detail-card{ padding:16px 18px 14px; }
-    .detail-card h2{ font-size:1.18rem; margin-top:9px; }
+    /* 2026-08-10: ここが後勝ちで基底の min(...,--heading-font-max) を潰し、
+       200%の端末で詳細の店名だけ 37.8px に育っていた (本文は18pxなのに)。 */
+    .detail-card h2{ font-size:min(1.18rem,var(--heading-font-max)); margin-top:9px; }
     .detail-address{ margin-top:7px; font-size:.76rem; }
     .detail-gallery{ position:relative; margin-top:10px; }
     .detail-photo-thumbs{ position:absolute; left:7px; bottom:7px; z-index:2; gap:6px; padding:3px;
@@ -900,10 +904,14 @@
   <svg viewBox="0 0 44 44" focusable="false">
     <circle cx="22" cy="22" r="20" class="compass-face"/>
     <g id="compassNeedle">
-      <path d="M22 5 L27 24 L22 20 L17 24 Z" class="compass-north"/>
-      <path d="M22 39 L17 20 L22 24 L27 20 Z" class="compass-south"/>
+      <path d="M22 11 L27 26 L22 22 L17 26 Z" class="compass-north"/>
+      <path d="M22 36 L17 22 L22 26 L27 22 Z" class="compass-south"/>
+      <!-- 2026-08-10: 「北」を回転グループの外に置いていたため、針が右上を指しても
+           文字だけ12時に残り、同じ方位記号が「北は右上」と「北は真上」を同時に
+           示していた。針と一緒に動かす。ただし字は水平のまま (傾いた「北」は読みにくい)
+           なので、JS で自分のアンカーを中心に逆回転させる。 -->
+      <text id="compassLabel" x="22" y="9" class="compass-label">北</text>
     </g>
-    <text x="22" y="15" class="compass-label">北</text>
   </svg>
 </div>
 <!-- 2026-08-07: 「歩いて5分か30分か」が読めなかった。距離の目安を出す。
@@ -1068,7 +1076,12 @@ function scrollStripTo(s){
 (function orientCompass(){
   const needle = document.getElementById('compassNeedle');
   const rot = GEO.meta && GEO.meta.proj ? GEO.meta.proj.rot_deg : 0;
-  if (needle && rot) needle.setAttribute('transform', 'rotate(' + rot + ' 22 22)');
+  if (needle && rot){
+    needle.setAttribute('transform', 'rotate(' + rot + ' 22 22)');
+    // 文字は針と一緒に運ばれるが、字そのものは水平に保つ (打ち消しの逆回転)
+    const label = document.getElementById('compassLabel');
+    if (label) label.setAttribute('transform', 'rotate(' + (-rot) + ' 22 9)');
+  }
 })();
 function setMapOpen(open, restoreFocus){
   document.body.classList.toggle('map-open', open);
@@ -3033,7 +3046,16 @@ function layoutStripRows(){
     east=stripPackColumn(eastItems,true);
     west=stripPackColumn(westItems,true);
   } else {
+    // 2026-08-10: 向かい合わせを揃える補正が、詰め直した結果の上に積み重なっていた。
+    // stripPackColumn は item.center を「理想の位置」として読むので、補正を足した
+    // 結果をまた理想として渡すと、20回ぶんの押し出しが雪だるまになる。
+    // 実測: 中山不動産と花祭壇 (実際は17m差) が画面で62pxずれ、最良の詰め方なら
+    // 16pxで済むところを39pxずらしていた。補正は必ず「理想 + 累積補正」の形で当て、
+    // 詰めた結果の上には積まない。
+    const ideal=new Map(measured.map(item => [item, item.center]));
+    const shift=new Map(measured.map(item => [item, 0]));
     for (let pass=0; pass<20; pass++){
+      measured.forEach(item => { item.center=ideal.get(item)+shift.get(item); });
       east=stripPackColumn(eastItems,false);
       west=stripPackColumn(westItems,false);
       const corrections=new Map();
@@ -3044,8 +3066,9 @@ function layoutStripRows(){
           corrections.set(other,(corrections.get(other)||0)-error/2);
           corrections.set(item,(corrections.get(item)||0)+error/2);
         }));
-      corrections.forEach((correction,item) => { item.center+=correction; });
+      corrections.forEach((correction,item) => { shift.set(item,shift.get(item)+correction); });
     }
+    measured.forEach(item => { item.center=ideal.get(item)+shift.get(item); });
     east=stripPackColumn(eastItems,false);
     west=stripPackColumn(westItems,false);
   }

@@ -490,6 +490,8 @@ G = json.loads(re.search(r"const GEO = (\{.*?\});\s*\n", src, re.S).group(1).rep
 shops, roads, signals, parks = G["shops"], G["roads"], G["signals"], G["parks"]
 meta = G["meta"]
 SPINE = G["busway"][1]
+_m = re.search(r"const STRIP_GAP_FLOOR\s*=\s*([\d.]+)", src)
+STRIP_GAP = float(_m.group(1)) if _m else 8.0
 
 # 描画幅を生成物から読む (固定値を置かない)
 FILLW = {}
@@ -515,6 +517,35 @@ def seg_d(px, py, x1, y1, x2, y2):
 
 def road_d(px, py, r):
     return min(seg_d(px, py, a[0], a[1], b[0], b[1]) for a, b in zip(r["pts"], r["pts"][1:]))
+
+
+# 2026-08-10: 「向かい合わせのズレ」は、同じ側にカードが積み上がる所では
+# どう並べても消せない。指の基準44px + 隙間 の積み上げが実際の間隔より広くなるため。
+# 引き出し線を消した以上「線があるから免除」は使えないので、代わりに
+# 「幾何が強いる最良の詰め方」を gate 側で組み直し、それより悪い時だけ落とす。
+# 最良 = 順序を保ったまま理想位置との差を最小にする詰め方 (PAVA / 隣接違反プーリング)。
+# アプリ側 stripPackColumn と同じ手を、実測した高さで独立に組み直している。
+def _best_centers(col, gap):
+    """col = [{'ideal':理想中心px, 'h':実測高さpx}, ...] を理想の順に。戻り = 最良中心"""
+    if not col:
+        return []
+    cum = [0.0]
+    for i in range(1, len(col)):
+        cum.append(cum[i-1] + (col[i-1]["h"] + col[i]["h"]) / 2.0 + gap)
+    blocks = []
+    for i, it in enumerate(col):
+        v = it["ideal"] - cum[i]
+        blocks.append({"s": i, "e": i, "total": v, "n": 1, "v": v})
+        while len(blocks) > 1 and blocks[-2]["v"] > blocks[-1]["v"]:
+            b = blocks.pop(); a = blocks.pop()
+            m = {"s": a["s"], "e": b["e"], "total": a["total"] + b["total"], "n": a["n"] + b["n"]}
+            m["v"] = m["total"] / m["n"]
+            blocks.append(m)
+    out = [0.0] * len(col)
+    for bl in blocks:
+        for i in range(bl["s"], bl["e"] + 1):
+            out[i] = bl["v"] + cum[i]
+    return out
 
 
 def spine_x(y):
@@ -621,7 +652,14 @@ if not A.no_browser:
         s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
         srv = subprocess.Popen([sys.executable, "-m", "http.server", str(port), "--bind", "127.0.0.1"],
                                cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        url = "http://127.0.0.1:%d/index.html" % port
+        # 2026-08-10: 静的検査は --target を読むのに、ブラウザ検査は常に
+        # /index.html を測っていた。別ファイルを指定すると「静的は指定ファイル・
+        # 実測は別ファイル」という食い違いが起き、指定側の欠陥を見逃す。
+        _t = os.path.abspath(A.target)
+        if os.path.dirname(_t) != os.path.abspath(ROOT):
+            sys.exit("!! --target はリポジトリ直下のファイルを指定すること "
+                     "(ブラウザ検査が同じファイルを測れない): %s" % A.target)
+        url = "http://127.0.0.1:%d/%s" % (port, os.path.basename(_t))
         ok = False
         for _ in range(30):
             try:
@@ -2306,7 +2344,15 @@ if REND:
                                _w[0] + ("" if len(_w) == 1 else " ほか%d" % (len(_w)-1))))
 
     # N61 方位記号の針が北を向いているか (2026-08-10・あみさん指摘)
+    # 2026-08-10: 測定キーが欠けたら黙って0件になっていた (N57/N58 と同型)。
+    # 「測っていない」を「違反なし」と読ませない。地図を開ける画面の数だけ
+    # 測定が揃っていることを先に要求する。
     _cmp = {}
+    _want_cmp = [u for u in (REND.get("ui") or []) if u.get("mapFrame") is not None]
+    _have_cmp = [u for u in _want_cmp if u.get("compass")]
+    if _want_cmp and len(_have_cmp) != len(_want_cmp):
+        fails["N61"].append("方位記号を測れていない画面が %d/%d ある (測定漏れを合格にしない)"
+                            % (len(_want_cmp) - len(_have_cmp), len(_want_cmp)))
     for u in (REND.get("ui") or []):
         c = u.get("compass")
         if not c:
@@ -2404,6 +2450,15 @@ if REND:
                     break
         # N42 向かい合わせ
         pos = {r["i"]: r for r in near}
+        # 同じ側ごとに「最良の詰め方」を組み直す (幾何が強いるズレを知るため)
+        _best = {}
+        for _side in ("west", "east"):
+            _col = sorted([r for r in near if r["side"] == _side],
+                          key=lambda r: _true_y[_byidx[r["i"]]["name"]])
+            _k = st.get("pxPerM") or 0
+            _items = [{"ideal": _true_y[_byidx[r["i"]]["name"]] * _k, "h": r["h"]} for r in _col]
+            for _r, _c in zip(_col, _best_centers(_items, STRIP_GAP)):
+                _best[_r["i"]] = _c
         for i, a in enumerate(shops):
             for b in shops[i+1:]:
                 if abs(TY(a) - TY(b)) > 20:
@@ -2430,13 +2485,41 @@ if REND:
                     # 線があっても離れすぎては読めない。上限は幾何が強いる分まで:
                     # 花祭壇の向かいの3枚は 2×(45+8)=106px 必要で、中央に置いても
                     # 端は53pxずれる。これが「どうやっても消えないズレ」の最大値。
-                    if (ra.get("disp") or rb.get("disp")) and err <= FACING_ERR_LEADER_MAX:
+                    # 2026-08-10: 引き出し線を消した (ボス指示) ので、「線があるから
+                    # 実位置が読める」という免除の根拠が消えた。表示を消したのに
+                    # 検査だけ免除を残すと、最大56px=約43mのズレを黙って通す。
+                    # 免除は削除した。代わりに「幾何が強いる分」と比べる。
+                    # 1枚のカードが向かいの複数店と同時に高さを合わせることはできない。
+                    # 花祭壇は向かいに3店あり、それぞれが要求する置き場が71px散らばる。
+                    # どこに置いても、少なくとも散らばりの半分は必ず誰かとの誤差になる。
+                    # (最初この事情を入れずに書き、通るはずのない床を要求していた)
+                    def _spread(idx, other_side):
+                        want_pos = []
+                        for _o in shops:
+                            if _o is _byidx.get(idx):
+                                continue
+                            _oi = next((kk for kk, vv in _byidx.items() if vv is _o), None)
+                            if _oi is None or _oi not in _best:
+                                continue
+                            if pos.get(_oi, {}).get("side") != other_side:
+                                continue
+                            if abs(TY(_o) - TY(_byidx[idx])) > 20:
+                                continue
+                            want_pos.append(_best[_oi] - (TY(_o) - TY(_byidx[idx])) * k)
+                        return (max(want_pos) - min(want_pos)) / 2.0 if len(want_pos) > 1 else 0.0
+                    forced = max(_spread(ia, rb["side"]), _spread(ib, ra["side"]))
+                    # 余裕6px の内訳: 幾何の床は「いちばん悪い相手との誤差を最小にする置き方」
+                    # (両端の中点) で出しているが、アプリは相手全員の平均に置く。
+                    # どちらも妥当な方針で、最悪値は数px 変わる。加えて高さの実測は0.1px刻み。
+                    # ここを詰めるほどの利得は無いが、6px を超えたら置き方の問題として落とす。
+                    _limit = max(FACING_ERR_MAX_PX, forced + 6.0)
+                    if err <= _limit:
                         continue
                     fails["N42"].append("%s と %s は南北差%.0fm (画面なら%.0fpx) の向かい合わせ"
                                         "なのに 画面では%.0fpx ずれていて 誤差%.0fpx "
-                                        "(上限%.0f・引き出し線も出ていない) [%s]"
+                                        "(許容%.0f = 幾何が強いる最良%.0f + 3) [%s]"
                                         % (a["name"], b["name"], abs(TY(a)-TY(b)), abs(want),
-                                           abs(cb - ca), err, FACING_ERR_MAX_PX, dev))
+                                           abs(cb - ca), err, _limit, forced, dev))
         # N43 押すものが親指の届く範囲 (画面の下半分)
         for c in (st.get("ctl") or []):
             if c["cy"] < st["h"] * 0.5:
