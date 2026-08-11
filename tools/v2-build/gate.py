@@ -32,6 +32,11 @@ ap.add_argument("--url", default=None)
 ap.add_argument("--json", default=None)
 ap.add_argument("--target", default=os.path.join(ROOT, "index.html"))
 ap.add_argument("--no-browser", action="store_true")
+# 2026-08-10: 直している最中の反復が高い。1項目直すたびに端末11通りを回していた。
+# --devices で絞れば数十秒で戻ってくる。ただし絞った実行は合格判定を名乗らせない
+# (「絞って測った」と明示して exit 2 にする。公開前は必ず全部で回す)。
+ap.add_argument("--devices", default=None,
+                help="絞って測る。例: 320x568 / 320x568@32 / 390x844@24,320x568")
 A = ap.parse_args()
 
 
@@ -1569,8 +1574,22 @@ if not A.no_browser:
                      await new Promise(r=>setTimeout(r,700)); return true; }"""),
                 ]
                 UI = []
-                for uw, uh, ufs in ([(w, h, 16) for w, h in UI_DEVICES + UI_LANDSCAPE]
-                                    + UI_FONT_ROWS):
+                _rows = [(w, h, 16) for w, h in UI_DEVICES + UI_LANDSCAPE] + UI_FONT_ROWS
+                if A.devices:
+                    _want = []
+                    for _spec in A.devices.split(","):
+                        _spec = _spec.strip()
+                        if not _spec:
+                            continue
+                        _wh, _, _fs = _spec.partition("@")
+                        _w, _, _h = _wh.partition("x")
+                        _want.append((int(_w), int(_h), int(_fs) if _fs else None))
+                    _rows = [r for r in _rows
+                             if any(r[0] == w and r[1] == h and (f is None or r[2] == f)
+                                    for w, h, f in _want)]
+                    if not _rows:
+                        sys.exit("!! --devices に一致する端末が無い: %s" % A.devices)
+                for uw, uh, ufs in _rows:
                     up = br.new_page(viewport={"width": uw, "height": uh})
                     if ufs != 16:
                         # 端末の「文字の大きさ」設定。ブラウザのページ拡大ではないので
@@ -2431,7 +2450,10 @@ if REND:
     # 測定が揃っていることを先に要求する。
     _cmp = {}
     _want_cmp = [u for u in (REND.get("ui") or []) if u.get("mapFrame") is not None]
-    if (REND.get("ui") or []) and not any(u.get("compass") for u in (REND.get("ui") or [])):
+    # --devices で絞った時は地図を開く行が入らないことがある。絞った実行は
+    # そもそも合格を名乗れないので、ここで「測れていない」とは言わない。
+    if (not A.devices and (REND.get("ui") or [])
+            and not any(u.get("compass") for u in (REND.get("ui") or []))):
         fails["N61"].append("方位記号を一度も測れていない (地図が開かなかった)")
     _have_cmp = [u for u in _want_cmp if u.get("compass")]
     if _want_cmp and len(_have_cmp) != len(_want_cmp):
@@ -3019,7 +3041,8 @@ P("=" * 78)
 P("歩ける店 (N1..N44 全通過): %d / %d" % (len(shops) - len(nav_fail), len(shops)))
 P("全体の不合格項目: %d件 %s" % (len(gfail), gfail if gfail else ""))
 total = sum(len(set(v)) for v in fails.values()) + len(gfail)
-P("判定: %s (違反 %d件)" % ("PASS" if total == 0 else "FAIL", total))
+P("判定: %s (違反 %d件)%s" % ("PASS" if total == 0 else "FAIL", total,
+     "" if not A.devices else "  ※ --devices で絞って測った結果。合格ではない"))
 P("=" * 78)
 
 if A.json:
