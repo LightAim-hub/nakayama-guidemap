@@ -1150,6 +1150,31 @@ if not A.no_browser:
                       texts.push({state, sel:sel(e), fs, attrib,
                                   txt:(e.textContent||'').trim().slice(0,18)});
                   }
+                  // 2026-08-10: 地図の中の文字を丸ごと除外していたので、何pxでも通っていた。
+                  // SVG の font-size は変形前の値。画面上の実寸で測る。
+                  for (const e of document.querySelectorAll('svg text, svg tspan')) {
+                    // 地図は動かせるので、いま画面の中にあるかは問わない。
+                    // 大きさは画面内にあるかどうかで変わらないし、遠い店の但し書きは
+                    // 寄せて初めて出る。画面内だけ見ていたので永久に対象外だった。
+                    if (!shown(e)) continue;
+                    { let _p = e.parentElement, _ok = true;
+                      while (_p && _p !== document.documentElement) { if (!shown(_p)) { _ok = false; break; }
+                        _p = _p.parentElement; }
+                      if (!_ok) continue; }
+                    const _r = e.getBoundingClientRect();
+                    if (!(_r.width > 0 && _r.height > 0)) continue;
+                    if (!(e.textContent || '').trim()) continue;
+                    const own = e.tagName.toLowerCase() === 'tspan'
+                      || ![...e.children].some(c => c.tagName.toLowerCase() === 'tspan');
+                    if (!own) continue;
+                    const sv = e.ownerSVGElement; if (!sv) continue;
+                    const m = sv.getScreenCTM(); if (!m) continue;
+                    const k = Math.hypot(m.a, m.b);
+                    const fs = +(parseFloat(getComputedStyle(e).fontSize) * k).toFixed(1);
+                    if (fs < 14)
+                      texts.push({state, sel:'地図の ' + (e.getAttribute('class') || e.tagName),
+                                  fs, attrib:false, txt:(e.textContent||'').trim().slice(0,18)});
+                  }
                   for (const e of document.querySelectorAll(
                         'button,a[href],input,select,[role="button"],[tabindex]')) {
                     if (e.closest('svg') || !vis(e)) continue;

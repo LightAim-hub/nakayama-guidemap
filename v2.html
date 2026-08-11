@@ -2305,7 +2305,10 @@ function setLabelPosition(entry, candidate, scale){
   if (main.getAttribute('display') !== null) main.removeAttribute('display');
   if (main.style.display) main.style.display = '';
   if (distance){
-    const distancePx = 10, distanceMap = distancePx / scale;
+    // 2026-08-10: 画面上10px で出ていた。この但し書きは「実際はどれだけ遠いか」という
+    // 事実を運んでいる文字で、いちばん読めなくてよい文字ではない。
+    // アプリ自身の下限 (14px) に合わせる。
+    const distancePx = 14, distanceMap = distancePx / scale;
     // 2026-08-09: 店名が2行になった時に 但し書きの位置を下げておらず、
     // 「Friend vividhair」と「実際は約1002m先」が重なっていた (57x6px)。
     // 店名の実際の高さから下げる。
