@@ -2945,6 +2945,24 @@ function trueShopPoint(s){
     y:Number.isFinite(s.ty) ? s.ty : s.y
   };
 }
+// 2026-08-10: 「通りから西へ約574m」と出ていた店が、実際は278mだった (工房しらかば)。
+// 距離を「その店の南北位置での横ずれ」で出していたため、通りが曲がる所や
+// 通りの端より外にある店で、最短距離よりずっと大きい数字になっていた。
+// 20件中6件で30m超ずれ、最大296m (実測)。人が「通りからどれだけ離れているか」で
+// 思うのは最短距離なので、見せる数字はそちらにする。
+// (東西の判定と「遠い店」の振り分けは従来のまま。並びを動かさないため)
+function streetDistance(px, py){
+  let best = Infinity;
+  for (let i=1; i<mainBusway.length; i++){
+    const a=mainBusway[i-1], b=mainBusway[i];
+    const dx=b[0]-a[0], dy=b[1]-a[1], L=dx*dx+dy*dy;
+    const t = L ? Math.max(0, Math.min(1, ((px-a[0])*dx + (py-a[1])*dy)/L)) : 0;
+    const qx=a[0]+t*dx, qy=a[1]+t*dy;
+    const d=Math.hypot(px-qx, py-qy);
+    if (d < best) best = d;
+  }
+  return Number.isFinite(best) ? best : 0;
+}
 function streetXAtY(y){
   if (!mainBusway.length) return W/2;
   if (y <= mainBusway[0][1]) return mainBusway[0][0];
@@ -2960,7 +2978,9 @@ function streetXAtY(y){
 const stripShops = GEO.shops.map((s,i) => {
   const point=trueShopPoint(s), streetX=streetXAtY(point.y);
   return {s,i,x:point.x,y:point.y,streetX,
-    distance:Math.abs(point.x-streetX), side:point.x < streetX ? 'west' : 'east'};
+    distance:Math.abs(point.x-streetX), side:point.x < streetX ? 'west' : 'east',
+    // 見せる数字は通りまでの最短距離。振り分け・東西は distance のまま
+    shownDistance:streetDistance(point.x, point.y)};
 });
 const stripAlong = stripShops.filter(p => p.distance <= 60).sort((a,b) => a.y-b.y || a.x-b.x || a.i-b.i);
 const stripFar = stripShops.filter(p => p.distance > 60).sort((a,b) => a.y-b.y || a.x-b.x || a.i-b.i);
@@ -3283,7 +3303,7 @@ function makeStripRow(entry, far){
     const actualFar=entry.s.far_m;
     distText = actualFar && actualFar >= 400
       ? (actualFar >= 1000 ? '約' + (actualFar/1000).toFixed(1) + 'km先' : '約' + actualFar + 'm先')
-      : (entry.side === 'west' ? '西へ約' : '東へ約') + Math.round(entry.distance) + 'm';
+      : (entry.side === 'west' ? '西へ約' : '東へ約') + Math.round(entry.shownDistance) + 'm';
   }
   row.dataset.i=String(entry.i);
   row.dataset.side=entry.side;
