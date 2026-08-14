@@ -1891,6 +1891,19 @@ if not A.no_browser:
                   return out;
                 }""")
                 rp.close()
+                # N66 二列に並べた信号が、中山バス通り沿いのものだけか (2026-08-14 あみさん指摘)
+                # 絞り込みが無く、別の道路の信号 (最遠622m) まで通りの線上に並んでいた。
+                # 実DOMの .strip-signal を数える。ソースの正規表現では「本当に出ているか」は分からない。
+                sp = br.new_page(viewport={"width": 390, "height": 844})
+                sp.goto(url, wait_until="load")
+                sp.wait_for_timeout(1200)
+                REND["stripSignals"] = sp.evaluate("""() => {
+                  const nodes = [...document.querySelectorAll('.strip-signal')];
+                  return {shown: nodes.filter(n => !n.hidden).map(n => +n.dataset.y),
+                          all: nodes.map(n => +n.dataset.y),
+                          geo: (GEO.signals||[]).length};
+                }""")
+                sp.close()
                 br.close()
         except Exception as e:
             P("!! ブラウザ実測に失敗: %s: %s" % (type(e).__name__, e))
@@ -1924,7 +1937,8 @@ fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "
                          "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39",
                          "N40", "N41", "N42", "N43", "N44",
                          "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54",
-                         "N55", "N56", "N57", "N58", "N59", "N60", "N61")}
+                         "N55", "N56", "N57", "N58", "N59", "N60", "N61",
+                         "N62", "N63", "N64", "N65", "N66")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -2865,6 +2879,129 @@ if os.path.exists(_sbp):
             fails["N16"].append("%s の出典が %s → %s に書き換わっている (src_baseline.json と不一致)"
                                 % (s["name"], b, s.get("src")))
 
+# ---- N62〜N65 こどもの声とクライアント訂正 (2026-08-14 あみさん指摘) ----
+# 「声が反映されていない場所がある」。台帳69行に対して地図は26件しか出ていなかった。
+# 原因は写し漏れではなく、台帳を読む経路が無かったこと = 落ちても誰も気づけない構造。
+# ここで「台帳の1行1行が、地図か skip のどちらかに必ず居る」ことを数える。
+_vmp = os.path.join(HERE, "voices_master.json")
+_ccp = os.path.join(HERE, "client_corrections.json")
+if not os.path.exists(_vmp):
+    fails["N62"].append("voices_master.json が無い (声の台帳が消えている)")
+else:
+    _vm = json.load(io.open(_vmp, encoding="utf-8"))
+    _by = {s["name"]: s for s in shops}
+    _seen_rows = 0
+    for _pl in _vm["places"]:
+        if _pl.get("skip_reason"):
+            _seen_rows += len(_pl["voices"])
+            continue
+        if not _pl.get("shops"):
+            fails["N62"].append("台帳「%s」に行き先も skip の理由も無い" % _pl["master_name"])
+            continue
+        for _t in _pl["shops"]:
+            if _t not in _by:
+                fails["N62"].append("台帳「%s」の行き先「%s」が地図に無い (%d行が消える)"
+                                    % (_pl["master_name"], _t, len(_pl["voices"])))
+                continue
+            _seen_rows += len(_pl["voices"])
+            # N63 本文が1文字でも変わっていないか (言い換えは中身の改変)
+            _want = [v["text"] for v in _pl["voices"]]
+            _got = [v.get("text") for v in (_by[_t].get("voices") or [])]
+            if _got != _want:
+                for _a, _b in zip(_want, _got + [None] * len(_want)):
+                    if _a != _b:
+                        fails["N63"].append("%s の声が台帳と違う 台帳「%s」/ 地図「%s」"
+                                            % (_t, _a, _b))
+                if len(_got) != len(_want):
+                    fails["N63"].append("%s の声が %d件しかない (台帳は %d行)"
+                                        % (_t, len(_got), len(_want)))
+    # 台帳の総行数と、地図＋skip で説明できた行数が合うか (黙って消えた行を出す)
+    _total_rows = sum(len(p["voices"]) for p in _vm["places"])
+    _mapped_rows = sum(len(p["voices"]) for p in _vm["places"] if not p.get("skip_reason"))
+    _skip_rows = _total_rows - _mapped_rows
+    _in_map = sum(len(s.get("voices") or []) for s in shops)
+    _expect_in_map = sum(len(p["voices"]) * len(p.get("shops") or [])
+                         for p in _vm["places"] if not p.get("skip_reason"))
+    if _in_map != _expect_in_map:
+        fails["N62"].append("地図の声が %d件・台帳から入るはずが %d件 (差 %d)"
+                            % (_in_map, _expect_in_map, _expect_in_map - _in_map))
+
+if not os.path.exists(_ccp):
+    fails["N64"].append("client_corrections.json が無い (訂正の台帳が消えている)")
+else:
+    _cc = json.load(io.open(_ccp, encoding="utf-8"))
+    _by = {s["name"]: s for s in shops}
+    for _c in _cc["corrections"]:
+        _s = _by.get(_c["shop"])
+        if _c.get("applied"):
+            if _s is None:
+                fails["N64"].append("訂正の宛先「%s」が地図に無い" % _c["shop"])
+                continue
+            for _k, _v in (_c.get("set") or {}).items():
+                if _s.get(_k) != _v:
+                    fails["N64"].append("%s の %s が訂正どおりでない 指示「%s」/ 地図「%s」"
+                                        % (_c["shop"], _k, _v, _s.get(_k)))
+            if _c.get("hours_struct") and not _s.get("hours_struct"):
+                fails["N64"].append("%s に曜日別の営業時間が入っていない (「いま」が出せない)"
+                                    % _c["shop"])
+        else:
+            # 保留分は「勝手に適用していないこと」を見る。指示が2通りに読めるものなので、
+            # 片方を黙って選んで出すのがいちばん危ない。
+            if _s is None:
+                fails["N64"].append("保留中の「%s」が地図から消えている" % _c["shop"])
+            elif _s.get("hours_struct") or _s.get("open_now") is not None:
+                fails["N64"].append("保留中の「%s」に訂正が入っている (確認が取れるまで動かさない)"
+                                    % _c["shop"])
+    for _r in _cc.get("renames", []):
+        if _r["from"] in _by:
+            fails["N64"].append("改名前の「%s」が地図に残っている (→「%s」)"
+                                % (_r["from"], _r["to"]))
+        if _r["to"] not in _by:
+            fails["N64"].append("改名後の「%s」が地図に無い" % _r["to"])
+    for _r in _cc.get("removals", []):
+        if _r["shop"] in _by:
+            fails["N65"].append("削除を指示された「%s」が地図に残っている" % _r["shop"])
+    _txt = io.open(os.path.join(ROOT, "index.html"), encoding="utf-8").read()
+    for _r in _cc.get("removals", []):
+        if _r["shop"] in _txt:
+            fails["N65"].append("削除を指示された「%s」が index.html の中に残っている" % _r["shop"])
+
+# ---- N66 二列に並べた信号が中山バス通り沿いだけか (2026-08-14 あみさん指摘) ----
+# 「通りの地図の位置関係がズレている。信号機の場所とか」。
+# 二列は一本の通りの絵なのに、絞り込みが無く別の道路の信号 (最遠622m) まで並べていた。
+_ss = (REND or {}).get("stripSignals")
+if _ss is None:
+    fails["N66"].append("二列の信号を測れていない (測れないものを合格にしない)")
+else:
+    _bw = sorted((G.get("busway") or []), key=len, reverse=True)
+    _main = _bw[0] if _bw else []
+
+    def _n66_street_distance(px, py):
+        best = float("inf")
+        for _i in range(1, len(_main)):
+            _a, _b = _main[_i - 1], _main[_i]
+            _dx, _dy = _b[0] - _a[0], _b[1] - _a[1]
+            _den = _dx * _dx + _dy * _dy
+            _t = max(0.0, min(1.0, ((px - _a[0]) * _dx + (py - _a[1]) * _dy) / _den)) if _den else 0.0
+            best = min(best, math.hypot(px - (_a[0] + _t * _dx), py - (_a[1] + _t * _dy)))
+        return best
+
+    _shown_y = _ss.get("shown") or []
+    if not _main:
+        fails["N66"].append("バス通りの線が取れない (判定できない)")
+    else:
+        for _y in _shown_y:
+            _cand = [p for p in signals if abs(p[1] - _y) < 0.6]
+            if not _cand:
+                fails["N66"].append("二列の信号 y=%.1f が GEO のどの信号とも一致しない" % _y)
+                continue
+            _d = min(_n66_street_distance(p[0], p[1]) for p in _cand)
+            if _d > 30.0:
+                fails["N66"].append("二列に出ている信号 y=%.1f は中山バス通りから %.1fm 離れた"
+                                    "別の道路の信号" % (_y, _d))
+    if _ss.get("geo") and not _shown_y:
+        fails["N66"].append("二列に信号が1基も出ていない (絞り込みすぎ)")
+
 LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N3": "歩きズームで★が道路にかからず見える大きさ", "N4": "ラベルが自分の★に一意に結びつく",
        "N5": "通りの東西と向かい合いが成立", "N6": "目印の信号が使える",
@@ -2916,13 +3053,19 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N58": "ボタンの文字に1文字だけの行ができていない",
        "N59": "箱が中身の文字を切っていない (端末の文字設定 150%/200%)",
        "N60": "同じ行で店名が住所より小さくない",
-       "N61": "方位記号の針が北を向いている"}
+       "N61": "方位記号の針が北を向いている",
+       "N62": "こどもの声の台帳が1行も行方不明になっていない",
+       "N63": "こどもの声の本文が台帳と1文字も違わない",
+       "N64": "クライアントの訂正が地図に出ている (保留分は動いていない)",
+       "N65": "削除を指示された地点が地図に残っていない",
+       "N66": "二列に並べた信号が中山バス通り沿いのものだけ"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
               "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43", "N44",
               "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54",
-              "N55", "N56", "N57", "N58", "N59", "N60", "N61"):
+              "N55", "N56", "N57", "N58", "N59", "N60", "N61",
+              "N62", "N63", "N64", "N65", "N66"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:

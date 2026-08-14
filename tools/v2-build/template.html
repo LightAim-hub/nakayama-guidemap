@@ -1521,8 +1521,12 @@ function splitLabelText(text){
     : /[一-鿿]/.test(c) ? 'kanji'
     : /[0-9]/.test(c) ? 'num' : 'latin';
   const mid = chars.length / 2;
+  // 2026-08-14: 「花祭壇」→「花さいだん」に直した時、字種の変わり目が1文字目にしか無く
+  // 「花 / さいだん」と切れて **1文字だけの行**ができた (gate N58 が検出)。
+  // 1文字の行はボスから3回指摘された同型なので、切れ目の候補から外す。
+  const MIN_LINE_CHARS = 2;
   let best = null;
-  for (let i = 1; i < chars.length; i++){
+  for (let i = MIN_LINE_CHARS; i <= chars.length - MIN_LINE_CHARS; i++){
     const isSpace = kind(chars[i-1]) === 'sp' || kind(chars[i]) === 'sp';
     const isBoundary = kind(chars[i-1]) !== kind(chars[i]);
     if (!isSpace && !isBoundary) continue;
@@ -1536,6 +1540,9 @@ function splitLabelText(text){
   const cut = best ? best.i : Math.ceil(chars.length / 2);
   const a = chars.slice(0, cut).join('').trim(), b = chars.slice(cut).join('').trim();
   if (!a || !b) return null;
+  // 切れ目が見つからず中央で割った時も、1文字の行になるなら折り返さない
+  // (2行にできないだけで、1行で置ける店はそのまま出る)
+  if ([...a].length < MIN_LINE_CHARS || [...b].length < MIN_LINE_CHARS) return null;
   return [a, b];
 }
 function labelLinesFor(entry){
@@ -2938,6 +2945,8 @@ const STRIP_TOP_PAD = 26;
 const STRIP_GAP_FLOOR = 8;
 const STRIP_SIGNAL_SIZE = 24;
 const STRIP_SIGNAL_GAP = 4;
+// 二列に置いてよい信号の、中山バス通りからの距離の上限 (m)。理由は buildStrip() の信号ループに書いた。
+const STRIP_SIGNAL_MAX_M = 30;
 const mainBusway = (GEO.busway || []).slice().sort((a,b) => b.length-a.length)[0] || [];
 function trueShopPoint(s){
   return {
@@ -3360,7 +3369,13 @@ function buildStrip(){
   });
   strip.appendChild(road);
   stripAlong.forEach(entry => strip.appendChild(makeStripRow(entry,false)));
-  (GEO.signals||[]).forEach(p => {
+  // 2026-08-14 あみさん「通りの地図の位置関係がズレている。信号機の場所とか」。
+  // 二列は中山バス通り一本の絵なのに、ここが絞り込みなしで GEO の信号を全11基そこへ並べ、
+  // 位置を y (南北) だけで決めていた。diag_strip_order.py の実測では 11基のうち 7基が
+  // 通り沿いでない別の道路の信号で、最も遠いものは通りから 622.3m 離れていた。
+  // 地元の人が見れば「信号の場所が違う」と分かってしまう。通りから30m以内のものだけ置く
+  // (残る4基はいずれも通りまで 0.0m)。地図ビューは真の座標に描いているので絞らない。
+  (GEO.signals||[]).filter(p => streetDistance(p[0], p[1]) <= STRIP_SIGNAL_MAX_M).forEach(p => {
     const signal=stripChild('div','strip-signal');
     signal.dataset.y=Number(p[1]).toFixed(1);
     signal.style.top=(STRIP_TOP_PAD+(p[1]-stripYMin)*STRIP_PX_PER_M)+'px';
@@ -3962,8 +3977,49 @@ function hoursRangesToday(s){
     return [a, b];
   });
 }
+// 2026-08-14 あみさん「『いま』がある店舗とない店舗がある」。
+// 上の文字列解析は「曜日で違う店」「※注記つき」をわざと読まない。誤って「営業中」と
+// 出す害の方が大きいからで、その方針自体は変えない (2026-08-09 ボス判断)。
+// ただし今回いただいた訂正はほとんどが曜日別の書き方なので、このままだと
+// 「いま」が出る店がかえって減り、ご指摘が悪化する。そこで client_corrections.json 由来の
+// 構造化データ (hours_struct / closed_rules) を持つ店だけ、曜日を読んで判定する。
+// 画面に出す文字列 (営業時間・定休日) は掲載どおりのままで、判定にだけこの値を使う。
+function localDateKey(d){
+  // holidays.json の dates と同じ YYYY-MM-DD。toISOString は UTC に寄せるので
+  // 日本時間の深夜・早朝に日付が1日ずれる。ローカルの年月日から組み立てる。
+  const two = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate());
+}
+function structuredOpenNow(s, at){
+  const hol = (GEO.meta && GEO.meta.holidays) || null;
+  const covers = hol && hol.covers;
+  const key = localDateKey(at);
+  // 祝日表の範囲外の日は「今日が祝日か」を言えない。安全側に倒して何も出さない。
+  if (!covers || key < covers.from || key > covers.to) return null;
+  const rules = s.closed_rules || {};
+  if (rules.holidays && (hol.dates || []).indexOf(key) >= 0) return {text:'本日定休', kind:'closed'};
+  if ((rules.dates || []).some(r => r.day === at.getDate())) return {text:'本日定休', kind:'closed'};
+  if ((rules.annual || []).some(r => r.month === at.getMonth() + 1 && r.day === at.getDate()))
+    return {text:'本日定休', kind:'closed'};
+  const ranges = s.hours_struct[String(at.getDay())];   // 0=日 … 6=土
+  if (ranges === undefined) return null;                // その曜日は分からない = 判定しない
+  if (!ranges.length) return {text:'本日定休', kind:'closed'};
+  const mins = at.getHours() * 60 + at.getMinutes();
+  const inside = ranges.some(([a, b]) => {
+    const end = b <= a ? b + 1440 : b;                  // 25:00 や 0:00 のような日またぎ
+    return (mins >= a && mins < end) || (mins + 1440 >= a && mins + 1440 < end);
+  });
+  return inside ? {text:'いま営業中', kind:'open'} : {text:'いまは時間外', kind:'closed'};
+}
 function openNowLabel(s, now){
   const at = now || new Date();
+  // 構造化しきれない例外を抱えた店は「いま」を出さない
+  // (西原歯科医院: 木曜に診るかどうかがその週に祝日があるかで変わる)。
+  if (s.open_now === false) return null;
+  // 構造化データがある店は曜日を読んで判定する。ここが null を返した時は
+  // 「判定できない」の意味なので、文字列解析へは落とさない (曖昧なら出さないのが方針)。
+  if (s.hours_struct) return structuredOpenNow(s, at);
+  // どちらも無い店は、これまでどおり掲載文の文字列解析で判定する。
   const state = closedStateToday(s, at);
   if (state === 'closedToday') return {text:'本日定休', kind:'closed'};
   if (state !== 'open') return null;

@@ -40,9 +40,12 @@ else:
 
 # 2026-08-04: 公式サイトに載っているのに地図に無かった2店 (ネルソンコーヒー中山本店・
 # 整骨院リリーフ) を追加して 61 → 63。過去の版から作り直せるよう、旧い数も許す。
-PRODUCTION_SHOP_COUNT = 60
+# 2026-08-14: あみさんの指示で「商店街モニュメント」を消したので 60 → 59。
+# ガードを外すのでなく、期待値を意図して下げる (黙って数が変わるのを止めるための仕掛けなので)。
+# 移行中は旧値 60 も許す (凍結ベースとして読む mapdata.json がまだ 60店のことがあるため)。
+PRODUCTION_SHOP_COUNT = 59
 PRODUCTION_SIGNAL_COUNT = 11
-PRODUCTION_MIGRATION_SHOP_COUNTS = {60, 61, 63, PRODUCTION_SHOP_COUNT}
+PRODUCTION_MIGRATION_SHOP_COUNTS = {59, 60, 61, 63, PRODUCTION_SHOP_COUNT}
 PRODUCTION_MIGRATION_SIGNAL_COUNTS = {13, PRODUCTION_SIGNAL_COUNT}
 SIGNAL_MERGE_DISTANCE_M = 30.0
 SLOPE_TOP_NAME = '中山の坂の上'
@@ -94,6 +97,16 @@ CLOSED_SHOPS = {
     'ビバホーム荒巻店':       '2026-08-07 Googleマップ「閉業」。公式サイトのページも404で消滅済み',
     'ネルソンコーヒー中山本店': '2026-08-07 Googleマップ「閉業」(2回確認)。公式の掲載は2021年のまま',
     '整骨院リリーフ':         '2026-08-07 Googleマップ「閉業」。公式の掲載は2021年のまま',
+}
+
+
+# ---------------- クライアントの指示で地図から外した地点 ----------------
+# 閉業ではないので CLOSED_SHOPS とは分ける (理由を正しく残すため)。
+# 本番ビルドは店を凍結ベースから組み直すので、**入力から消すだけでは output に残る**。
+# ここに載せて、凍結ベース側からも落とす。
+REMOVED_BY_CLIENT = {
+    '商店街モニュメント': '2026-08-14 あみさん指示「「商店街モニュメント」削除」'
+                          ' (client_corrections.json の removals)',
 }
 
 
@@ -155,8 +168,67 @@ def apply_official_fixes(shop_list, label=None):
 # ⚠ 凍結ベースは前回の生成物 (mapdata.json) なので、そこには差し替え後の名前が
 #   入っている。読み込んだ直後に内部名へ戻さないと、次のビルドが必ず
 #   「店が増減しています」で止まる (2026-08-09 実際に止まった)。
-FINAL_RENAME = {'Double Egg5丁目': 'Double Egg'}
+# 花さいだん: 2026-08-14 あみさんの指示 (client_corrections.json の renames)。
+# ここで差し替えるのは official_details.json が「花祭壇」をキーにしているから。
+# 先に改名すると電話・営業時間が付かなくなる。
+FINAL_RENAME = {'Double Egg5丁目': 'Double Egg', '花祭壇': '花さいだん'}
 FINAL_RENAME_BACK = {v: k for k, v in FINAL_RENAME.items()}
+
+# ---------------- こどもの声の台帳 (2026-08-14) ----------------
+# あみさんから「声が反映されていない場所がある。再度確認。」と指摘を受けた。
+# 突き合わせたら台帳69行のうち地図に出ていたのは26件。原因は写し漏れではなく構造で、
+# 声は verified_shops.json に手で写した分しか無く、**台帳を読む経路がそもそも無かった**。
+# だから落ちても誰も気づけない。ここを唯一の入口にして、取りこぼしたら止める。
+#
+# ⚠️ 入れるのは幾何計算より**前**でなければならない。
+#    _task_i_star_radius() が「声があるか」で★の半径を変えるので、
+#    あとから足すと「声なしの前提で置いた位置」に「声ありの★」が乗って制約が破れる。
+#    (2026-08-14 実測: 最後に入れたら BAKERY&BAKE EndRoll で clearance が落ちた)
+_VOICES_MASTER = json.load(open(P('voices_master.json'), encoding='utf-8'))
+
+# 台帳は最終的な掲載名で書いてある (Cake NAO / Double Egg)。
+# だが声を入れるのは幾何計算の前で、その時点の店はまだ差し替え前の名前
+# (cake NAO / Double Egg5丁目)。両方から引けるよう、最終名→途中名の別名表を作る。
+_NAME_ALIASES = {}
+for _src, _dst in list(OFFICIAL_NAME_FIX.items()) + list(FINAL_RENAME.items()):
+    _NAME_ALIASES.setdefault(_dst, []).append(_src)
+
+
+def _resolve_shop(by_name, target):
+    """最終名から、その時点の店を引く (差し替えを最大2段さかのぼる)。"""
+    seen, queue = set(), [target]
+    while queue:
+        name = queue.pop(0)
+        if name in by_name:
+            return by_name[name]
+        if name in seen:
+            continue
+        seen.add(name)
+        queue.extend(_NAME_ALIASES.get(name, []))
+    return None
+
+
+def apply_voices_master(shop_list):
+    """台帳の声を店へ入れる。行き先が無ければ止める (黙って落とさない)。"""
+    by_name = {sh['name']: sh for sh in shop_list}
+    for sh in shop_list:
+        sh['voices'] = []
+    total = 0
+    for pl in _VOICES_MASTER['places']:
+        if pl.get('skip_reason'):
+            continue
+        if not pl.get('shops'):
+            raise SystemExit('声の台帳「%s」に shops も skip_reason も無い。'
+                             '行き先を決めてから回すこと' % pl['master_name'])
+        for target in pl['shops']:
+            sh = _resolve_shop(by_name, target)
+            if sh is None:
+                raise SystemExit(
+                    '声の行き先が地図に無い: 台帳「%s」→「%s」(%d行が消える)。'
+                    '店名の改名か誤字を疑うこと' % (pl['master_name'], target, len(pl['voices'])))
+            sh['voices'] = [dict(v) for v in pl['voices']]
+            total += len(pl['voices'])
+    return total
 
 
 # 通常ビルドは、現在の本番mapdataを位置修正前の凍結ベースとして使う。
@@ -171,7 +243,10 @@ if not ARGS.preview:
             _sh['name'] = _back
     revert_official_fixes(PRODUCTION_BASELINE.get('shops', []))
     PRODUCTION_BASELINE['shops'] = [sh for sh in PRODUCTION_BASELINE.get('shops', [])
-                                   if sh['name'] not in CLOSED_SHOPS]
+                                   if sh['name'] not in CLOSED_SHOPS
+                                   and sh['name'] not in REMOVED_BY_CLIENT]
+    for _name, _why in REMOVED_BY_CLIENT.items():
+        print('クライアント指示で地図から外す: %s — %s' % (_name, _why))
     _baseline_shop_count = len(PRODUCTION_BASELINE.get('shops', []))
     _baseline_road_count = len(PRODUCTION_BASELINE.get('roads', []))
     _baseline_signal_count = len(PRODUCTION_BASELINE.get('signals', []))
@@ -442,12 +517,11 @@ for _shop in shops:
 if _task_k_osm_applied != set(_OSM_CONFIRMED):
     raise SystemExit('Task K: confirmed OSM POI set incomplete')
 
-# モニュメント (紙マップ: 坂の登り口・多夢多夢舎の東の道路沿い) — 位置は概算
-shops.append({'name': '商店街モニュメント', 'cat': 'place', 'url': '#', 'voices': [],
-              'note': '中山の坂の登り口にあるモニュメントが商店街への目印です！',
-              'addr': '', 'lat': 38.28810, 'lng': 140.84642, 'src': 'approx'})
+# 商店街モニュメントは 2026-08-14 あみさんの指示で削除 (client_corrections.json の removals)。
+# 位置が概算だった唯一のスポットでもある。SHOP_HINTS と _task_i_open_sites からも消してある。
 
 # たきみち公園 (紙マップ右下・OSM公園ポリゴン実在) — タップ可能スポットとして追加
+# voices は下の「こどもの声を台帳から入れる」で voices_master.json から入る (ここでは空)
 shops.append({'name': 'たきみち公園', 'cat': 'place', 'url': '#', 'voices': [],
               'note': '', 'addr': '', 'lat': 38.291917, 'lng': 140.85282, 'src': 'osm:exact'})
 
@@ -484,6 +558,9 @@ shops.append({
     'note': 'バス通りでいちばん高いところ（標高155m）。ここから南へ下る坂が「中山の坂」で、坂の上からは市街地が見渡せます。',
     'addr': '', 'lat': 38.294850, 'lng': 140.836401, 'src': 'gsi_dem',
 })
+
+# 声は幾何計算より前に入れる (★の半径が声の有無で変わるため。関数の注意書きを見る)
+print('こどもの声を台帳から入れた (生成側): %d件' % apply_voices_master(shops))
 
 # ---------------- 道路・河川・公園 ----------------
 raw = json.load(open(P('osm_raw2.json'), encoding='utf-8'))
@@ -858,7 +935,6 @@ de4['addr'] = de4.get('addr') or '仙台市青葉区中山4-6-36'
 SHOP_HINTS = {
     '東北電力研究開発センター': {'anchor': 'end'},
     'ヨークベニマル 仙台中山店': {'anchor': 'end'},
-    '商店街モニュメント': {'anchor': 'end'},
     'みなみ歯科クリニック': {'anchor': 'start'},
     'カーブス アクロスガーデン中山': {'anchor': 'start'},
     '認定こども園 TOBINOKO': {'anchor': 'end'},
@@ -1099,6 +1175,10 @@ if not ARGS.preview:
         print('地図に載せた新しい店: %s' % ' / '.join(_added_now))
     if len(shops) != PRODUCTION_SHOP_COUNT and not ARGS.allow_shop_change:
         raise SystemExit('production shop guard failed after adding 中山の坂の上')
+
+    # 凍結ベースから組み直すと声も前回の生成物のものに戻る。台帳から入れ直す。
+    # ここも幾何計算より前 (★の半径が声の有無で変わる)。
+    print('こどもの声を台帳から入れた (凍結ベース側): %d件' % apply_voices_master(shops))
 
     # 住所の枝番表記だけが異なる同一施設は、ゲートと同じ住所由来グループへ正規化する。
     # 店名・表示文言は変えず、分離制約の入力だけを一意にする。
@@ -1359,7 +1439,7 @@ if not ARGS.preview:
     _task_i_open_sites = {
         'たきみち公園', 'なかやまとびのこ公園', '中山山の神公園',
         '中山小学校', '中山中学校', '中山ドライブスクール',
-        '中山鳥瀧不動尊（目の神様）', '商店街モニュメント', SLOPE_TOP_NAME,
+        '中山鳥瀧不動尊（目の神様）', SLOPE_TOP_NAME,
     }
     _task_i_candidate_cache = {}
 
@@ -1464,13 +1544,25 @@ if not ARGS.preview:
         'デイサービス はるの風': (-1.5, 0.2),
         '遊季ガーデン': (6.5, 0.2),
         '梅原表具店': (5.1, -1.0),
-        'BAKERY&BAKE EndRoll': (2.0, -3.9),
+        # 2026-08-14: 2.0 → 2.6 (東へ0.6m)。台帳から声が入って★が 2.75m → 3.5m になり、
+        # 手置きのこの点だと spine まで 9.44m しか無く 10.00m に 0.56m 足りなくなった。
+        # 縦(-3.9)は目で決めた値なので動かさず、横だけ最小限ずらす。
+        'BAKERY&BAKE EndRoll': (2.6, -3.9),
         'cake NAO': (1.5, -1.9),
     }
     for name_, (dx_, dy_) in _task_i_preferred_offsets.items():
         shop_ = _task_i_by_name[name_]
         _task_i_positions[name_] = (round(shop_['tx']+dx_, 1), round(shop_['ty']+dy_, 1))
         _task_i_building_ids[name_] = None
+    # この表は人が目で決めた値で、ソルバの候補(道路安全を満たす点)を上書きする。
+    # 声が付いて★が大きくなると黙って道路に食い込むので、ここで止める。
+    # (2026-08-14 実測: EndRoll が 300行あとの最終チェックで落ちて原因が分かりにくかった)
+    for name_ in _task_i_preferred_offsets:
+        if not _task_i_road_safe(_task_i_by_name[name_], _task_i_positions[name_]):
+            raise SystemExit(
+                '_task_i_preferred_offsets の手置きが道路に近すぎる: %s '
+                '(★半径%.2fm)。表の値を見直すこと'
+                % (name_, _task_i_star_radius(_task_i_by_name[name_])))
     # 同一住所は固定14mペアへ個別処理せず、全店舗共通の8.4m分離ソルバで扱う。
     # これにより3店舗グループも、周辺店との衝突を含めて同じ制約で解ける。
     _task_i_pairs = []
@@ -1772,7 +1864,19 @@ if not ARGS.preview:
         if sh['name'] not in _task_i_open_sites and not _task_i_containing_buildings(point_):
             _task_i_outside_after.append(sh['name'])
         if not _task_i_road_safe(sh, point_):
-            raise SystemExit('Task I road/star clearance failed after snap: %s' % sh['name'])
+            # 「どの道路に・あと何m足りないか」まで出す。数字が無いと直しようがない。
+            _worst_ = None
+            for _road_ in roads:
+                _cls_ = 'spine' if _road_.get('guide_spine') else _road_['cls']
+                _need_ = _task_i_road_widths[_cls_] / 2.0 + _task_i_star_radius(sh)
+                _got_ = _task_i_road_distance(point_, _road_)
+                if _got_ < _need_ and (_worst_ is None or _need_ - _got_ > _worst_[0]):
+                    _worst_ = (_need_ - _got_, _cls_, _got_, _need_)
+            raise SystemExit(
+                'Task I road/star clearance failed after snap: %s '
+                '(★半径%.2fm・%s道路まで%.2fm しかない・%.2fm 要る・あと%.2fm)'
+                % (sh['name'], _task_i_star_radius(sh), _worst_[1], _worst_[2],
+                   _worst_[3], _worst_[0]))
         if _task_i_side(point_) != _task_i_side((sh['tx'], sh['ty'])):
             raise SystemExit('Task I building snap crossed busway: %s' % sh['name'])
     if _task_i_outside_after:
@@ -1934,6 +2038,64 @@ for _sh in shops:
     if _new:
         print('掲載名を差し替え: %s -> %s' % (_sh['name'], _new))
         _sh['name'] = _new
+
+# ---------------- こどもの声の検算 (2026-08-14) ----------------
+# 入れるのは幾何計算の前 (apply_voices_master)。ここでは**出力を独立に数え直す**。
+# 入れた側と数える側を別経路にしないと、同じ間違いを2回して素通りする。
+_vm = _VOICES_MASTER
+_shop_by_name = {sh['name']: sh for sh in shops}
+
+_expected_voice_rows = 0          # 台帳から数えた「地図に入るべき行数」
+for _pl in _vm['places']:
+    if _pl.get('skip_reason'):
+        continue
+    if not _pl.get('shops'):
+        raise SystemExit('声の台帳「%s」に shops も skip_reason も無い。'
+                         '行き先を決めてから回すこと' % _pl['master_name'])
+    _expected_voice_rows += len(_pl['voices']) * len(_pl['shops'])
+
+_actual_voice_rows = sum(len(_sh['voices']) for _sh in shops)
+if _actual_voice_rows != _expected_voice_rows:
+    raise SystemExit('声の数が合わない: 台帳から %d行のはずが 地図は %d件'
+                     % (_expected_voice_rows, _actual_voice_rows))
+# 本文が1文字でも変わっていないこと (言い換えは中身の改変。クライアントの領分)
+for _pl in _vm['places']:
+    if _pl.get('skip_reason'):
+        continue
+    _want = [v['text'] for v in _pl['voices']]
+    for _target in _pl['shops']:
+        _got = [v['text'] for v in _shop_by_name[_target]['voices']]
+        if _got != _want:
+            raise SystemExit('声の本文が台帳と違う: %s' % _target)
+_skipped_rows = sum(len(p['voices']) for p in _vm['places'] if p.get('skip_reason'))
+print('こどもの声: %d件 / %d店 (台帳 %d行・行き先待ち %d行)'
+      % (_actual_voice_rows, sum(1 for s in shops if s['voices']),
+         _vm['counts']['voice_lines'], _skipped_rows))
+
+# ---------------- クライアント訂正を上から重ねる (2026-08-14) ----------------
+# official_details.json は公式サイトの写しなので書き換えない。訂正はこの層でやる。
+# applied:false のものは「指示が2通りに読める」等で保留中。**触らない**。
+_cc = json.load(open(P('client_corrections.json'), encoding='utf-8'))
+_applied, _held = 0, []
+for _c in _cc['corrections']:
+    _sh = _shop_by_name.get(_c['shop'])
+    if _sh is None:
+        raise SystemExit('訂正の宛先が地図に無い: %s' % _c['shop'])
+    if not _c.get('applied'):
+        _held.append(_c['shop'])
+        continue
+    for _k, _v in (_c.get('set') or {}).items():
+        _sh[_k] = _v
+    for _k in ('hours_struct', 'closed_rules', 'open_now'):
+        if _k in _c:
+            _sh[_k] = _c[_k]
+    _applied += 1
+print('クライアント訂正: %d件反映 / 保留 %d件 %s' % (_applied, len(_held), _held))
+
+# 祝日。祝日休みの店を「いま営業中」と誤って出さないために画面へ渡す。
+# covers の外は判定しない (安全側に倒す) ので、範囲も一緒に持たせる。
+_hd = json.load(open(P('holidays.json'), encoding='utf-8'))
+meta['holidays'] = {'covers': _hd['covers'], 'dates': _hd['dates']}
 
 # 本番ビルドでは地物を凍結ベースへ戻すため、時点情報は出力直前にも明示して保つ。
 meta['info_as_of'] = INFO_AS_OF

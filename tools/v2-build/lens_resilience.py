@@ -64,6 +64,7 @@ MEASURE = r"""() => {
     ? (document.fonts.check('16px "Yusei Magic"') ? 'Yusei Magic' : '代替 (未読込)')
     : '不明';
   return {stars, labels, voiceShown, voiceIn, badges, voiceTotal, cross, missing, fontUsed,
+          total: GEO.shops.length,
           mapH: Math.round(vp.height), ratio:+(vp.height/innerHeight).toFixed(3),
           scale:+Math.hypot(...(()=>{const m=document.getElementById('map').getScreenCTM();
                                     return [m.a,m.b];})()).toFixed(4)};
@@ -235,8 +236,11 @@ def main():
                               % ("  ↑書体差替", "Times/serif", m3["stars"], m3["labels"],
                                  m3["voiceShown"], m3["voiceIn"], m3["badges"],
                                  m3["voiceTotal"], m3["cross"]))
-                        if m3["stars"] != 60:
-                            found.append("%s 書体差替で★が%d件" % (tag, m3["stars"]))
+                        # 2026-08-14: 店数を 60 で直書きしていた。商店街モニュメントを消して
+                        # 59 になった時に、実害が無いのにここだけ落ちる。GEO から取る。
+                        if m3["stars"] != m3["total"]:
+                            found.append("%s 書体差替で★が%d/%d件"
+                                         % (tag, m3["stars"], m3["total"]))
                         if m3["voiceShown"] != m3["voiceIn"]:
                             found.append("%s 書体差替で表示域内の声ラベルが%d/%d (%s)"
                                          % (tag, m3["voiceShown"], m3["voiceIn"],
@@ -247,8 +251,8 @@ def main():
                         if m3["cross"]:
                             found.append("%s 書体差替でラベルの重なり%d件" % (tag, m3["cross"]))
                     if block:
-                        if m["stars"] != 60:
-                            found.append("%s ★が%d件" % (tag, m["stars"]))
+                        if m["stars"] != m["total"]:
+                            found.append("%s ★が%d/%d件" % (tag, m["stars"], m["total"]))
                         if m["voiceShown"] != m["voiceIn"]:
                             found.append("%s 表示域内の声ラベルが%d/%d (%s)"
                                          % (tag, m["voiceShown"], m["voiceIn"], "／".join(m["missing"])))
