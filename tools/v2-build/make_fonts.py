@@ -76,10 +76,22 @@ def save_licenses():
 
 
 def used_chars(html_paths):
+    """画面に出うる文字だけを数える。
+
+    2026-08-16 独立レビュー指摘: HTML全文から数えていたため、CSS/JSの**コメントに
+    書いた日本語**までフォントに積まれていた (コメントを足すたびに woff2 が育つ)。
+    コメントは画面に出ないので落としてから数える。JSの文字列リテラルや本文は残る。
+    """
+    import re as _re
     chars = set(ALWAYS)
     for p in html_paths:
         with open(p, encoding='utf-8') as f:
-            chars |= set(f.read())
+            text = f.read()
+        text = _re.sub(r'<!--.*?-->', '', text, flags=_re.S)     # HTMLコメント
+        text = _re.sub(r'/\*.*?\*/', '', text, flags=_re.S)      # CSS/JSブロックコメント
+        # 行コメント。URLの // を巻き込まないよう、直前が : でないものだけ
+        text = _re.sub(r'(?<!:)//[^\n]*', '', text)
+        chars |= set(text)
     # 制御文字は落とす
     return ''.join(sorted(c for c in chars if ord(c) >= 0x20))
 

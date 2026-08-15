@@ -84,11 +84,16 @@
      1行に収まらない幅では自然に折り返す (flex-wrap は h1 に既にある)。 */
   /* 名前の折り返しは「なかやま商店街 / デジタルマップ」の間だけに許す (<wbr>)。
      語の途中で割れると「プ」だけの行ができる (2026-08-15 文字200%で実測・N58)。 */
+  /* 2026-08-16 ボス指示「派手ではないけどポップ、子どもも大人も違和感なく」。
+     手書きフォント (Yusei Magic) に黄色のマーカー下線。色数は増やさない
+     (黄=信号の黄と同じ系統)。文字色は濃茶のままなので明暗差は落ちない。 */
   .site-name{ word-break:keep-all; }
-  .nwrap{ white-space:nowrap; }
+  /* マーカーは折り返さない .nwrap に塗る。.site-name に塗ると、320px+文字200%で
+     2行に折れた時に1枚の帯が2行の箱全体へ描かれ、2行目の字を横断した (独立レビュー指摘)。 */
+  .nwrap{ white-space:nowrap; padding:0 2px;
+    background:linear-gradient(transparent 62%, rgba(240,201,63,.5) 62%, rgba(240,201,63,.5) 90%, transparent 90%); }
   .site-tagline{ flex:1 0 100%; font-family:'Zen Maru Gothic',sans-serif;
-    font-size:clamp(14px,.875rem,16px); font-weight:700; color:var(--ink); letter-spacing:.02em; }
-  body.map-open .site-tagline{ display:none; }
+    font-size:clamp(14px,.875rem,16px); font-weight:700; color:var(--voice); letter-spacing:.02em; }
   /* 小さい端末では場所を返す。320px幅では店名バッジも含めタイトルが2行に折れて、
      主の内容 (二列) が床の330pxを割った (N23)。横向き (高さ460px未満) も同じ。
      タイトルの正式名はブラウザの<title>とOGにあるので、画面ではキャッチコピーを畳む。 */
@@ -729,25 +734,60 @@
   #locatebtn, #wholebtn, #locationStatus{ display:none; }
 
   #viewport{ display:none; }
-  body.map-open{ --map-head-h:44px; --map-controls-h:56px; }
+  /* 2026-08-16: タイトルが1行に入らず「なかやま商店街デジ…」と切れていたので、
+     帯を2段にした (上段=タイトル・下段=絞り込み/もどる)。+30px は地図の床 (N23:62%)
+     に対して 390x844 で 706-30=676px > 床523px、320x568 で 442px > 床352px と余裕。 */
+  body.map-open{ --map-head-h:74px; --map-controls-h:56px; }
   body.map-open #viewport{ display:block; position:fixed; inset:var(--map-head-h) 0 var(--map-controls-h); z-index:24;
     overflow:auto; width:100%; height:auto; background:var(--paper); }
   body.map-open #mapwrap{ min-height:100%; }
-  body.map-open header{ position:fixed; inset:0 0 auto; z-index:31; height:var(--map-head-h); padding:0 6px;
-    display:grid; grid-template-columns:minmax(112px,1fr) minmax(72px,112px) 90px; align-items:center; gap:8px;
-    border-bottom:2px dashed rgba(92,67,39,.35); overflow:hidden; }
-  body.map-open header h1{ min-width:0; display:block; overflow:hidden; text-overflow:ellipsis;
-    font-size:14px; line-height:1.1; white-space:nowrap; }
+  body.map-open header{ position:fixed; inset:0 0 auto; z-index:31; height:var(--map-head-h); padding:2px 6px 4px;
+    display:grid; grid-template-columns:minmax(72px,1fr) minmax(72px,112px) 96px;
+    grid-template-rows:24px 44px; align-items:center; gap:0 8px;
+    border-bottom:2px dashed rgba(92,67,39,.35); overflow:hidden;
+    /* 帯が地図と同じ紙色で同化し、タイトルが店名ラベルと混ざって見えた。
+       わずかに明るい生成り+薄い影で「帯」として立たせる。 */
+    background:#fffdf5; box-shadow:0 1px 0 rgba(92,67,39,.08); }
+  body.map-open header h1{ grid-column:1 / -1; grid-row:1; justify-self:center; min-width:0;
+    display:block; overflow:hidden; text-overflow:ellipsis;
+    font-size:15px; line-height:1.3; white-space:nowrap; }
+  body.map-open .map-filter-badge{ grid-row:2; grid-column:2; }
+  body.map-open #mapback{ grid-row:2; grid-column:3; }
+  /* 320px級では帯2段のままタイトル行と余白を詰める。
+     2段化 (+30px) で地図が77%になり N45 の床78%を割った (568px高で5px不足)。 */
+  @media (max-width:349px){
+    /* 68px = padding1+行20+行44+padding1+下線2 (66だとピルの下1pxが刈られる) */
+    body.map-open{ --map-head-h:68px; }
+    body.map-open header{ grid-template-rows:20px 44px; padding:1px 6px 1px; }
+    body.map-open header h1{ font-size:14px; }
+  }
+  /* 横向き (高さ460px未満) はタイトル行を畳んで1段へ戻す。568x320 で 2段のままだと
+     地図が 320-74-56=190px となり、横向きの床200pxを割る (独立レビュー指摘)。 */
+  @media (max-height:459px){
+    body.map-open{ --map-head-h:44px; }
+    body.map-open header{ grid-template-rows:44px; padding:0 6px; }
+    body.map-open header h1{ grid-column:1; grid-row:1; justify-self:start; font-size:14px; }
+    body.map-open .map-filter-badge{ grid-row:1; grid-column:2; }
+    body.map-open #mapback{ grid-row:1; grid-column:3; }
+  }
+  /* 2026-08-16: <wbr> は white-space:nowrap を貫通して折り返す。地図ビューで
+     タイトルが2行に折れて窮屈だった正体 (実測 390px で「なかやま商店街/デジタルマップ」)。
+     地図ビューでは折り返し機会ごと消して1行+ellipsisにする。 */
+  body.map-open header h1 wbr{ display:none; }
+  body.map-open .site-tagline{ display:none; }
   body.map-open header h1 small, body.map-open header p, body.map-open .shop-total-summary{ display:none; }
   body.map-open .map-filter-badge{ display:inline-flex; width:100%; min-width:44px; max-width:112px; height:44px;
     padding:3px 7px; align-items:center; justify-content:center; cursor:pointer;
     border:1.5px solid var(--voice); border-radius:999px; color:var(--voice); background:#edf6f3;
     font-size:14px; font-weight:700; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   body.map-open .map-filter-badge:focus-visible{ outline:3px solid var(--focus-ring); outline-offset:-3px; }
+  /* 2026-08-16 ボス指摘「ボタンの押しにくさが目立つ」。「✕通りへもどる」が素の文字で
+     ボタンに見えなかった。下部バーの「お店一覧」と同じ言語 (白ピル+茶枠) にする。 */
   body.map-open #mapback{ display:inline-flex; min-width:44px; height:44px; padding:0 8px; align-items:center;
-    justify-content:center; border:0; background:transparent; color:var(--ink); font:inherit; font-size:14px;
+    justify-content:center; border:1.5px solid rgba(122,92,59,.55); border-radius:999px;
+    background:#fffaf0; box-shadow:1px 2px 0 rgba(92,67,39,.12); color:var(--ink); font:inherit; font-size:14px;
     font-weight:700; line-height:1.1; white-space:nowrap; cursor:pointer; }
-  body.map-open #mapback{ width:90px; padding-inline:2px; white-space:normal; word-break:keep-all; }
+  body.map-open #mapback{ width:96px; padding-inline:2px; white-space:normal; word-break:keep-all; }
   body.map-open #mapback:focus-visible{ outline:3px solid var(--focus-ring); outline-offset:-3px; }
   body.map-open #stripview{ visibility:hidden; }
   .zoomctl, #editbar, #srcinfo{ display:none; }
@@ -768,7 +808,9 @@
     display:inline-flex; padding-inline:4px; font-size:14px; white-space:nowrap; }
   body.map-open #listbtn{ grid-column:1; grid-row:1; }
   body.map-open #mapbtn{ grid-column:2; grid-row:1; }
-  body.map-open #locationStatus{ position:fixed; z-index:32; left:8px; top:52px; display:none;
+  /* 2026-08-16 独立レビュー指摘: top:52px は旧ヘッダー(44px)前提の直書きで、
+     2段化 (74px) 後は帯の上に重なっていた。変数から取る。 */
+  body.map-open #locationStatus{ position:fixed; z-index:32; left:8px; top:calc(var(--map-head-h) + 8px); display:none;
     width:max-content; max-width:min(244px,calc(100vw - 72px)); min-height:32px; height:auto; padding:5px 10px;
     align-items:center; justify-content:center; border:1.5px solid rgba(122,92,59,.45); border-radius:999px;
     background:rgba(255,250,240,.94); box-shadow:1px 2px 0 rgba(92,67,39,.18);
@@ -835,7 +877,16 @@
     body.search-open #controls .searchbar{ display:flex; }
     .strip-guide{ display:none; }
     .control-actions{ grid-template-columns:auto minmax(0,1fr) minmax(0,1fr); }
-    #searchbtn{ display:inline-flex; width:auto; min-width:44px; padding-inline:12px; font-size:14px; }
+    /* 2026-08-16: 「さがす」だけ素のグレー四角のままだった (装飾がどのセレクタにも
+       入っていない)。中身も左に寄っていた (左14px/右40px)。隣の「お店一覧」
+       「地図で見る」と同じピルの言語に揃える。 */
+    #searchbtn{ display:inline-flex; width:auto; min-width:44px; min-height:44px;
+      padding:7px 12px; font:inherit; font-size:14px; font-weight:700;
+      justify-content:center; align-items:center; gap:6px;
+      border:2px solid var(--voice); border-radius:999px; color:var(--voice);
+      background:#fffaf0; box-shadow:2px 3px 0 rgba(92,67,39,.22); cursor:pointer; }
+    #searchbtn:active{ transform:translateY(2px); box-shadow:none; }
+    #searchbtn:focus-visible{ outline:3px solid var(--focus-ring); outline-offset:2px; }
   }
   @media(max-width:340px) and (orientation:portrait){
     #stripview{ margin-bottom:8px; }
@@ -1862,8 +1913,6 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       setLabelPosition(entry,candidate,scale);
       entry.s.labelVisible = true;
       entry.s.labelLeader = false;
-      // 次の縮尺でも同じ側から試すために覚える (左右へ飛び直すのを止める。2026-08-15)
-      if (candidate.side) entry.s._labelStickSide = candidate.side;
       addPlacement(entry,renderedRect);
       return true;
     };
@@ -2334,6 +2383,11 @@ function updateSignalStyles(scale, mainRoadPx, starCenters){
 function setLabelPosition(entry, candidate, scale){
   const s = entry.s, main = entry.main, distance = entry.distance;
   const side = candidate.side || 0, dyPx = candidate.dyPx || 0, vert = candidate.vert || 0;
+  // 次の縮尺でも同じ側から試すために覚える (左右へ飛び直すのを止める。2026-08-15)。
+  // 独立レビュー指摘: placeCandidate だけで覚えると、混んだ場所の再配置経路
+  // (constrained group / retryBlocked / 優先度の押しのけ) が素通りして記憶が古くなる。
+  // 置き場が確定する唯一の点 = ここで覚える。
+  if (side) s._labelStickSide = side;
   const fontPx = labelTargetPx(s), fontMap = fontPx / scale;
   const offsetMap = candidate.gapPx / scale;
   // どの置き場で決まったかを残す (斜めになった原因を後から追えるように)
