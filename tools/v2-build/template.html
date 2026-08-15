@@ -869,7 +869,12 @@
   <button class="map-filter-badge" id="mapFilterBadge" type="button" aria-controls="filters"
     aria-expanded="false">絞り込み</button>
   <button id="mapback" type="button" aria-controls="viewport" aria-label="通りへもどる">✕ 通り<wbr>へもどる</button>
-  <p>西側・東側を実際の南北位置に合わせて並べています。お店をタップすると詳細を確認でき、「地図で見る」で全体へ切り替えられます。</p>
+  <!-- 2026-08-15: 「実際の南北位置に合わせて」と書いていたが、並べているのは
+       **通り沿いの位置**であって真南北ではない。中山バス通りは方位133.6度(南東)へ
+       走っているので、緯度の順とは食い違う (実測: 40店中6組が逆・最大39.4m)。
+       通りを歩く人には通り沿いの順の方が役に立つので、並べ方は変えず、
+       言っていることを実際に合わせる。 -->
+  <p>西側・東側を通り沿いの並び順どおりに並べています。お店をタップすると詳細を確認でき、「地図で見る」で全体へ切り替えられます。</p>
 </header>
 
 <main id="stripview">
