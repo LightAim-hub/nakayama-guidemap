@@ -333,7 +333,12 @@
   .detail-link{ display:flex; align-items:center; justify-content:center; min-height:46px; margin-top:22px; padding:10px 16px;
     border:2px solid #a45e2b; border-radius:999px; color:#a45e2b; font-size:.82rem; font-weight:700; text-decoration:none; }
   .detail-facts-wrap{ margin-top:14px; }
-  .detail-facts{ display:grid; grid-template-columns:auto minmax(0,1fr); gap:6px 12px;
+  /* 2026-08-15 ボス指摘「店舗ごとにレイアウトのずれがある。電話番号等のところ」。
+     ラベル列が auto だと、その店に出る項目のうちいちばん長いラベルに合わせて幅が決まる。
+     電話だけの店は「電話」(2字)、営業時間もある店は「営業時間」(4字) が基準になり、
+     **値の左端が店ごとに動いていた**。使うラベルは いま/電話/営業時間/定休日 の4つで
+     最長は4字なので、そこに固定して全店で揃える。em なので端末の文字設定にも追従する。 */
+  .detail-facts{ display:grid; grid-template-columns:4.25em minmax(0,1fr); gap:6px 12px;
     padding:12px 14px; border:1.5px solid rgba(122,92,59,.28); border-radius:12px; background:#fffaf0; }
   .detail-fact-label{ color:var(--ink-soft); font-size:clamp(14px,.875rem,var(--body-font-max)); font-weight:700; white-space:nowrap; }
   .detail-fact-value{ font-size:clamp(14px,.875rem,var(--body-font-max)); line-height:1.65; }

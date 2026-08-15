@@ -1903,6 +1903,36 @@ if not A.no_browser:
                           all: nodes.map(n => +n.dataset.y),
                           geo: (GEO.signals||[]).length};
                 }""")
+                # N69 詳細シートの情報欄で、値の左端が全店そろっているか (2026-08-15)
+                # 店を1つずつ開いて、ラベル列の実幅と値の左端を測る。
+                REND["factCols"] = sp.evaluate("""async () => {
+                  // ⚠ querySelector('.detail-facts') は常に DOM 先頭のカードを返すので、
+                  //   店を切り替えながら1つずつ測ると**同じ要素を何度も測ることになる**
+                  //   (2026-08-15: それで壊れた版が違反0で通った)。
+                  //   まず全店ぶんのカードを作らせてから、**全部の .detail-facts を数える**。
+                  for (const h of document.querySelectorAll('g.hit')){
+                    h.dispatchEvent(new MouseEvent('click', {bubbles:true}));
+                    await new Promise(r => setTimeout(r, 25));
+                  }
+                  await new Promise(r => setTimeout(r, 200));
+                  const out = [];
+                  for (const dl of document.querySelectorAll('.detail-facts')){
+                    const dd = dl.querySelector('.detail-fact-value');
+                    const dt = dl.querySelector('.detail-fact-label');
+                    if (!dd || !dt) continue;
+                    const card = dl.closest('.detail-card') || dl.parentElement;
+                    const h2 = card ? card.querySelector('h2') : null;
+                    // 詳細シートは横並びのスライドなので、絶対座標にはカルーセルのずれが乗る。
+                    // 測るのは「その店の情報欄の中で、値が左から何pxか」= ラベル列の幅。
+                    const base = dl.getBoundingClientRect().left;
+                    out.push({name: h2 ? h2.textContent.trim() : '?',
+                              labels: [...dl.querySelectorAll('.detail-fact-label')]
+                                        .map(e => e.textContent.trim()).join('/'),
+                              valueLeft: +(dd.getBoundingClientRect().left - base).toFixed(1),
+                              labelLeft: +(dt.getBoundingClientRect().left - base).toFixed(1)});
+                  }
+                  return out;
+                }""")
                 sp.close()
                 br.close()
         except Exception as e:
@@ -1938,7 +1968,7 @@ fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "
                          "N40", "N41", "N42", "N43", "N44",
                          "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54",
                          "N55", "N56", "N57", "N58", "N59", "N60", "N61",
-                         "N62", "N63", "N64", "N65", "N66", "N67")}
+                         "N62", "N63", "N64", "N65", "N66", "N67", "N68", "N69")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -2934,38 +2964,66 @@ else:
     if _decl.get("places") != len(_vm["places"]):
         fails["N62"].append("台帳の宣言 %s箇所 と 実体 %d箇所 が違う"
                             % (_decl.get("places"), len(_vm["places"])))
-    # 🔴 一次ソース (あみさんから受け取った xlsx) と突き合わせる。
-    # 台帳同士を比べても、台帳ごと書き換われば気づけない。正は xlsx。
-    _xlsx = os.path.join(HERE, "_source", "2026-08-14_中山商店街_こどもの声台帳.xlsx")
-    if not os.path.exists(_xlsx):
-        fails["N62"].append("一次ソースの xlsx が無い (台帳を検算できない)")
+    # 🔴 一次ソース (あみさんから受け取った本文そのもの) と突き合わせる。
+    # 台帳同士を比べても、台帳ごと書き換われば気づけない。正は _source/ の受領物。
+    _srcmd = os.path.join(HERE, "_source", "2026-08-15_あみさん声リスト_LINE.md")
+    if not os.path.exists(_srcmd):
+        fails["N62"].append("一次ソース (%s) が無い (台帳を検算できない)"
+                            % os.path.basename(_srcmd))
     else:
         try:
             if HERE not in sys.path:
                 sys.path.insert(0, HERE)
             import make_voices_master as _MVM   # 同じ読み取り規則を使う (二重実装しない)
-            import openpyxl as _op
-            _ws = _op.load_workbook(_xlsx, data_only=True).worksheets[0]
-            _src_rows = []
-            for _row in _ws.iter_rows(min_row=2, max_row=_ws.max_row, max_col=2):
-                _nm = str(_row[0].value or "").strip()
-                if _nm:
-                    _src_rows.append((_nm, _MVM.cell_lines(_row[1].value)))
-            if len(_src_rows) != len(_vm["places"]):
-                fails["N62"].append("xlsx は %d箇所・台帳は %d箇所 (箇所が増減している)"
-                                    % (len(_src_rows), len(_vm["places"])))
-            for (_nm, _lines), _pl in zip(_src_rows, _vm["places"]):
+            _src_rows = [(p["master_name"], p["lines"]) for p in _MVM.parse_source(_srcmd)]
+            # 確認待ち (前の台帳から持ち越している分) は一次ソースに無いのが正しい
+            _carried = [p for p in _vm["places"] if p.get("pending_confirmation")]
+            _fromsrc = [p for p in _vm["places"] if not p.get("pending_confirmation")]
+            if len(_src_rows) != len(_fromsrc):
+                fails["N62"].append("一次ソースは %d箇所・台帳は %d箇所 (持ち越し %d箇所を除く)"
+                                    % (len(_src_rows), len(_fromsrc), len(_carried)))
+            for (_nm, _lines), _pl in zip(_src_rows, _fromsrc):
                 if _nm != _pl["master_name"]:
-                    fails["N62"].append("xlsx の「%s」が台帳では「%s」になっている"
+                    fails["N62"].append("一次ソースの「%s」が台帳では「%s」になっている"
                                         % (_nm, _pl["master_name"]))
                     continue
-                _have = [v["text"] for v in _pl["voices"]]
-                if _lines != _have:
-                    fails["N63"].append("xlsx と台帳が違う (%s): xlsx %d行 / 台帳 %d行"
-                                        % (_nm, len(_lines), len(_have)))
+                # raw が原文と1文字も違わないこと。text は絵文字を落とした表示用。
+                _raw = [v.get("raw", v["text"]) for _pl_v, v in zip(_lines, _pl["voices"])] \
+                    if len(_lines) == len(_pl["voices"]) else None
+                if _raw is None:
+                    fails["N63"].append("一次ソースと台帳の行数が違う (%s): %d行 / %d行"
+                                        % (_nm, len(_lines), len(_pl["voices"])))
+                elif _raw != _lines:
+                    for _a, _b in zip(_lines, _raw):
+                        if _a != _b:
+                            fails["N63"].append("一次ソースと台帳が違う (%s): 原文「%s」/ 台帳「%s」"
+                                                % (_nm, _a, _b))
+                # 表示用は「絵文字を落としただけ」か (語を変えていないか)
+                for _v in _pl["voices"]:
+                    if _MVM.strip_emoji(_v.get("raw", _v["text"])) != _v["text"]:
+                        fails["N63"].append("%s の表示用の文が原文の絵文字落としと一致しない: 「%s」"
+                                            % (_nm, _v["text"]))
+            # 確認待ちは「宙に浮かせない」。理由と出どころが必ず要る。
+            for _pl in _carried:
+                if not _pl.get("carried_from"):
+                    fails["N62"].append("持ち越しの「%s」に出どころが書いていない" % _pl["master_name"])
         except Exception as _e:
             fails["N62"].append("一次ソースと突き合わせられない: %s: %s"
                                 % (type(_e).__name__, _e))
+
+
+# 表記統一の規則は build_mapdata.py が正本。二重実装せず、そこから借りる。
+def _norm_display(value, field):
+    if not value:
+        return value
+    s = str(value)
+    s = re.sub(r'(?<=[0-9])：(?=[0-9])', ':', s)
+    s = re.sub(r'(?<=[0-9])\s*[〜~−ー–—-]\s*(?=[0-9])', '～', s)
+    if field == "closed":
+        s = s.replace("、", "・")
+        s = re.sub(r'(?<=[0-9])\.(?=[0-9])', '・', s)
+    return re.sub(r'[ 　]{2,}', ' ', s).strip()
+
 
 if not os.path.exists(_ccp):
     fails["N64"].append("client_corrections.json が無い (訂正の台帳が消えている)")
@@ -2979,9 +3037,12 @@ else:
                 fails["N64"].append("訂正の宛先「%s」が地図に無い" % _c["shop"])
                 continue
             for _k, _v in (_c.get("set") or {}).items():
-                if _s.get(_k) != _v:
+                # 地図側は表記統一 (記号だけ揃える) を通したあとの値なので、
+                # 台帳側にも同じ規則を当ててから比べる。語が変わっていれば落ちる。
+                _want = _norm_display(_v, _k) if _k in ("hours", "closed") else _v
+                if _s.get(_k) != _want:
                     fails["N64"].append("%s の %s が訂正どおりでない 指示「%s」/ 地図「%s」"
-                                        % (_c["shop"], _k, _v, _s.get(_k)))
+                                        % (_c["shop"], _k, _want, _s.get(_k)))
             # 「あるか」でなく「中身が一致するか」を見る。存在だけ見ていると、
             # 曜日を24時間営業に書き換えても通ってしまう
             # (2026-08-14 独立レビューで故障注入して素通りを確認済み)
@@ -3073,6 +3134,43 @@ else:
                    " (出ていない: %s)" % "、".join("y=%.1f" % p[1] for p in _missing)
                    if _missing else ""))
 
+# ---- N68 営業時間・定休日の表記がそろっているか (2026-08-15 ボス指摘) ----
+# 掲載元の書き方がばらばらで、波ダッシュが5種類・コロンが2種類混在していた。
+# 記号だけ揃える (語は触らない)。揃っていない値が1つでも出たら止める。
+for _s in shops:
+    for _f in ("hours", "closed"):
+        _v = _s.get(_f)
+        if not _v:
+            continue
+        _want = _norm_display(_v, _f)
+        if _v != _want:
+            fails["N68"].append("%s の %s の表記が揃っていない 「%s」→「%s」"
+                                % (_s["name"], _f, _v, _want))
+        for _ch, _why in (("〜", "波ダッシュ U+301C"), ("~", "チルダ U+007E"),
+                          ("−", "マイナス U+2212"), ("：", "全角コロン")):
+            if re.search(r'(?<=[0-9])\s*' + re.escape(_ch), _v):
+                fails["N68"].append("%s の %s に %s が残っている: 「%s」"
+                                    % (_s["name"], _f, _why, _v))
+
+# ---- N69 詳細シートの値の左端が全店でそろっているか (2026-08-15 ボス指摘) ----
+# ラベル列が auto 幅だと、その店に出る項目のうち最長のラベルで幅が決まり、
+# 電話だけの店と営業時間もある店で値の左端が動く。全店同じ x から始まること。
+_fx = (REND or {}).get("factCols")
+if _fx is None:
+    fails["N69"].append("詳細シートの値の位置を測れていない (測れないものを合格にしない)")
+else:
+    _lefts = sorted({round(r["valueLeft"], 1) for r in _fx if r.get("valueLeft") is not None})
+    if len(_lefts) > 1:
+        _ex = {}
+        for r in _fx:
+            _ex.setdefault(round(r["valueLeft"], 1), []).append(r["name"])
+        fails["N69"].append(
+            "値の左端が %d通りある (%s)。例: %s"
+            % (len(_lefts), "、".join("%.0fpx" % v for v in _lefts),
+               " / ".join("%.0fpx=%s" % (k, v[0]) for k, v in sorted(_ex.items())[:3])))
+    if not _fx:
+        fails["N69"].append("詳細シートの情報欄を1件も測れていない")
+
 # ---- N67 祝日表が今日から先まで届いているか (2026-08-14) ----
 # 表の範囲外は安全側に倒して「いま」を出さない。つまり表が切れると、構造化した
 # 全店から「いま」が黙って消える。切れる前に気づくために期限を検査する。
@@ -3152,14 +3250,16 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N64": "クライアントの訂正が地図に出ている (保留分は動いていない)",
        "N65": "削除を指示された地点が地図に残っていない",
        "N66": "二列に並べた信号が中山バス通り沿いのものだけ",
-       "N67": "祝日表が今日から180日先まで届いている"}
+       "N67": "祝日表が今日から180日先まで届いている",
+       "N68": "営業時間・定休日の表記がそろっている",
+       "N69": "詳細シートの値の左端が全店でそろっている"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
               "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43", "N44",
               "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54",
               "N55", "N56", "N57", "N58", "N59", "N60", "N61",
-              "N62", "N63", "N64", "N65", "N66", "N67"):
+              "N62", "N63", "N64", "N65", "N66", "N67", "N68", "N69"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:

@@ -558,7 +558,9 @@ for sh in shops:
 shops.append({
     'name': SLOPE_TOP_NAME, 'cat': 'place', 'url': '#', 'voices': [],
     'photos': [{'src': 'assets/photos/sakanoue_1', 'alt': '中山の坂の上から見た市街地の眺め'}],
-    'note': 'バス通りでいちばん高いところ（標高155m）。ここから南へ下る坂が「中山の坂」で、坂の上からは市街地が見渡せます。',
+    # 2026-08-15 あみさん指示で全文差し替え。標高や坂の由来はこちらが足した説明で、
+    # 組合として出したい文はこれ。中身はクライアントの領分なので、そのまま入れる。
+    'note': '中山商店街のいちばん高いところ坂の上からは市街地が見渡せます。',
     'addr': '', 'lat': 38.294850, 'lng': 140.836401, 'src': 'gsi_dem',
 })
 
@@ -2042,6 +2044,36 @@ for _sh in shops:
         print('掲載名を差し替え: %s -> %s' % (_sh['name'], _new))
         _sh['name'] = _new
 
+# ---------------- 表記の統一 (2026-08-15 ボス指摘) ----------------
+# 掲載元の書き方がばらばらで、店ごとに見た目が揃っていなかった。実測:
+#   波ダッシュ  ～(FF5E)43 / -(002D)4 / ~(007E)2 / 〜(301C)2 / −(2212)1
+#   コロン      :(003A)96 / ：(FF1A)4
+#   定休日の区切り  ・ と 、 が混在 (「水曜、土曜午後」と「日・祝」)
+#
+# **記号だけ**を揃える。語は触らない (「土曜日」を「土」にするのは中身の書き換えで、
+# クライアントの領分)。時刻の区切りは数字に挟まれている時だけ直すので、
+# 「カラー・パーマ」の長音符のような語中の記号は巻き込まない。
+_TIME_SEP = re.compile(r'(?<=[0-9])\s*[〜~−ー–—-]\s*(?=[0-9])')
+_TIME_COLON = re.compile(r'(?<=[0-9])：(?=[0-9])')
+_NUM_DOT_SEP = re.compile(r'(?<=[0-9])\.(?=[0-9])')
+
+
+def normalize_display_text(value, field):
+    """見せ方だけを揃える。中身 (語) は変えない。"""
+    if not value:
+        return value
+    s = str(value)
+    s = _TIME_COLON.sub(':', s)          # 10：00 -> 10:00
+    s = _TIME_SEP.sub('～', s)           # 9:00-19:00 / 9:00〜19:00 -> 9:00～19:00
+    if field == 'closed':
+        s = s.replace('、', '・')        # 水曜、土曜午後 -> 水曜・土曜午後
+        s = _NUM_DOT_SEP.sub('・', s)    # 第1.2.3水曜日 -> 第1・2・3水曜日
+    s = re.sub(r'[ 　]{2,}', ' ', s).strip()
+    return s
+
+
+# 実際に当てるのは**クライアント訂正のあと**。訂正で入った値も同じ形に揃える必要がある。
+
 # ---------------- こどもの声の検算 (2026-08-14) ----------------
 # 入れるのは幾何計算の前 (apply_voices_master)。ここでは**出力を独立に数え直す**。
 # 入れた側と数える側を別経路にしないと、同じ間違いを2回して素通りする。
@@ -2095,6 +2127,19 @@ for _c in _cc['corrections']:
     _applied += 1
 print('クライアント訂正: %d件反映 / 保留 %d件 %s' % (_applied, len(_held), _held))
 
+# 表記をそろえるのは訂正のあと (訂正で入った値も同じ形にする)
+_norm_changed = []
+for _sh in shops:
+    for _field in ('hours', 'closed'):
+        _before = _sh.get(_field)
+        _after = normalize_display_text(_before, _field)
+        if _before != _after:
+            _norm_changed.append((_sh['name'], _field, _before, _after))
+            _sh[_field] = _after
+print('表記をそろえた: %d件' % len(_norm_changed))
+for _n, _f, _b, _a in _norm_changed:
+    print('  %-22s %s: %s → %s' % (_n, _f, _b, _a))
+
 # 祝日。祝日休みの店を「いま営業中」と誤って出さないために画面へ渡す。
 # covers の外は判定しない (安全側に倒す) ので、範囲も一緒に持たせる。
 _hd = json.load(open(P('holidays.json'), encoding='utf-8'))
@@ -2104,6 +2149,24 @@ meta['holidays'] = {'covers': _hd['covers'], 'dates': _hd['dates']}
 meta['info_as_of'] = INFO_AS_OF
 meta['voices_as_of'] = VOICES_AS_OF
 meta['details_as_of'] = DETAILS_AS_OF
+
+# 店のキーの並びを固定する (2026-08-15)。
+# 本番ビルドは店を凍結ベースから組み直すので、**前回の生成物にキーが有ったかどうかで
+# 並びが変わっていた**。中身が同じでもバイトが変わるため、「本番と手元のバイト一致」で
+# 反映を確かめる手順が当てにならなくなる。並びを決め打ちにして、差分＝中身の差分にする。
+_KEY_ORDER = ('name', 'cat', 'url', 'voices', 'photos', 'note', 'addr',
+              'lat', 'lng', 'src', 'tel', 'hours', 'hours_struct',
+              'closed', 'closed_rules', 'open_now',
+              'x', 'y', 'tx', 'ty', 'padr', 'clamped', 'far_m', 'far_deg', 'hint')
+for _sh in shops:
+    _ordered = {}
+    for _k in _KEY_ORDER:
+        if _k in _sh:
+            _ordered[_k] = _sh[_k]
+    for _k in sorted(set(_sh) - set(_KEY_ORDER)):   # 知らないキーは末尾に名前順で
+        _ordered[_k] = _sh[_k]
+    _sh.clear()
+    _sh.update(_ordered)
 
 data = {'meta': meta, 'shops': shops, 'roads': roads, 'rivers': rivers,
         'parks': parks, 'waters': waters, 'sando': sando, 'busway': busway, 'exits': exits,
