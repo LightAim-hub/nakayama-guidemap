@@ -1938,7 +1938,7 @@ fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "
                          "N40", "N41", "N42", "N43", "N44",
                          "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54",
                          "N55", "N56", "N57", "N58", "N59", "N60", "N61",
-                         "N62", "N63", "N64", "N65", "N66")}
+                         "N62", "N63", "N64", "N65", "N66", "N67")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -2925,6 +2925,47 @@ else:
     if _in_map != _expect_in_map:
         fails["N62"].append("地図の声が %d件・台帳から入るはずが %d件 (差 %d)"
                             % (_in_map, _expect_in_map, _expect_in_map - _in_map))
+    # 台帳が自分で宣言している件数と、実体が合っているか。
+    # (2026-08-14 独立レビュー指摘: 台帳から場所ごと消しても、台帳同士の整合だけ見ていると通る)
+    _decl = _vm.get("counts") or {}
+    if _decl.get("voice_lines") != _total_rows:
+        fails["N62"].append("台帳の宣言 %s行 と 実体 %d行 が違う (行が消えたか足された)"
+                            % (_decl.get("voice_lines"), _total_rows))
+    if _decl.get("places") != len(_vm["places"]):
+        fails["N62"].append("台帳の宣言 %s箇所 と 実体 %d箇所 が違う"
+                            % (_decl.get("places"), len(_vm["places"])))
+    # 🔴 一次ソース (あみさんから受け取った xlsx) と突き合わせる。
+    # 台帳同士を比べても、台帳ごと書き換われば気づけない。正は xlsx。
+    _xlsx = os.path.join(HERE, "_source", "2026-08-14_中山商店街_こどもの声台帳.xlsx")
+    if not os.path.exists(_xlsx):
+        fails["N62"].append("一次ソースの xlsx が無い (台帳を検算できない)")
+    else:
+        try:
+            if HERE not in sys.path:
+                sys.path.insert(0, HERE)
+            import make_voices_master as _MVM   # 同じ読み取り規則を使う (二重実装しない)
+            import openpyxl as _op
+            _ws = _op.load_workbook(_xlsx, data_only=True).worksheets[0]
+            _src_rows = []
+            for _row in _ws.iter_rows(min_row=2, max_row=_ws.max_row, max_col=2):
+                _nm = str(_row[0].value or "").strip()
+                if _nm:
+                    _src_rows.append((_nm, _MVM.cell_lines(_row[1].value)))
+            if len(_src_rows) != len(_vm["places"]):
+                fails["N62"].append("xlsx は %d箇所・台帳は %d箇所 (箇所が増減している)"
+                                    % (len(_src_rows), len(_vm["places"])))
+            for (_nm, _lines), _pl in zip(_src_rows, _vm["places"]):
+                if _nm != _pl["master_name"]:
+                    fails["N62"].append("xlsx の「%s」が台帳では「%s」になっている"
+                                        % (_nm, _pl["master_name"]))
+                    continue
+                _have = [v["text"] for v in _pl["voices"]]
+                if _lines != _have:
+                    fails["N63"].append("xlsx と台帳が違う (%s): xlsx %d行 / 台帳 %d行"
+                                        % (_nm, len(_lines), len(_have)))
+        except Exception as _e:
+            fails["N62"].append("一次ソースと突き合わせられない: %s: %s"
+                                % (type(_e).__name__, _e))
 
 if not os.path.exists(_ccp):
     fails["N64"].append("client_corrections.json が無い (訂正の台帳が消えている)")
@@ -2941,17 +2982,36 @@ else:
                 if _s.get(_k) != _v:
                     fails["N64"].append("%s の %s が訂正どおりでない 指示「%s」/ 地図「%s」"
                                         % (_c["shop"], _k, _v, _s.get(_k)))
-            if _c.get("hours_struct") and not _s.get("hours_struct"):
-                fails["N64"].append("%s に曜日別の営業時間が入っていない (「いま」が出せない)"
-                                    % _c["shop"])
+            # 「あるか」でなく「中身が一致するか」を見る。存在だけ見ていると、
+            # 曜日を24時間営業に書き換えても通ってしまう
+            # (2026-08-14 独立レビューで故障注入して素通りを確認済み)
+            for _k in ("hours_struct", "closed_rules", "open_now"):
+                if _k not in _c:
+                    continue
+                if _s.get(_k) != _c[_k]:
+                    fails["N64"].append("%s の %s が台帳と違う 台帳 %s / 地図 %s"
+                                        % (_c["shop"], _k,
+                                           json.dumps(_c[_k], ensure_ascii=False, sort_keys=True),
+                                           json.dumps(_s.get(_k), ensure_ascii=False, sort_keys=True)))
         else:
             # 保留分は「勝手に適用していないこと」を見る。指示が2通りに読めるものなので、
             # 片方を黙って選んで出すのがいちばん危ない。
+            # 存在の有無だけでなく、公式サイトの写しと同じ値のままかを見る。
             if _s is None:
                 fails["N64"].append("保留中の「%s」が地図から消えている" % _c["shop"])
-            elif _s.get("hours_struct") or _s.get("open_now") is not None:
-                fails["N64"].append("保留中の「%s」に訂正が入っている (確認が取れるまで動かさない)"
-                                    % _c["shop"])
+            else:
+                if _s.get("hours_struct") or _s.get("closed_rules") or _s.get("open_now") is not None:
+                    fails["N64"].append("保留中の「%s」に訂正が入っている (確認が取れるまで動かさない)"
+                                        % _c["shop"])
+                _odp = os.path.join(HERE, "official_details.json")
+                if os.path.exists(_odp):
+                    _od = (json.load(io.open(_odp, encoding="utf-8")).get("shops") or {}).get(_c["shop"])
+                    if _od:
+                        for _k in ("hours", "closed", "tel"):
+                            if _od.get(_k) is not None and _s.get(_k) != _od.get(_k):
+                                fails["N64"].append(
+                                    "保留中の「%s」の %s が公式の写しから変わっている 公式「%s」/ 地図「%s」"
+                                    % (_c["shop"], _k, _od.get(_k), _s.get(_k)))
     for _r in _cc.get("renames", []):
         if _r["from"] in _by:
             fails["N64"].append("改名前の「%s」が地図に残っている (→「%s」)"
@@ -2990,6 +3050,7 @@ else:
     if not _main:
         fails["N66"].append("バス通りの線が取れない (判定できない)")
     else:
+        # 残し過ぎ: 通り沿いでない信号が並んでいないか
         for _y in _shown_y:
             _cand = [p for p in signals if abs(p[1] - _y) < 0.6]
             if not _cand:
@@ -2999,8 +3060,40 @@ else:
             if _d > 30.0:
                 fails["N66"].append("二列に出ている信号 y=%.1f は中山バス通りから %.1fm 離れた"
                                     "別の道路の信号" % (_y, _d))
-    if _ss.get("geo") and not _shown_y:
-        fails["N66"].append("二列に信号が1基も出ていない (絞り込みすぎ)")
+        # 落とし過ぎ: 通り沿いの信号が全部出ているか。
+        # 「1基も無い時だけ」しか見ていないと、4基中1基だけ残しても通る
+        # (2026-08-14 独立レビューで故障注入して素通りを確認済み)
+        _on_street = [p for p in signals if _n66_street_distance(p[0], p[1]) <= 30.0]
+        if len(_shown_y) != len(_on_street):
+            _missing = [p for p in _on_street
+                        if not any(abs(p[1] - _y) < 0.6 for _y in _shown_y)]
+            fails["N66"].append(
+                "二列に出ている信号が %d基・通り沿いには %d基ある%s"
+                % (len(_shown_y), len(_on_street),
+                   " (出ていない: %s)" % "、".join("y=%.1f" % p[1] for p in _missing)
+                   if _missing else ""))
+
+# ---- N67 祝日表が今日から先まで届いているか (2026-08-14) ----
+# 表の範囲外は安全側に倒して「いま」を出さない。つまり表が切れると、構造化した
+# 全店から「いま」が黙って消える。切れる前に気づくために期限を検査する。
+_hdp = os.path.join(HERE, "holidays.json")
+_covers = ((G.get("meta") or {}).get("holidays") or {}).get("covers") or {}
+if not _covers:
+    fails["N67"].append("祝日表が地図に入っていない (「いま」が全店で出せない)")
+else:
+    import datetime as _dt
+    _today = _dt.date.today()
+    _need = _today + _dt.timedelta(days=180)
+    try:
+        _to = _dt.date(*[int(x) for x in _covers["to"].split("-")])
+    except Exception:
+        _to = None
+    if _to is None:
+        fails["N67"].append("祝日表の範囲が読めない: %s" % _covers.get("to"))
+    elif _to < _need:
+        fails["N67"].append("祝日表が %s までしか無い (180日先の %s に届いていない)。"
+                            "内閣府CSVを取り直して make_holidays.py を回すこと"
+                            % (_to.isoformat(), _need.isoformat()))
 
 LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N3": "歩きズームで★が道路にかからず見える大きさ", "N4": "ラベルが自分の★に一意に結びつく",
@@ -3058,14 +3151,15 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N63": "こどもの声の本文が台帳と1文字も違わない",
        "N64": "クライアントの訂正が地図に出ている (保留分は動いていない)",
        "N65": "削除を指示された地点が地図に残っていない",
-       "N66": "二列に並べた信号が中山バス通り沿いのものだけ"}
+       "N66": "二列に並べた信号が中山バス通り沿いのものだけ",
+       "N67": "祝日表が今日から180日先まで届いている"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
               "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43", "N44",
               "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54",
               "N55", "N56", "N57", "N58", "N59", "N60", "N61",
-              "N62", "N63", "N64", "N65", "N66"):
+              "N62", "N63", "N64", "N65", "N66", "N67"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:

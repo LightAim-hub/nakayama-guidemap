@@ -26,8 +26,9 @@ import sys
 
 import openpyxl
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8",
-                              errors="replace", line_buffering=True)
+# ⚠ stdout の差し替えは main() の中でやる。モジュールの読み込みだけで差し替えると、
+# gate.py がこの中の cell_lines() を使うために import した時に gate 側の出力が壊れる
+# (2026-08-14 実測: gate が最後の print で I/O operation on closed file で落ちた)。
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "_source", "2026-08-14_中山商店街_こどもの声台帳.xlsx")
@@ -82,6 +83,8 @@ def cell_lines(value):
 
 
 def main():
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8",
+                                  errors="replace", line_buffering=True)
     wb = openpyxl.load_workbook(SRC, data_only=True)
     ws = wb[wb.sheetnames[0]]
 

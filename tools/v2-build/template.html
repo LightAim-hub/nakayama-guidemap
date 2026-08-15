@@ -3990,26 +3990,49 @@ function localDateKey(d){
   const two = n => String(n).padStart(2, '0');
   return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate());
 }
-function structuredOpenNow(s, at){
+// その日1日の状態だけを返す (休みか / 何時から何時か)。null = 判定できない。
+// 「いま」の判定は structuredOpenNow が、今日と昨日の2日分を見て決める。
+function structuredDayState(s, at){
   const hol = (GEO.meta && GEO.meta.holidays) || null;
   const covers = hol && hol.covers;
   const key = localDateKey(at);
-  // 祝日表の範囲外の日は「今日が祝日か」を言えない。安全側に倒して何も出さない。
+  // 祝日表の範囲外の日は「その日が祝日か」を言えない。安全側に倒して何も出さない。
   if (!covers || key < covers.from || key > covers.to) return null;
   const rules = s.closed_rules || {};
-  if (rules.holidays && (hol.dates || []).indexOf(key) >= 0) return {text:'本日定休', kind:'closed'};
-  if ((rules.dates || []).some(r => r.day === at.getDate())) return {text:'本日定休', kind:'closed'};
+  const shut = {closed: true, ranges: []};
+  if (rules.holidays && (hol.dates || []).indexOf(key) >= 0) return shut;
+  if ((rules.dates || []).some(r => r.day === at.getDate())) return shut;
   if ((rules.annual || []).some(r => r.month === at.getMonth() + 1 && r.day === at.getDate()))
-    return {text:'本日定休', kind:'closed'};
+    return shut;
   const ranges = s.hours_struct[String(at.getDay())];   // 0=日 … 6=土
   if (ranges === undefined) return null;                // その曜日は分からない = 判定しない
-  if (!ranges.length) return {text:'本日定休', kind:'closed'};
+  return {closed: !ranges.length,
+          ranges: ranges.map(([a, b]) => [a, b <= a ? b + 1440 : b])};  // 25:00・0:00 を正規化
+}
+// 深夜0時台の判定は「昨日の営業時間の続き」で決まる。今日の曜日だけで見ると、
+// 日曜定休18:00〜25:00の店が月曜0:30に「いま営業中」と出る (2026-08-14 独立レビューで再現)。
+// 日またぎを持つ店だけ、前日の定休と営業時間へさかのぼる。
+function structuredOpenNow(s, at){
+  const today = structuredDayState(s, at);
+  if (today === null) return null;
   const mins = at.getHours() * 60 + at.getMinutes();
-  const inside = ranges.some(([a, b]) => {
-    const end = b <= a ? b + 1440 : b;                  // 25:00 や 0:00 のような日またぎ
-    return (mins >= a && mins < end) || (mins + 1440 >= a && mins + 1440 < end);
-  });
-  return inside ? {text:'いま営業中', kind:'open'} : {text:'いまは時間外', kind:'closed'};
+  let open = !today.closed &&
+    today.ranges.some(([a, b]) => mins >= a && mins < Math.min(b, 1440));
+  if (!open){
+    const spillIntoToday = (r) => r.some(([a, b]) => b > 1440);
+    const yest = new Date(at.getTime() - 86400000);
+    const y = structuredDayState(s, yest);
+    // 昨日が読めない時は、昨日に日またぎが無いと分かっている場合だけ先へ進む
+    if (y === null){
+      if (spillIntoToday(today.ranges)) return null;
+    } else if (!y.closed && spillIntoToday(y.ranges)){
+      open = y.ranges.some(([a, b]) => b > 1440 && mins + 1440 >= a && mins + 1440 < b);
+    }
+  }
+  // 昨日の営業が続いている間は、今日が定休でも実際に開いている
+  if (open) return {text:'いま営業中', kind:'open'};
+  if (today.closed) return {text:'本日定休', kind:'closed'};
+  return {text:'いまは時間外', kind:'closed'};
 }
 function openNowLabel(s, now){
   const at = now || new Date();
@@ -4020,15 +4043,26 @@ function openNowLabel(s, now){
   // 「判定できない」の意味なので、文字列解析へは落とさない (曖昧なら出さないのが方針)。
   if (s.hours_struct) return structuredOpenNow(s, at);
   // どちらも無い店は、これまでどおり掲載文の文字列解析で判定する。
-  const state = closedStateToday(s, at);
-  if (state === 'closedToday') return {text:'本日定休', kind:'closed'};
-  if (state !== 'open') return null;
   const ranges = hoursRangesToday(s);
-  if (!ranges) return null;
+  const state = closedStateToday(s, at);
+  // 日またぎ (18:00〜25:00 など) を持つ店は、深夜の「いま」が前日の営業の続きで決まる。
+  // 今日の曜日だけで見ると、日曜定休の店が月曜0:30に「営業中」と出る
+  // (2026-08-14 独立レビューで お菜とお酒アイリス で再現)。
+  const overnight = !!ranges && ranges.some(([a, b]) => b > 1440);
   const mins = at.getHours() * 60 + at.getMinutes();
-  const inside = ranges.some(([a, b]) =>
-    (mins >= a && mins < b) || (mins + 1440 >= a && mins + 1440 < b));
-  return inside ? {text:'いま営業中', kind:'open'} : {text:'いまは時間外', kind:'closed'};
+  let open = false;
+  if (ranges && state === 'open')
+    open = ranges.some(([a, b]) => mins >= a && mins < Math.min(b, 1440));
+  if (!open && overnight){
+    const yState = closedStateToday(s, new Date(at.getTime() - 86400000));
+    if (yState === null) return null;              // 昨日が読めないと日またぎを言えない
+    if (yState === 'open')
+      open = ranges.some(([a, b]) => b > 1440 && mins + 1440 >= a && mins + 1440 < b);
+  }
+  if (open) return {text:'いま営業中', kind:'open'};
+  if (state === 'closedToday') return {text:'本日定休', kind:'closed'};
+  if (state !== 'open' || !ranges) return null;
+  return {text:'いまは時間外', kind:'closed'};
 }
 function buildDetailFacts(s){
   const rows = [
