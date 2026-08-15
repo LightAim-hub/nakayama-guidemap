@@ -1156,7 +1156,11 @@ if not ARGS.preview:
         fresh = _task_i_fresh_by_name[sh['name']]
         for key in ('x', 'y', 'tx', 'ty', 'padr', 'clamped', 'far_m', 'far_deg', 'hint'):
             sh.pop(key, None)
-        for key in ('lat', 'lng', 'src', 'addr', 'clamped', 'far_m', 'far_deg', 'hint'):
+        # 2026-08-15: 'note' が無くて、坂の上の説明文の差し替え (あみさん指示) が
+        # 入力側だけ変わり、凍結ベース由来の旧文「南へ下る坂が…」が本番に残った。
+        # あみさんに「差し替えました」と報告した内容が出ていなかった。文章系も引き継ぐ。
+        for key in ('lat', 'lng', 'src', 'addr', 'clamped', 'far_m', 'far_deg', 'hint',
+                    'note', 'url'):
             if key in fresh:
                 sh[key] = fresh[key]
         if fresh.get('photos'):
@@ -2127,6 +2131,15 @@ for _c in _cc['corrections']:
     _applied += 1
 print('クライアント訂正: %d件反映 / 保留 %d件 %s' % (_applied, len(_held), _held))
 
+# 二列(通り)ビューにだけ出さない店 (2026-08-15 ボス指示: カーブス)。
+# 地図・一覧・検索には出す。消すのではなく「二列に置かない」の印だけ付ける。
+for _ex in _cc.get('strip_exclusions', []):
+    _sh = _shop_by_name.get(_ex['shop'])
+    if _sh is None:
+        raise SystemExit('strip_exclusions の宛先が地図に無い: %s' % _ex['shop'])
+    _sh['strip_hide'] = True
+    print('二列に出さない: %s' % _ex['shop'])
+
 # 表記をそろえるのは訂正のあと (訂正で入った値も同じ形にする)
 _norm_changed = []
 for _sh in shops:
@@ -2157,6 +2170,7 @@ meta['details_as_of'] = DETAILS_AS_OF
 _KEY_ORDER = ('name', 'cat', 'url', 'voices', 'photos', 'note', 'addr',
               'lat', 'lng', 'src', 'tel', 'hours', 'hours_struct',
               'closed', 'closed_rules', 'open_now',
+              'strip_hide',
               'x', 'y', 'tx', 'ty', 'padr', 'clamped', 'far_m', 'far_deg', 'hint')
 for _sh in shops:
     _ordered = {}

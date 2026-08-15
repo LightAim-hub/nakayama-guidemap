@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>なかやま商店街マップ</title>
+<title>なかやま商店街デジタルマップ 子どもたちのお気に入りを見つけよう！</title>
 <meta name="description" content="なかやま商店街（仙台市青葉区）のお店を、実際の位置で見られるデジタルマップ。お店をタップすると紹介と詳しい店舗情報に行けます。">
 <meta property="og:type" content="website">
-<meta property="og:title" content="なかやま商店街マップ">
+<meta property="og:title" content="なかやま商店街デジタルマップ 子どもたちのお気に入りを見つけよう！">
 <meta property="og:description" content="なかやま商店街（仙台市青葉区）のお店を、実際の位置で見られるデジタルマップ。">
 <meta property="og:url" content="https://lightaim-hub.github.io/nakayama-guidemap/">
 <meta property="og:image" content="https://lightaim-hub.github.io/nakayama-guidemap/assets/photos/sakanoue_1.jpg">
@@ -19,7 +19,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebSite",
- "name":"なかやま商店街マップ",
+ "name":"なかやま商店街デジタルマップ 子どもたちのお気に入りを見つけよう！",
  "url":"https://lightaim-hub.github.io/nakayama-guidemap/",
  "inLanguage":"ja",
  "description":"なかやま商店街（仙台市青葉区）のお店を、実際の位置で見られるデジタルマップ。",
@@ -79,6 +79,24 @@
     font-family:'Yusei Magic',sans-serif; font-size:clamp(19.2px,1.2rem,var(--heading-font-max)); letter-spacing:0;
     display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
   }
+  /* 2026-08-15 ボス指示でタイトル変更。キャッチコピーは2段目。
+     文字は14px床 (N21)・色は本文色 (accent の橙は14pxでは明暗差3.0:1でN30に落ちた)。
+     1行に収まらない幅では自然に折り返す (flex-wrap は h1 に既にある)。 */
+  /* 名前の折り返しは「なかやま商店街 / デジタルマップ」の間だけに許す (<wbr>)。
+     語の途中で割れると「プ」だけの行ができる (2026-08-15 文字200%で実測・N58)。 */
+  .site-name{ word-break:keep-all; }
+  .nwrap{ white-space:nowrap; }
+  .site-tagline{ flex:1 0 100%; font-family:'Zen Maru Gothic',sans-serif;
+    font-size:clamp(14px,.875rem,16px); font-weight:700; color:var(--ink); letter-spacing:.02em; }
+  body.map-open .site-tagline{ display:none; }
+  /* 小さい端末では場所を返す。320px幅では店名バッジも含めタイトルが2行に折れて、
+     主の内容 (二列) が床の330pxを割った (N23)。横向き (高さ460px未満) も同じ。
+     タイトルの正式名はブラウザの<title>とOGにあるので、画面ではキャッチコピーを畳む。 */
+  @media (max-width:349px){
+    .site-tagline, header h1 small{ display:none; }
+    header h1{ font-size:clamp(17px,1.0625rem,var(--heading-font-max)); }
+  }
+  @media (max-height:459px){ .site-tagline{ display:none; } }
   header h1 small{
     font-size:.6rem; color:var(--ink-soft); letter-spacing:0;
     border:1.5px solid var(--ink-soft); border-radius:999px; padding:2px 9px; white-space:nowrap;
@@ -127,13 +145,24 @@
   .voice-chip-icon::after{ content:""; position:absolute; left:3px; bottom:-4px; width:6px; height:6px;
     background:#fffaf0; border-left:1.7px solid currentColor; border-bottom:1.7px solid currentColor; transform:skewY(-35deg); }
   .searchbar{ padding:0 12px 6px; background:var(--paper); z-index:20; display:flex; gap:6px; align-items:center; }
+  /* 2026-08-15 ボス指摘「検索のところが分かりにくい。検索マークを入れたほうがいい。質素」。
+     虫眼鏡は装飾でなく「ここで探せる」の目印なので、入力欄の中の左に固定する。
+     色は他のUIと同じ茶系 (新しい色を増やさない)。 */
+  .search-field{ position:relative; flex:1; min-width:0; max-width:340px; display:flex; }
+  .search-icon{ position:absolute; left:13px; top:50%; transform:translateY(-50%);
+    width:18px; height:18px; pointer-events:none; color:var(--accent); }
+  .search-field input{ width:100%; }
   .searchbar input{
-    flex:1; min-width:0; max-width:340px; font:inherit; font-size:clamp(16px,1rem,var(--body-font-max)); color:var(--ink);
+    flex:1; min-width:0; font:inherit; font-size:clamp(16px,1rem,var(--body-font-max)); color:var(--ink);
     /* 2026-08-10: clamp(16px,1rem,16px) は min==max で、端末の文字設定を
        完全に無視していた。自分が打った文字がいちばん小さい、が起きていた */
-    min-height:44px; padding:8px 12px; border:2px solid rgba(122,92,59,.5); border-radius:999px; background:#fffaf0; outline:none;
+    /* 2026-08-15: 左に虫眼鏡が入ったぶん padding-left を広げる。
+       枠は薄いグレー2pxから茶の実線+淡い影にして「押せる/打てる」を出す。 */
+    min-height:44px; padding:8px 12px 8px 38px; border:2px solid rgba(122,92,59,.75); border-radius:999px; background:#fffdf5;
+    box-shadow:inset 0 1.5px 0 rgba(92,67,39,.12), 1px 2px 0 rgba(92,67,39,.14); outline:none;
   }
-  .searchbar input:focus{ border-color:var(--accent); }
+  .searchbar input::placeholder{ color:rgba(92,67,39,.55); }
+  .searchbar input:focus{ border-color:var(--accent); box-shadow:inset 0 1.5px 0 rgba(92,67,39,.08), 0 0 0 3px rgba(212,120,54,.22); }
   #searchstatus{ min-width:5.5em; font-size:clamp(14px,0.875rem,16px); font-weight:700; color:var(--voice); white-space:nowrap; }
   #searchstatus.empty{ color:#b3562e; }
   @media(max-width:759px){
@@ -342,6 +371,12 @@
     padding:12px 14px; border:1.5px solid rgba(122,92,59,.28); border-radius:12px; background:#fffaf0; }
   .detail-fact-label{ color:var(--ink-soft); font-size:clamp(14px,.875rem,var(--body-font-max)); font-weight:700; white-space:nowrap; }
   .detail-fact-value{ font-size:clamp(14px,.875rem,var(--body-font-max)); line-height:1.65; }
+  /* 2026-08-15 ボス指摘「電話　番号 ここが上下にずれてる」。
+     電話のリンクは指で押すため min-height:44px の箱で、値は箱の中央・ラベルは行の上端に
+     居てズレて見えた。値が1行の行 (電話・いま) はラベルも同じ高さの箱で中央を合わせる。
+     複数行になり得る行 (営業時間・定休日) は今までどおり上端で揃える。 */
+  .detail-fact-label--center{ display:flex; align-items:center; min-height:44px; }
+  .detail-fact-value--center{ display:flex; align-items:center; min-height:44px; }
   .detail-fact-tel{ display:inline-flex; align-items:center; min-height:44px; padding:0 2px;
     color:#8a4a14; font-size:min(1rem,var(--body-font-max)); font-weight:700; letter-spacing:.02em; }
   .detail-fact-tel:focus-visible{ outline:3px solid var(--focus-ring); outline-offset:2px; }
@@ -675,6 +710,7 @@
     padding:3px 6px; justify-content:center; line-height:1.05; }
   #controls .chip .lbl{ min-width:0; text-align:center; white-space:normal; }
   #controls .searchbar{ height:44px; padding:0; gap:8px; }
+  #controls .searchbar .search-field{ max-width:none; }
   #controls .searchbar input{ width:100%; max-width:none; height:44px; }
   #controls #searchstatus{ min-width:5.5em; }
   #searchbtn{ display:none; }
@@ -865,7 +901,7 @@
 <a class="skip-map" href="#listbtn">通り沿い表示をとばす</a>
 
 <header>
-  <h1>なかやま商店街マップ <small>仙台市青葉区</small><span class="shop-total-summary" id="shopTotalSummary"></span></h1>
+  <h1><span class="site-name"><span class="nwrap">なかやま商店街</span><wbr><span class="nwrap">デジタルマップ</span></span> <small>仙台市青葉区</small><span class="shop-total-summary" id="shopTotalSummary"></span><span class="site-tagline">子どもたちのお気に入りを見つけよう！</span></h1>
   <button class="map-filter-badge" id="mapFilterBadge" type="button" aria-controls="filters"
     aria-expanded="false">絞り込み</button>
   <button id="mapback" type="button" aria-controls="viewport" aria-label="通りへもどる">✕ 通り<wbr>へもどる</button>
@@ -912,7 +948,7 @@
 
 <div id="controls" aria-label="検索と表示の操作">
   <div class="filters" id="filters"></div>
-  <div class="searchbar"><input id="q" type="search" placeholder="お店をさがす" aria-label="お店を検索"><span id="searchstatus" role="status" aria-live="polite"></span></div>
+  <div class="searchbar"><span class="search-field"><svg class="search-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.75" fill="none" stroke="currentColor" stroke-width="2.4"/><line x1="13" y1="13" x2="18" y2="18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg><input id="q" type="search" placeholder="お店をさがす" aria-label="お店を検索"></span><span id="searchstatus" role="status" aria-live="polite"></span></div>
   <div class="control-actions">
     <button id="searchbtn" type="button" aria-controls="q" aria-expanded="false">さがす</button>
     <button id="listbtn" aria-controls="listpanel" aria-expanded="false">お店一覧</button>
@@ -1826,6 +1862,8 @@ function layoutLabels(scale, entries, starCenters, symbolKeepOut){
       setLabelPosition(entry,candidate,scale);
       entry.s.labelVisible = true;
       entry.s.labelLeader = false;
+      // 次の縮尺でも同じ側から試すために覚える (左右へ飛び直すのを止める。2026-08-15)
+      if (candidate.side) entry.s._labelStickSide = candidate.side;
       addPlacement(entry,renderedRect);
       return true;
     };
@@ -2392,12 +2430,18 @@ function labelCandidates(s){
   // そこで斜めをやめ、置き場を「印の真横 / 印の真下 / 印の真上」の3方向にする。
   // どれに置いても、名前は必ず自分の印にくっついて見える。
   const out = [];
-  gaps.forEach(g => {
-    out.push({side:preferred, gapPx:g, dyPx:0});
-    out.push({side:-preferred, gapPx:g, dyPx:0});
-  });
+  // 2026-08-15 ボス指摘「⇨行ったり左行ったりで見にくい」。
+  // 反対側の候補が真下・真上より先に居たので、混んだ場所で名前が左右へ飛んでいた。
+  // 順番を 決めた側 → 真下 → 真上 → 反対側 にする。反対側は最後の手段で、
+  // 使うのは「そこにしか置けない = 置かないと名前が消える」時だけ。
+  // さらに一度 反対側に置いた店は s._labelStickSide に覚えて、次の縮尺でも同じ側から
+  // 試す。縮尺を動かすたびに左右へ飛び直すのを止める (置けなくなったら覚え直す)。
+  const stick = s._labelStickSide;
+  const first = (stick === preferred || stick === -preferred) ? stick : preferred;
+  gaps.forEach(g => { out.push({side:first, gapPx:g, dyPx:0}); });
   out.push({vert:1, gapPx:gapPx});    // 真下
   out.push({vert:-1, gapPx:gapPx});   // 真上
+  gaps.forEach(g => { out.push({side:-first, gapPx:g, dyPx:0}); });
   // 斜め (真横から1行ぶん上下にずらす) は使わない。
   // 2026-08-09 ボス指摘の正体で、印と名前が離れて見え、どの印の名前か分からない。
   // 同じ画面を2通り描いて見比べた結果 (390x844・フラワー中山まわり):
@@ -2994,6 +3038,9 @@ function streetXAtY(y){
   }
   return mainBusway[mainBusway.length-1][0];
 }
+// 二列(通り)ビューにだけ出さない店 (2026-08-15 クライアント指示: カーブス)。
+// 地図・一覧・検索には出す。build_mapdata.py が client_corrections.json の
+// strip_exclusions から strip_hide を立てる。
 const stripShops = GEO.shops.map((s,i) => {
   const point=trueShopPoint(s), streetX=streetXAtY(point.y);
   return {s,i,x:point.x,y:point.y,streetX,
@@ -3001,8 +3048,8 @@ const stripShops = GEO.shops.map((s,i) => {
     // 見せる数字は通りまでの最短距離。振り分け・東西は distance のまま
     shownDistance:streetDistance(point.x, point.y)};
 });
-const stripAlong = stripShops.filter(p => p.distance <= 60).sort((a,b) => a.y-b.y || a.x-b.x || a.i-b.i);
-const stripFar = stripShops.filter(p => p.distance > 60).sort((a,b) => a.y-b.y || a.x-b.x || a.i-b.i);
+const stripAlong = stripShops.filter(p => !p.s.strip_hide && p.distance <= 60).sort((a,b) => a.y-b.y || a.x-b.x || a.i-b.i);
+const stripFar = stripShops.filter(p => !p.s.strip_hide && p.distance > 60).sort((a,b) => a.y-b.y || a.x-b.x || a.i-b.i);
 const stripYMin = Math.min(...stripShops.map(p => p.y));
 const stripYMax = Math.max(...stripShops.map(p => p.y));
 const stripRowNodes = new Map();
@@ -4084,16 +4131,18 @@ function buildDetailFacts(s){
   const box = detailText('dl', 'detail-facts');
   const now = openNowLabel(s);
   if (now){
-    box.appendChild(detailText('dt', 'detail-fact-label', 'いま'));
-    const dd = detailText('dd', 'detail-fact-value');
+    box.appendChild(detailText('dt', 'detail-fact-label detail-fact-label--center', 'いま'));
+    const dd = detailText('dd', 'detail-fact-value detail-fact-value--center');
     const tag = detailText('span', 'open-now open-now--' + now.kind, now.text);
     tag.setAttribute('aria-label', s.name + 'は' + now.text);
     dd.appendChild(tag);
     box.appendChild(dd);
   }
   rows.forEach(([label, value, kind]) => {
-    box.appendChild(detailText('dt', 'detail-fact-label', label));
-    const dd = detailText('dd', 'detail-fact-value');
+    // 電話は44pxの押せる箱に入るので、ラベルも同じ高さで中央を合わせる (上下ズレ対策)
+    const center = kind === 'tel' ? ' detail-fact-label--center' : '';
+    box.appendChild(detailText('dt', 'detail-fact-label' + center, label));
+    const dd = detailText('dd', 'detail-fact-value' + (kind === 'tel' ? ' detail-fact-value--center' : ''));
     if (kind === 'tel'){
       const a = detailText('a', 'detail-fact-tel', value);
       a.href = 'tel:' + value.replace(/[^0-9+]/g, '');
@@ -4131,7 +4180,7 @@ function buildDetailActions(s){
     const url = shopShareUrl(s);
     const done = msg => { share.textContent = msg; setTimeout(() => { share.textContent = shareLabel; }, 2200); };
     try {
-      if (navigator.share){ await navigator.share({title: s.name + '｜なかやま商店街マップ', url: url}); return; }
+      if (navigator.share){ await navigator.share({title: s.name + '｜なかやま商店街デジタルマップ', url: url}); return; }
       await navigator.clipboard.writeText(url); done('リンクをコピーしました');
     } catch (err){
       if (err && err.name === 'AbortError') return;

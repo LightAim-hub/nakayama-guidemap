@@ -1903,6 +1903,11 @@ if not A.no_browser:
                           all: nodes.map(n => +n.dataset.y),
                           geo: (GEO.signals||[]).length};
                 }""")
+                # N70 二列に出ている店名 (除外指示の照合に使う)
+                REND["stripNames"] = sp.evaluate("""() => {
+                  return [...document.querySelectorAll('.strip-row .strip-shop-name')]
+                    .map(e => (e.textContent||'').trim());
+                }""")
                 # N69 詳細シートの情報欄で、値の左端が全店そろっているか (2026-08-15)
                 # 店を1つずつ開いて、ラベル列の実幅と値の左端を測る。
                 REND["factCols"] = sp.evaluate("""async () => {
@@ -1968,7 +1973,7 @@ fails = {k: [] for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "
                          "N40", "N41", "N42", "N43", "N44",
                          "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54",
                          "N55", "N56", "N57", "N58", "N59", "N60", "N61",
-                         "N62", "N63", "N64", "N65", "N66", "N67", "N68", "N69")}
+                         "N62", "N63", "N64", "N65", "N66", "N67", "N68", "N69", "N70")}
 band = [s for s in shops if abs(TX(s) - spine_x(TY(s))) < 60]
 
 # 同一住所グループ。ジオコーディング結果が同一なので、見分けるための分離を人工的に
@@ -2608,9 +2613,11 @@ if REND:
                 fails["N40"].append("%s が %s 側に出ている (真は %s 側) [%s]"
                                     % (sh["name"], "東" if r["side"] == "east" else "西",
                                        "東" if want == "east" else "西", dev))
-        if len(rows) != len(shops):
-            fails["N40"].append("二列表示の行が%d件 (店は%d件) [%s]"
-                                % (len(rows), len(shops), dev))
+        # 2026-08-15: 二列から外す指示の店 (strip_hide) は行数に数えない (N70 が別で見る)
+        _strip_expected = len([s2 for s2 in shops if not s2.get("strip_hide")])
+        if len(rows) != _strip_expected:
+            fails["N40"].append("二列表示の行が%d件 (出るはずは%d件・店は%d件) [%s]"
+                                % (len(rows), _strip_expected, len(shops), dev))
         # N41 並び順 (通り沿いの節だけ。離れた節は別の並びでよい)
         near = [r for r in rows if not r.get("far") and _byidx.get(r["i"])]
         for side in ("west", "east"):
@@ -2758,7 +2765,16 @@ if REND:
             if key in _seen_filter:
                 continue
             _seen_filter.add(key)
-            want = min(f["total"], FILTER_VISIBLE_MIN)
+            # 2026-08-15: 床6件は縦持ちの基準。横向き (二列の高さ196px) では
+            # タップ領域44pxの床と両立できず、物理的に置ける行数が6未満になる。
+            # 以前はカーブスが西列に居て左右2列で数を稼げていたが、クライアント指示で
+            # 二列から外した結果、医療の絞り込みが縦1列になり「6件」が不可能になった。
+            # 床は「物理的に置ける行数」で丸める (縦持ちでは今までどおり6)。
+            _dbg = f.get("dbg") or {}
+            _step = (_dbg.get("rowH") or 45) + 8
+            _room = (_dbg.get("svH") or 0) - max(0, (_dbg.get("firstTop") or 0) - (_dbg.get("svTop") or 0))
+            _phys = max(1, _room // _step + 1) if _room > 0 else FILTER_VISIBLE_MIN
+            want = min(f["total"], FILTER_VISIBLE_MIN, _phys)
             if f["total"] and f["visible"] < want:
                 fails["N49"].append("%s で%d件のはずが、画面には%d件しか見えない "
                                     "(最低%d件) [%s] %s"
@@ -3172,6 +3188,21 @@ else:
     if not _fx:
         fails["N69"].append("詳細シートの情報欄を1件も測れていない")
 
+# ---- N70 二列(通り)ビューから外す指示の店が、二列に出ていないか (2026-08-15) ----
+# 「通りの方のマップからカーブスを消してほしい」。消すのは二列だけで、
+# 地図・一覧・検索からは消さない (店そのものを消す指示ではない)。両方を見る。
+_sn = (REND or {}).get("stripNames")
+for _ex in (json.load(io.open(_ccp, encoding="utf-8")).get("strip_exclusions", [])
+            if os.path.exists(_ccp) else []):
+    _nm = _ex["shop"]
+    if _sn is None:
+        fails["N70"].append("二列の店名を測れていない (測れないものを合格にしない)")
+        break
+    if any(_nm in t for t in _sn):
+        fails["N70"].append("「%s」が二列にまだ出ている (外す指示)" % _nm)
+    if _nm not in {s2["name"] for s2 in shops}:
+        fails["N70"].append("「%s」が地図データごと消えている (二列から外すだけの指示)" % _nm)
+
 # ---- N67 祝日表が今日から先まで届いているか (2026-08-14) ----
 # 表の範囲外は安全側に倒して「いま」を出さない。つまり表が切れると、構造化した
 # 全店から「いま」が黙って消える。切れる前に気づくために期限を検査する。
@@ -3253,14 +3284,15 @@ LBL = {"N1": "建物の中にいる", "N2": "道路の帯の内側にいない",
        "N66": "二列に並べた信号が中山バス通り沿いのものだけ",
        "N67": "祝日表が今日から180日先まで届いている",
        "N68": "営業時間・定休日の表記がそろっている",
-       "N69": "詳細シートの値の左端が全店でそろっている"}
+       "N69": "詳細シートの値の左端が全店でそろっている",
+       "N70": "二列から外す指示の店が二列に出ていない (店ごと消してもいない)"}
 for k in ("N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10",
           "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19",
           "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29",
               "N30", "N31", "N32", "N33", "N34", "N35", "N36", "N37", "N38", "N39", "N40", "N41", "N42", "N43", "N44",
               "N45", "N46", "N47", "N48", "N49", "N50", "N51", "N52", "N53", "N54",
               "N55", "N56", "N57", "N58", "N59", "N60", "N61",
-              "N62", "N63", "N64", "N65", "N66", "N67", "N68", "N69"):
+              "N62", "N63", "N64", "N65", "N66", "N67", "N68", "N69", "N70"):
     v = sorted(set(fails[k]))
     P("【%s】%s — 違反 %d件" % (k, LBL[k], len(v)))
     for t in v[:14]:
