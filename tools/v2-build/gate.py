@@ -2998,10 +2998,11 @@ else:
                         if _a != _b:
                             fails["N63"].append("一次ソースと台帳が違う (%s): 原文「%s」/ 台帳「%s」"
                                                 % (_nm, _a, _b))
-                # 表示用は「絵文字を落としただけ」か (語を変えていないか)
+                # 表示用の文が「原文 → 誤字の直し → 絵文字落とし」の結果と一致するか。
+                # 台帳に無い書き換えが混ざっていたらここで落ちる。
                 for _v in _pl["voices"]:
-                    if _MVM.strip_emoji(_v.get("raw", _v["text"])) != _v["text"]:
-                        fails["N63"].append("%s の表示用の文が原文の絵文字落としと一致しない: 「%s」"
+                    if _MVM.display_text(_v.get("raw", _v["text"])) != _v["text"]:
+                        fails["N63"].append("%s の表示用の文が、原文と誤字の直しから作られていない: 「%s」"
                                             % (_nm, _v["text"]))
             # 確認待ちは「宙に浮かせない」。理由と出どころが必ず要る。
             for _pl in _carried:

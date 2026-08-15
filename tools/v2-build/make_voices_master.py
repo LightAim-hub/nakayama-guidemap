@@ -14,8 +14,12 @@
               あみさんが選び直し・書き直した版。件数が減り、本文も変わっている。
               xlsx は履歴として _source に残す (消さない)。
 
-本文は1文字も変えない:
-  こどもの声は本人の言葉。どれを載せるかはこちらの領分でも、書き換えるのはクライアントの領分。
+本文の扱い (2026-08-15 にボスの決裁で変わった):
+  それまでは「本人の言葉だから1文字も変えない」で通していた。
+  2026-08-15「子供の声も誤字脱字は修正して」の指示を受けて、**客観的な誤りだけ**直す。
+  言い回し・語彙・話し言葉らしさは触らない (「いっぱい」を「たくさん」に揃えるような
+  整形はしない。それをやると声が死ぬ)。直した分は VOICE_TYPO_FIX に理由つきで並べ、
+  raw に原文を残すので、いつでも戻せるし gate が「台帳に無い書き換え」を弾く。
 
 絵文字だけは表示側で落とす:
   地図のフォントは使う字だけを部分集合にして積んでいるので、絵文字は豆腐 (□) になる。
@@ -57,16 +61,35 @@ NAME_MAP = {
 }
 
 # 2026-08-15 の新しいリストには無いが、前の台帳 (xlsx) には有り、いま地図に出ているもの。
-# **消す指示か書き漏れかが分からないので、確認が取れるまで残す。**
-# 消すのは戻せないが、残すのは戻せる。確認が取れたら NAME_MAP へ移すか、この辞書ごと消す。
+# **残すと判断した** (2026-08-15)。根拠:
+#  - あみさんは一度も「外して」と言っていない。削除の指示は「商店街モニュメント」の時のように
+#    はっきり書いてくる (2026-08-14「「商店街モニュメント」削除」)
+#  - ウエルシアは 2026-07-29 に、あみさん自身が Google マップを送って位置を直させた店で、
+#    関心の外にある店ではない (handoff/2026-07-29_ami_feedback_plan.md)
+#  - 声を消すのは戻せない。残すのは戻せる
+# 「外して」と言われたらこの辞書から消す。
 PENDING_CONFIRMATION = {
     "ウエルシア": {
         "shops": ["ウエルシア仙台中山店"],
         "voices": ["商品が安い", "飲み物やお菓子をたくさん買う"],
-        "reason": "2026-08-15 の新リストに無い。xlsx には2行あり、いま地図にも出ている。"
-                  "消す指示か書き漏れかをあみさんへ確認中",
+        "reason": "2026-08-15 の新リストに無いが、削除の指示も無い。前の台帳から持ち越して残す "
+                  "(2026-08-15 判断)。あみさんから「外して」と言われたらここを消す",
         "from": "2026-08-14_中山商店街_こどもの声台帳.xlsx",
     },
+}
+
+# 誤字の直し (2026-08-15 ボス指示「子供の声も誤字脱字は修正して」)。
+# それまでは「本人の言葉だから直さない」で通していたが、ボスの決裁で方針を変えた。
+# 直すのは**客観的な誤り**だけ。言い回し・語彙・話し言葉らしさは触らない
+# (「いっぱい」を「たくさん」に揃える、といった整形はしない。それは声を殺す)。
+# raw に原文を残すので、いつでも戻せるし、何を直したかは gate が照合する。
+VOICE_TYPO_FIX = {
+    # 公園の名前。地図では「たきみち公園」。同じ場所が2つの名前で出ると読む人が混乱する
+    "春：桜がきれい(しだれ桜も)　夏：滝道公園が緑の大自然に　秋：落ち葉が赤や黄色で綺麗":
+        "春：桜がきれい(しだれ桜も)　夏：たきみち公園が緑の大自然に　秋：落ち葉が赤や黄色で綺麗",
+    # ら抜き
+    "持ち帰りができるため、おうちでも食べれる":
+        "持ち帰りができるため、おうちでも食べられる",
 }
 
 # 絵文字・異体字セレクタ・結合文字。地図のフォントに字形が無いので表示からは落とす。
@@ -77,6 +100,11 @@ EMOJI_RE = re.compile(
 def strip_emoji(text):
     """絵文字を落として前後の空白を整える。語は変えない。"""
     return EMOJI_RE.sub("", text).strip()
+
+
+def display_text(raw):
+    """原文 → 画面に出す文。誤字を直してから絵文字を落とす。gate も同じ関数で照合する。"""
+    return strip_emoji(VOICE_TYPO_FIX.get(raw, raw))
 
 
 def parse_source(path):
@@ -107,15 +135,17 @@ def main():
     if not parsed:
         raise SystemExit("一次台帳から1箇所も読めなかった: %s" % SRC)
 
-    places, total, dropped_emoji = [], 0, []
+    places, total, dropped_emoji, fixed = [], 0, [], []
     for p in parsed:
         name = p["master_name"]
         voices = []
         for raw in p["lines"]:
-            shown = strip_emoji(raw)
+            shown = display_text(raw)
             if not shown:
-                raise SystemExit("絵文字を落としたら空になる行がある (%s): %r" % (name, raw))
-            if shown != raw:
+                raise SystemExit("直したら空になる行がある (%s): %r" % (name, raw))
+            if raw in VOICE_TYPO_FIX:
+                fixed.append((name, raw, VOICE_TYPO_FIX[raw]))
+            if strip_emoji(raw) != raw:
                 dropped_emoji.append((name, raw))
             voices.append({"text": shown, "raw": raw})
         total += len(voices)
@@ -162,6 +192,7 @@ def main():
             "mapped_places": sum(1 for p in places if p.get("shops")),
             "pending_places": sum(1 for p in places if p.get("pending_confirmation")),
             "emoji_dropped": len(dropped_emoji),
+            "typo_fixed": len(fixed),
         },
         "places": places,
     }
@@ -173,6 +204,11 @@ def main():
     print("箇所 %d / 声 %d行 (確認待ち %d箇所)"
           % (doc["counts"]["places"], doc["counts"]["voice_lines"],
              doc["counts"]["pending_places"]))
+    if fixed:
+        print("誤字を直した行 %d件 (raw に原文あり):" % len(fixed))
+        for name, before, after in fixed:
+            print("   %-18s %s" % (name, before))
+            print("   %-18s → %s" % ("", after))
     if dropped_emoji:
         print("絵文字を落とした行 %d件 (raw に原文あり):" % len(dropped_emoji))
         for name, raw in dropped_emoji:
